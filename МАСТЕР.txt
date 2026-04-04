@@ -1,0 +1,38 @@
+ssh -i "C:\Users\wwwzo\Desktop\KurginianPhotoPipeline\cloud.oracle.com\ssh-key-2026-04-04.key" ubuntu@84.235.231.141
+
+------------редактор-----------------
+1. Перейди в папку с твоим кодом:
+cd ~/backend
+потом
+nano server.py       или файл который нужно изменить
+
+-----------------перезапуск---------------
+Если ты менял server.py, Dockerfile, requirements.txt
+sudo docker-compose up -d --build
+
+если .env
+sudo docker-compose restart
+
+--------------логи прочитать------------
+cd ~/backend
+sudo docker-compose logs -f --tail=100
+
+
+
+
+
+
+
+
+
+
+РАЗРАБ!!!!
+
+Шаг 1. Проверяем локально (защита от ошибок) 
+CMD в папке frontend!!! (там, где лежит твой код).
+
+npm run dev
+
+Зайди в браузере на http://localhost:3000  или http://localhost:3000/weddings/anna-ivan-21-10-2025 и убедись, что страница открывается и нет красных ошибок.
+
+Вернись в терминал и останови сервер, нажав Ctrl + C (и подтверди Y, если спросит).

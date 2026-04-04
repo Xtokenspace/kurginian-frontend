@@ -3,6 +3,7 @@
 import { useState, useRef, use } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
+import imageCompression from 'browser-image-compression'; // <-- ДОБАВЛЕН ИМПОРТ
 
 // === ТИПИЗАЦИЯ API (согласно ТЗ) ===
 export interface MatchedPhoto {
@@ -23,7 +24,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
 
-  // Добавлен статус 'network_error' для обработки падения сервера
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error'>('idle');
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,16 +32,32 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     fileInputRef.current?.click();
   };
 
-  // === ИНТЕГРАЦИЯ API: Отправка селфи ===
+  // === ИНТЕГРАЦИЯ API: Сжатие и отправка селфи ===
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');
 
-    const formData = new FormData();
-    // ВАЖНО: Бэкенд ждет файл именно под ключом 'selfie'
-    formData.append('selfie', file);
-
     try {
-      // Читаем URL из .env.local (fallback на localhost если забыли создать файл)
+      // 1. НАСТРОЙКИ СЖАТИЯ (по ТЗ: до 500 КБ, макс 800px)
+      const options = {
+        maxSizeMB: 0.5,           // Максимальный размер 500 КБ
+        maxWidthOrHeight: 800,    // Максимальная сторона 800px
+        useWebWorker: true,       // Использовать фоновый поток (чтобы не зависала анимация загрузки)
+        fileType: 'image/jpeg'    // Принудительно конвертируем в JPEG (полезно для HEIC с iPhone)
+      };
+
+      // 2. СЖИМАЕМ ФОТО
+      const compressedFile = await imageCompression(file, options);
+      
+      // Для отладки в консоли браузера (можно удалить позже)
+      console.log(`Оригинал: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`Сжатое: ${(compressedFile.size / 1024 / 1024).toFixed(2)} MB`);
+
+      // 3. ГОТОВИМ ДАННЫЕ ДЛЯ ОТПРАВКИ
+      const formData = new FormData();
+      // Передаем именно compressedFile, а не исходный file
+      formData.append('selfie', compressedFile, compressedFile.name);
+
+      // 4. ОТПРАВЛЯЕМ НА СЕРВЕР
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/auth`, {
@@ -60,7 +76,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         setStatus('error');
       }
     } catch (error) {
-      console.error('Ошибка при обращении к API:', error);
+      console.error('Ошибка при обращении к API или сжатии:', error);
       setStatus('network_error');
     }
   };
