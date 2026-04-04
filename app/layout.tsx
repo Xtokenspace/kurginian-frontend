@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Cinzel, Cormorant_Garamond, Montserrat } from "next/font/google";
 import "./globals.css";
 
-// Загружаем премиальные шрифты
+// ВАЖНО: Говорим Cloudflare использовать быстрые серверы
+export const runtime = "edge";
+
 const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 const cormorant = Cormorant_Garamond({ 
   subsets: ["latin"], 
@@ -11,12 +13,10 @@ const cormorant = Cormorant_Garamond({
 });
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
-// Настройки для PWA (превращаем сайт в приложение)
 export const viewport: Viewport = {
   themeColor: "#050505",
 };
 
-// Оставляем остальные настройки здесь
 export const metadata: Metadata = {
   title: "KURGINIAN Premium Gallery",
   description: "Votre galerie de mariage numérique",
