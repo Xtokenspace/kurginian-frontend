@@ -74,7 +74,11 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
 
         if (response.ok) {
           const data = await response.json();
-          setPhotos(data.data);
+          // Сортируем все фотографии по имени файла (хронологический порядок)
+          const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
+            a.filename.localeCompare(b.filename)
+          );
+          setPhotos(sortedPhotos);
         } else {
           // Если пароль сменили или он устарел - выкидываем обратно
           localStorage.removeItem(`vip_code_${slug}`);

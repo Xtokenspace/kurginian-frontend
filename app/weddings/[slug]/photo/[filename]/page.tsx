@@ -50,6 +50,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   
   const [showToast, setShowToast] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [showLangMenu, setShowLangMenu] = useState(false);
 
   // === ЯЗЫК ===
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
@@ -67,6 +68,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
     setLanguage(lang);
     localStorage.setItem(`lang_${slug}`, lang);
     localStorage.setItem('kurginian_global_lang', lang);
+    setShowLangMenu(false); // Закрываем глобус после выбора
   };
 
   const handleDownload = async () => {
@@ -111,22 +113,39 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           </button>
         </motion.div>
 
-        {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ */}
-        <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="pointer-events-auto flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow">
-          {(['fr', 'en', 'ru'] as const).map((lang) => (
-            <button
-              key={lang}
-              onClick={() => handleLanguageChange(lang)}
-              className={`px-3 py-1.5 md:px-4 md:py-2 rounded-3xl transition-all duration-300 text-xs md:text-sm ${
-                language === lang
-                  ? 'bg-lux-gold text-black shadow-inner'
-                  : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
-              }`}
-            >
-              {lang.toUpperCase()}
-            </button>
-          ))}
-        </motion.div>
+        {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ (Умный глобус) */}
+        <div className="pointer-events-auto relative">
+          <button
+            onClick={() => setShowLangMenu(!showLangMenu)}
+            className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
+          >
+            <span className="text-sm md:text-base">{language.toUpperCase()}</span>
+            <span className="text-lg md:text-xl">🌐</span>
+          </button>
+
+          <AnimatePresence>
+            {showLangMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-12 right-0 bg-lux-card border border-lux-gold/30 rounded-3xl p-1 shadow-2xl flex flex-col w-28 z-[60]"
+              >
+                {(['fr', 'en', 'ru'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => handleLanguageChange(lang)}
+                    className={`px-6 py-3 text-left rounded-3xl transition-all ${
+                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="w-full max-w-4xl pt-24 md:pt-20">

@@ -84,6 +84,7 @@ const translations = {
 } as const;
 
 export default function WeddingGuestPage({ params }: { params: Promise<{ slug: string }> }) {
+  const [showLangMenu, setShowLangMenu] = useState(false);
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
   const router = useRouter();
@@ -200,11 +201,14 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       const data: AuthResponse = await response.json();
 
       if (data.matches_count > 0) {
-        setPhotos(data.data);
+        // Сортируем фото гостя по хронологии (по имени файла), а не по % сходства
+        const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
+          a.filename.localeCompare(b.filename)
+        );
+        setPhotos(sortedPhotos);
         setStatus('success');
-        // Сохраняем ТОЛЬКО ключ для этой свадьбы. 
-        // Главная страница сама найдет его своим сканером.
-        localStorage.setItem(`photos_${slug}`, JSON.stringify(data.data));
+        // Сохраняем в память уже отсортированный массив
+        localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
       } else {
         setStatus('error');
       }
@@ -265,16 +269,17 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
-      {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Языки) */}
+      {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Умный глобус) */}
       <AnimatePresence>
         {(status === 'idle' || status === 'success') && (
-          <>
-            {/* Кнопка НАЗАД */}
+          <div className="fixed top-6 left-6 right-6 z-[60] flex justify-between items-start pointer-events-none">
+            
+            {/* Кнопка НАЗАД (Домой) */}
             <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-6 left-6 z-50"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -10 }}
+              className="pointer-events-auto"
             >
               <button
                 onClick={() => router.push('/')}
@@ -285,28 +290,43 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               </button>
             </motion.div>
 
-            {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ (Оставляем справа) */}
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow"
-            >
-              {(['fr', 'en', 'ru'] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setLanguage(lang)}
-                  className={`px-4 py-2 rounded-3xl transition-all duration-300 ${
-                    language === lang
-                      ? 'bg-lux-gold text-black shadow-inner'
-                      : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
-                  }`}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
-            </motion.div>
-          </>
+            {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ */}
+            <div className="pointer-events-auto relative">
+              <button
+                onClick={() => setShowLangMenu(!showLangMenu)}
+                className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
+              >
+                <span className="text-sm md:text-base">{language.toUpperCase()}</span>
+                <span className="text-lg md:text-xl">🌐</span>
+              </button>
+
+              <AnimatePresence>
+                {showLangMenu && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute top-12 right-0 bg-lux-card border border-lux-gold/30 rounded-3xl p-1 shadow-2xl flex flex-col w-28 z-50"
+                  >
+                    {(['fr', 'en', 'ru'] as const).map((lang) => (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          setLanguage(lang);
+                          setShowLangMenu(false);
+                        }}
+                        className={`px-6 py-3 text-left rounded-3xl transition-all ${
+                          language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        {lang.toUpperCase()}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         )}
       </AnimatePresence>
 
