@@ -48,13 +48,13 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative">
       
-      {/* Заголовок как на главной странице */}
+      {/* Заголовок */}
       <div className="w-full max-w-7xl pt-10">
         <h2 className="font-cinzel text-3xl text-lux-gold mb-8">
           Vos souvenirs • 1 photo
         </h2>
 
-        {/* Большое премиальное фото */}
+        {/* Большое фото */}
         <div className="max-w-4xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -74,7 +74,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           </motion.div>
         </div>
 
-        {/* Конверсионный блок — точно как у отправителя */}
+        {/* Конверсионный блок */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -101,7 +101,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         </motion.div>
       </div>
 
-      {/* Плавающая кнопка меню ⋮ */}
+      {/* Плавающая кнопка меню */}
       <button
         onClick={() => setShowMenu(true)}
         className="fixed bottom-8 right-8 w-14 h-14 bg-lux-gold text-black rounded-full flex items-center justify-center shadow-gold-glow-hover hover:scale-110 transition-all duration-300 z-[90] text-3xl"
@@ -109,7 +109,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         ⋮
       </button>
 
-      {/* Модальное меню */}
+      {/* МОДАЛЬНОЕ МЕНЮ — ОБНОВЛЁННОЕ */}
       <AnimatePresence>
         {showMenu && (
           <motion.div
@@ -126,25 +126,40 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2"
               onClick={(e) => e.stopPropagation()}
             >
+              {/* НОВАЯ КНОПКА — Trouver encore des photos */}
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  router.push(`/weddings/${slug}`);
+                }}
+                className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
+              >
+                🔎 Trouver encore des photos
+              </button>
+
               <button
                 onClick={() => { setShowMenu(false); handleDownload(); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
                 ⬇️ Télécharger cette photo
               </button>
+
               <button
                 onClick={() => { setShowMenu(false); handleShare(); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
                 ↗️ Partager le lien
               </button>
+
               <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
+
               <button
                 onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
                 📸 Suivre sur Instagram
               </button>
+
               <button
                 onClick={() => { setShowMenu(false); window.open("https://kurginian.pro", "_blank"); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
@@ -156,7 +171,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         )}
       </AnimatePresence>
 
-      {/* Toast уведомление */}
+      {/* Toast */}
       <AnimatePresence>
         {showToast && (
           <motion.div

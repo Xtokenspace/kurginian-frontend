@@ -80,7 +80,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const t = translations[language];
 
-  // Загрузка и сохранение выбранного языка
+  // === СОХРАНЕНИЕ ЯЗЫКА И РЕЗУЛЬТАТОВ (Оптимизировано) ===
   useEffect(() => {
     const savedLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru' | null;
     if (savedLang) setLanguage(savedLang);
@@ -90,7 +90,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     localStorage.setItem(`lang_${slug}`, language);
   }, [language, slug]);
 
-  // === Сохранение и восстановление результатов ===
   useEffect(() => {
     if (photos.length > 0) {
       localStorage.setItem(`photos_${slug}`, JSON.stringify(photos));
@@ -129,7 +128,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         body: formData,
       });
 
-      if (!response.ok) throw new Error('Erreur HTTP');
+      if (!response.ok) throw new Error('HTTP error');
 
       const data: AuthResponse = await response.json();
 
@@ -171,7 +170,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         const blob = await response.blob();
         zip.file(photo.filename, blob);
         
-        // Прогресс
         setDownloadProgress(Math.round(((i + 1) / photos.length) * 100));
       }
           
@@ -181,8 +179,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       link.download = `mes_photos_mariage_${slug}.zip`;
       link.click();
       URL.revokeObjectURL(link.href);
-    } catch (error) {
-      alert("Не удалось скачать все фото. Попробуйте скачать по одной.");
+    } catch {
+      alert("Не удалось скачать ZIP. Попробуйте скачать по одной.");
     } finally {
       setIsDownloadingAll(false);
       setDownloadProgress(0);
@@ -192,24 +190,31 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
-      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ — ВЕРХНИЙ ПРАВЫЙ УГОЛ */}
-      {status === 'idle' && (
-        <div className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow">
-          {(['fr', 'en', 'ru'] as const).map((lang) => (
-            <button
-              key={lang}
-              onClick={() => setLanguage(lang)}
-              className={`px-4 py-2 rounded-3xl transition-all ${
-                language === lang
-                  ? 'bg-lux-gold text-black shadow-inner'
-                  : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
-              }`}
-            >
-              {lang.toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ — ВЕРХНИЙ ПРАВЫЙ УГОЛ (только в idle) */}
+      <AnimatePresence>
+        {status === 'idle' && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow"
+          >
+            {(['fr', 'en', 'ru'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setLanguage(lang)}
+                className={`px-4 py-2 rounded-3xl transition-all duration-300 ${
+                  language === lang
+                    ? 'bg-lux-gold text-black shadow-inner'
+                    : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
+                }`}
+              >
+                {lang.toUpperCase()}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <input 
         type="file" 
@@ -227,7 +232,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             key="idle"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: -20, filter: "blur(5px)" }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className="text-center max-w-lg w-full"
           >
             <h1 className="font-cinzel text-3xl md:text-5xl text-lux-gold mb-6 uppercase tracking-widest">
@@ -251,12 +257,13 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            exit={{ opacity: 0, filter: "blur(5px)" }}
+            transition={{ duration: 0.4 }}
             className="fixed inset-0 bg-lux-bg flex items-center justify-center z-50 p-6 text-center"
           >
             <motion.p 
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ repeat: Infinity, duration: 2 }}
+              animate={{ opacity: [0.4, 1, 0.4], scale: [0.98, 1, 0.98] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
               className="font-cinzel text-xl text-lux-gold tracking-widest"
             >
               {language === 'ru' ? 'Ищем ваше лицо среди воспоминаний...' : 
@@ -270,8 +277,10 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         {status === 'error' && (
           <motion.div 
             key="error"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
             className="text-center max-w-md"
           >
             <p className="font-cormorant text-2xl text-lux-text mb-8">
@@ -281,7 +290,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             </p>
             <button 
               onClick={() => setStatus('idle')}
-              className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow transition-all"
+              className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all duration-300"
             >
               {language === 'ru' ? 'Попробовать снова' : language === 'en' ? 'Try Again' : 'Réessayer'}
             </button>
@@ -294,6 +303,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             key="network_error"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4 }}
             className="text-center max-w-md bg-red-900/20 border border-red-500/50 p-8 rounded-sm"
           >
             <p className="font-cormorant text-2xl text-red-400 mb-6">
@@ -303,7 +314,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             </p>
             <button 
               onClick={() => setStatus('idle')}
-              className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow transition-all"
+              className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all duration-300"
             >
               {language === 'ru' ? 'Назад' : language === 'en' ? 'Back' : 'Retour'}
             </button>
@@ -314,8 +325,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         {status === 'success' && (
           <motion.div 
             key="success"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
             className="w-full max-w-7xl pt-10 relative"
           >
             <div className="flex justify-between items-center mb-8">
@@ -330,19 +342,19 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             <motion.div 
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
               className="mt-16 border-t border-lux-gold/20 pt-12 text-center"
             >
               <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
                 <button
                   onClick={() => window.open("https://www.instagram.com/hdart26/", "_blank")}
-                  className="flex-1 px-8 py-5 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all flex items-center justify-center gap-3 rounded-sm text-base"
+                  className="flex-1 px-8 py-5 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-3 rounded-sm text-base"
                 >
                   📸 {t.contactPhotographer}
                 </button>
                 <button
                   onClick={() => window.open("https://kurginian.pro", "_blank")}
-                  className="flex-1 px-8 py-5 bg-lux-gold text-black hover:bg-white transition-all flex items-center justify-center gap-3 rounded-sm font-medium text-base"
+                  className="flex-1 px-8 py-5 bg-lux-gold text-black hover:bg-white transition-all duration-300 flex items-center justify-center gap-3 rounded-sm font-medium text-base"
                 >
                   🌐 {t.discoverServices}
                 </button>
@@ -353,12 +365,15 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             </motion.div>
             
             {/* ПРЕМИУМ ПЛАВАЮЩАЯ КНОПКА */}
-            <button
+            <motion.button
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
               onClick={() => setShowMenu(true)}
-              className="fixed bottom-8 right-8 w-14 h-14 bg-lux-gold text-black rounded-full flex items-center justify-center shadow-gold-glow-hover hover:scale-110 transition-all duration-300 z-[90] text-3xl"
+              className="fixed bottom-8 right-8 w-14 h-14 bg-lux-gold text-black rounded-full flex items-center justify-center shadow-gold-glow hover:shadow-gold-glow-hover hover:scale-110 transition-all duration-300 z-[90] text-3xl"
             >
               ⋮
-            </button>
+            </motion.button>
 
             {/* МОДАЛЬНОЕ МЕНЮ (БЕЗ ЯЗЫКОВ) */}
             <AnimatePresence>
@@ -367,39 +382,41 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
                   className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-end md:items-center justify-center p-4"
                   onClick={() => setShowMenu(false)}
                 >
                   <motion.div
-                    initial={{ y: 100, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    exit={{ y: 100, opacity: 0 }}
-                    className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2"
+                    initial={{ y: 100, opacity: 0, scale: 0.95 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    exit={{ y: 50, opacity: 0, scale: 0.95 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2 shadow-2xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
                       onClick={() => { setShowMenu(false); setShowChoiceModal(true); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
                     >
                       🔎 {t.findMore}
                     </button>
                     <button
                       onClick={() => { setShowMenu(false); downloadAllPhotos(); }}
                       disabled={isDownloadingAll}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg disabled:opacity-50"
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg disabled:opacity-50"
                     >
                       {isDownloadingAll ? `⏳ ${downloadProgress}% — Préparation...` : `⬇️ ${t.downloadAll}`}
                     </button>
                     <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
                     <button
                       onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
                     >
                       📸 {t.contactPhotographer}
                     </button>
                     <button
                       onClick={() => { setShowMenu(false); window.open("https://kurginian.pro", "_blank"); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
                     >
                       🌐 {t.discoverServices}
                     </button>
@@ -419,14 +436,16 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
             onClick={() => setShowChoiceModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-lux-card border border-lux-gold/30 rounded-sm max-w-md w-full p-8 text-center"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-lux-card border border-lux-gold/30 rounded-sm max-w-md w-full p-8 text-center shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="space-y-4">
@@ -436,9 +455,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                     fileInputRef.current?.setAttribute('capture', 'user');
                     fileInputRef.current?.click();
                   }}
-                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all flex items-center justify-center gap-4 text-lg font-medium rounded-sm"
+                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-4 text-lg font-medium rounded-sm group"
                 >
-                  📸 <span>{t.takePhoto}</span>
+                  <span className="group-hover:scale-110 transition-transform">📸</span> <span>{t.takePhoto}</span>
                 </button>
                 <button
                   onClick={() => {
@@ -446,9 +465,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                     fileInputRef.current?.removeAttribute('capture');
                     fileInputRef.current?.click();
                   }}
-                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all flex items-center justify-center gap-4 text-lg font-medium rounded-sm"
+                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-4 text-lg font-medium rounded-sm group"
                 >
-                  📁 <span>{t.chooseGallery}</span>
+                  <span className="group-hover:scale-110 transition-transform">📁</span> <span>{t.chooseGallery}</span>
                 </button>
               </div>
 

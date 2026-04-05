@@ -3,9 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Gallery({ photos, slug }: { photos: any[], slug: string }) {
+export default function Gallery({ photos, slug }: { photos: any[]; slug: string }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
   const currentPhoto = selectedIndex !== null ? photos[selectedIndex] : null;
 
   // Клавиатура
@@ -27,25 +26,22 @@ export default function Gallery({ photos, slug }: { photos: any[], slug: string 
       const blob = await res.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = filename || 'photo.jpg';
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(link.href);
-    } catch (err) {
+    } catch {
       alert("Erreur lors du téléchargement.");
     }
   };
 
   const handleShare = async () => {
-  if (!currentPhoto) return;
-  
-  // ← Главное изменение: добавляем ?mode=share
-  const shareLink = `${window.location.origin}/weddings/${slug}/photo/${currentPhoto.filename}?mode=share`;
-  
-  try {
+    if (!currentPhoto) return;
+    const shareLink = `${window.location.origin}/weddings/${slug}/photo/${currentPhoto.filename}?mode=share`;
+
+    try {
       await navigator.clipboard.writeText(shareLink);
       alert('✅ Lien copié dans le presse-papiers !');
-    } catch (err) {
-      // Если clipboard не работает (редко)
+    } catch {
       prompt('Copiez ce lien :', shareLink);
     }
   };
@@ -55,23 +51,28 @@ export default function Gallery({ photos, slug }: { photos: any[], slug: string 
 
   return (
     <>
-      {/* Masonry Grid */}
+      {/* Masonry Grid — премиум вид */}
       <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
         {photos.map((photo, index) => (
           <motion.div
             key={photo.filename}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.08 }}
-            className="break-inside-avoid cursor-pointer overflow-hidden rounded-sm border border-transparent hover:border-lux-gold hover:shadow-gold-glow transition-all duration-500"
+            transition={{ delay: index * 0.06 }}
+            className="break-inside-avoid cursor-pointer overflow-hidden rounded-sm border border-transparent hover:border-lux-gold hover:shadow-gold-glow transition-all duration-500 active:scale-[0.98]"
             onClick={() => setSelectedIndex(index)}
           >
-            <img src={photo.urls.thumb} alt="" className="w-full object-cover" loading="lazy" />
+            <img
+              src={photo.urls.thumb}
+              alt=""
+              className="w-full object-cover"
+              loading="lazy"
+            />
           </motion.div>
         ))}
       </div>
 
-      {/* PREMIUM LIGHTBOX — APPLE LEVEL */}
+      {/* PREMIUM LIGHTBOX */}
       <AnimatePresence>
         {currentPhoto && (
           <motion.div
@@ -81,7 +82,6 @@ export default function Gallery({ photos, slug }: { photos: any[], slug: string 
             className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
             onClick={(e) => e.target === e.currentTarget && setSelectedIndex(null)}
           >
-            {/* Фото с поддержкой свайпа */}
             <motion.img
               key={currentPhoto.filename}
               drag="x"
@@ -107,17 +107,16 @@ export default function Gallery({ photos, slug }: { photos: any[], slug: string 
               >
                 &times;
               </button>
-
               <div className="font-montserrat text-sm tracking-widest">
                 {selectedIndex! + 1} / {photos.length}
               </div>
             </div>
 
-            {/* Нижняя панель — супер премиум */}
+            {/* Нижняя панель */}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-3xl rounded-3xl px-3 py-2 flex items-center shadow-2xl z-10 border border-white/10">
               <button
-                onClick={() => handleDownload(currentPhoto.urls.web, `kurginian_${currentPhoto.filename}`)}
-                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold transition-all rounded-3xl hover:bg-white/10 text-base font-medium"
+                onClick={() => handleDownload(currentPhoto.urls.web, currentPhoto.filename)}
+                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold hover:bg-white/10 transition-all rounded-3xl text-base font-medium"
               >
                 <span className="text-2xl">⬇️</span>
                 <span>Télécharger</span>
@@ -127,7 +126,7 @@ export default function Gallery({ photos, slug }: { photos: any[], slug: string 
 
               <button
                 onClick={handleShare}
-                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold transition-all rounded-3xl hover:bg-white/10 text-base font-medium"
+                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold hover:bg-white/10 transition-all rounded-3xl text-base font-medium"
               >
                 <span className="text-2xl">↗️</span>
                 <span>Partager</span>
