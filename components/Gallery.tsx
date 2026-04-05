@@ -112,24 +112,21 @@ export default function Gallery({ photos, slug }: { photos: any[]; slug: string 
               </div>
             </div>
 
-            {/* Нижняя панель */}
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-3xl rounded-3xl px-3 py-2 flex items-center shadow-2xl z-10 border border-white/10">
+            {/* НОВАЯ ПАНЕЛЬ В СТИЛЕ GOOGLE IMAGES */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3 z-10">
               <button
                 onClick={() => handleDownload(currentPhoto.urls.web, currentPhoto.filename)}
-                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold hover:bg-white/10 transition-all rounded-3xl text-base font-medium"
+                className="flex items-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl"
               >
-                <span className="text-2xl">⬇️</span>
-                <span>Télécharger</span>
+                <span className="text-2xl leading-none">↓</span>
+                <span className="font-medium">Télécharger</span>
               </button>
-
-              <div className="w-px h-8 bg-white/20 mx-2"></div>
-
               <button
                 onClick={handleShare}
-                className="flex items-center gap-3 px-8 py-4 text-white hover:text-lux-gold hover:bg-white/10 transition-all rounded-3xl text-base font-medium"
+                className="flex items-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl"
               >
-                <span className="text-2xl">↗️</span>
-                <span>Partager</span>
+                <span className="text-2xl leading-none">↗</span>
+                <span className="font-medium">Partager</span>
               </button>
             </div>
 

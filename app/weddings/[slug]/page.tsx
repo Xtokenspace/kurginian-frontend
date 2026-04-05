@@ -135,6 +135,22 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       if (data.matches_count > 0) {
         setPhotos(data.data);
         setStatus('success');
+
+        // === СОХРАНЕНИЕ ДЛЯ PWA (много свадеб + последняя использованная) ===
+        const userData = JSON.parse(localStorage.getItem('kurginianUserData') || '{}');
+        const newData = {
+          lastUsedSlug: slug,
+          myWeddings: {
+            ...(userData.myWeddings || {}),
+            [slug]: {
+              photos: data.data,
+              language,
+              timestamp: Date.now()
+            }
+          }
+        };
+        localStorage.setItem('kurginianUserData', JSON.stringify(newData));
+
       } else {
         setStatus('error');
       }

@@ -130,6 +130,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               <button
                 onClick={() => {
                   setShowMenu(false);
+                  localStorage.removeItem(`photos_${slug}`);
                   router.push(`/weddings/${slug}`);
                 }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
@@ -137,22 +138,27 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
                 🔎 Trouver encore des photos
               </button>
 
-              <button
-                onClick={() => { setShowMenu(false); handleDownload(); }}
-                className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
-              >
-                ⬇️ Télécharger cette photo
-              </button>
-
-              <button
-                onClick={() => { setShowMenu(false); handleShare(); }}
-                className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
-              >
-                ↗️ Partager le lien
-              </button>
+              {/* НОВАЯ ПАНЕЛЬ В СТИЛЕ GOOGLE IMAGES (ГДЕ РАНЬШЕ БЫЛИ ДВЕ КНОПКИ) */}
+              <div className="flex gap-3 p-4 justify-center">
+                <button
+                  onClick={() => { setShowMenu(false); handleDownload(); }}
+                  className="flex-1 flex items-center justify-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl border border-white/5"
+                >
+                  <span className="text-2xl leading-none">↓</span>
+                  <span className="font-medium">Télécharger</span>
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); handleShare(); }}
+                  className="flex-1 flex items-center justify-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl border border-white/5"
+                >
+                  <span className="text-2xl leading-none">↗</span>
+                  <span className="font-medium">Partager</span>
+                </button>
+              </div>
 
               <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
 
+              {/* Нижние кнопки */}
               <button
                 onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
