@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
 import imageCompression from 'browser-image-compression';
 import JSZip from 'jszip';
+import { useRouter } from 'next/navigation';
 
 // === ТИПИЗАЦИЯ API ===
 export interface MatchedPhoto {
@@ -34,7 +35,13 @@ const translations = {
     findMore: "Trouver encore des photos",
     contactPhotographer: "Suivre sur Instagram",
     discoverServices: "Découvrir mon univers",
-    thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery"
+    thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
+    home: "Mes galeries",
+    viewAll: "Toutes les photos",
+    enterPassword: "Code d'accès VIP",
+    submit: "Valider",
+    cancel: "Annuler",
+    wrongPassword: "Code incorrect"
   },
   en: {
     welcome: "Welcome",
@@ -47,7 +54,13 @@ const translations = {
     findMore: "Find more photos",
     contactPhotographer: "Follow on Instagram",
     discoverServices: "Discover my work",
-    thanks: "Thank you for using KURGINIAN Premium Gallery"
+    thanks: "Thank you for using KURGINIAN Premium Gallery",
+    home: "My galleries",
+    viewAll: "All photos",
+    enterPassword: "VIP Access Code",
+    submit: "Submit",
+    cancel: "Cancel",
+    wrongPassword: "Incorrect code"
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -60,13 +73,20 @@ const translations = {
     findMore: "Найти ещё фото",
     contactPhotographer: "Подписаться в Instagram",
     discoverServices: "Узнать о моих услугах",
-    thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery"
+    thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
+    home: "Мои галереи",
+    viewAll: "Все фотографии",
+    enterPassword: "VIP Код доступа",
+    submit: "Войти",
+    cancel: "Отмена",
+    wrongPassword: "Неверный код"
   }
 } as const;
 
 export default function WeddingGuestPage({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
+  const router = useRouter();
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error'>('idle');
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
@@ -76,31 +96,72 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [downloadProgress, setDownloadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Стейты для VIP-пароля
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+
   // === ЯЗЫКОВОЕ СОСТОЯНИЕ ===
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const t = translations[language];
 
-  // === СОХРАНЕНИЕ ЯЗЫКА И РЕЗУЛЬТАТОВ (Оптимизировано) ===
+  // Обработчик проверки пароля через API
+  const handlePasswordSubmit = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/weddings/${slug}/verify-vip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput }),
+      });
+
+      if (response.ok) {
+        // СОХРАНЯЕМ ПАРОЛЬ КАК VIP-КЛЮЧ
+        localStorage.setItem(`vip_code_${slug}`, passwordInput);
+        setShowPasswordModal(false);
+        router.push(`/weddings/${slug}/admin`);
+      } else {
+        setPasswordError(true);
+        setTimeout(() => setPasswordError(false), 2000);
+      }
+    } catch (error) {
+      setPasswordError(true);
+      setTimeout(() => setPasswordError(false), 2000);
+    }
+  };
+
+  // === УМНАЯ СИНХРОНИЗАЦИЯ (Язык + Память) ===
   useEffect(() => {
-    const savedLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru' | null;
-    if (savedLang) setLanguage(savedLang);
+    // 1. Сначала проверяем глобальный язык с главной страницы
+    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
+    // 2. Затем локальный язык этой конкретной свадьбы
+    const savedSlugLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
+    
+    if (globalLang) {
+      setLanguage(globalLang);
+    } else if (savedSlugLang) {
+      setLanguage(savedSlugLang);
+    }
   }, [slug]);
 
+  // Сохраняем выбор языка локально при изменении
   useEffect(() => {
     localStorage.setItem(`lang_${slug}`, language);
   }, [language, slug]);
 
-  useEffect(() => {
-    if (photos.length > 0) {
-      localStorage.setItem(`photos_${slug}`, JSON.stringify(photos));
-    }
-  }, [photos, slug]);
-
+  // Загружаем фото из памяти только для этой свадьбы
   useEffect(() => {
     const saved = localStorage.getItem(`photos_${slug}`);
     if (saved) {
-      setPhotos(JSON.parse(saved));
-      setStatus('success');
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.length > 0) {
+          setPhotos(parsed);
+          setStatus('success');
+        }
+      } catch (e) {
+        localStorage.removeItem(`photos_${slug}`);
+      }
     }
   }, [slug]);
 
@@ -128,6 +189,12 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         body: formData,
       });
 
+      // Обработка конкретной ошибки: Свадьба не найдена
+      if (response.status === 404) {
+        setStatus('error'); // Или можно добавить новый статус 'not_found'
+        return;
+      }
+
       if (!response.ok) throw new Error('HTTP error');
 
       const data: AuthResponse = await response.json();
@@ -135,22 +202,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       if (data.matches_count > 0) {
         setPhotos(data.data);
         setStatus('success');
-
-        // === СОХРАНЕНИЕ ДЛЯ PWA (много свадеб + последняя использованная) ===
-        const userData = JSON.parse(localStorage.getItem('kurginianUserData') || '{}');
-        const newData = {
-          lastUsedSlug: slug,
-          myWeddings: {
-            ...(userData.myWeddings || {}),
-            [slug]: {
-              photos: data.data,
-              language,
-              timestamp: Date.now()
-            }
-          }
-        };
-        localStorage.setItem('kurginianUserData', JSON.stringify(newData));
-
+        // Сохраняем ТОЛЬКО ключ для этой свадьбы. 
+        // Главная страница сама найдет его своим сканером.
+        localStorage.setItem(`photos_${slug}`, JSON.stringify(data.data));
       } else {
         setStatus('error');
       }
@@ -180,23 +234,28 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
+        
+        // Показываем прогресс загрузки по сети
+        setDownloadProgress(Math.round(((i) / photos.length) * 100));
               
         const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
         if (!response.ok) throw new Error();
         const blob = await response.blob();
         zip.file(photo.filename, blob);
-        
-        setDownloadProgress(Math.round(((i + 1) / photos.length) * 100));
       }
+      
+      // Финальная стадия: упаковка (здесь обычно зависает UI, поэтому меняем текст)
+      setDownloadProgress(100); 
+      // Мы будем использовать этот флаг в UI, чтобы написать "Archivage..."
           
       const content = await zip.generateAsync({ type: "blob" });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(content);
-      link.download = `mes_photos_mariage_${slug}.zip`;
+      link.download = `mes_photos_${slug}.zip`;
       link.click();
       URL.revokeObjectURL(link.href);
     } catch {
-      alert("Не удалось скачать ZIP. Попробуйте скачать по одной.");
+      alert(language === 'ru' ? "Ошибка при создании архива" : "Erreur lors de la création de l'archive");
     } finally {
       setIsDownloadingAll(false);
       setDownloadProgress(0);
@@ -206,29 +265,48 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
-      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ — ВЕРХНИЙ ПРАВЫЙ УГОЛ (только в idle) */}
+      {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Языки) */}
       <AnimatePresence>
-        {status === 'idle' && (
-          <motion.div 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow"
-          >
-            {(['fr', 'en', 'ru'] as const).map((lang) => (
+        {(status === 'idle' || status === 'success') && (
+          <>
+            {/* Кнопка НАЗАД */}
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-6 left-6 z-50"
+            >
               <button
-                key={lang}
-                onClick={() => setLanguage(lang)}
-                className={`px-4 py-2 rounded-3xl transition-all duration-300 ${
-                  language === lang
-                    ? 'bg-lux-gold text-black shadow-inner'
-                    : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
-                }`}
+                onClick={() => router.push('/')}
+                className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
               >
-                {lang.toUpperCase()}
+                <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
+                <span className="hidden md:inline uppercase tracking-widest">{t.home}</span>
               </button>
-            ))}
-          </motion.div>
+            </motion.div>
+
+            {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ (Оставляем справа) */}
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow"
+            >
+              {(['fr', 'en', 'ru'] as const).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => setLanguage(lang)}
+                  className={`px-4 py-2 rounded-3xl transition-all duration-300 ${
+                    language === lang
+                      ? 'bg-lux-gold text-black shadow-inner'
+                      : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
+                  }`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -419,9 +497,27 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                     <button
                       onClick={() => { setShowMenu(false); downloadAllPhotos(); }}
                       disabled={isDownloadingAll}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg disabled:opacity-50"
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg disabled:opacity-70"
                     >
-                      {isDownloadingAll ? `⏳ ${downloadProgress}% — Préparation...` : `⬇️ ${t.downloadAll}`}
+                      {isDownloadingAll ? (
+                        <>
+                          <span className="animate-spin">⏳</span>
+                          <span>
+                            {downloadProgress < 100 
+                              ? `${language === 'ru' ? 'Загрузка' : 'Chargement'} ${downloadProgress}%` 
+                              : (language === 'ru' ? 'Создание архива...' : 'Archivage...')}
+                          </span>
+                        </>
+                      ) : (
+                        <><span>⬇️</span> <span>{t.downloadAll}</span></>
+                      )}
+                    </button>
+                    <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
+                    <button
+                      onClick={() => { setShowMenu(false); setShowPasswordModal(true); }}
+                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg text-lux-gold"
+                    >
+                      🔓 {t.viewAll}
                     </button>
                     <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
                     <button
@@ -493,6 +589,67 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               >
                 {language === 'ru' ? 'Отмена' : language === 'en' ? 'Cancel' : 'Annuler'}
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* МОДАЛЬНОЕ ОКНО VIP ПАРОЛЯ */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+            onClick={() => setShowPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-lux-card border border-lux-gold/50 rounded-sm max-w-sm w-full p-8 text-center shadow-gold-glow"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-cinzel text-xl text-lux-gold mb-6 tracking-widest uppercase">
+                {t.enterPassword}
+              </h3>
+              
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="••••••"
+                className={`w-full bg-[#111] border ${passwordError ? 'border-red-500' : 'border-lux-gold/30'} text-white px-4 py-4 rounded-sm text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-lux-gold transition-colors mb-2`}
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+              />
+              
+              {/* Сообщение об ошибке */}
+              <div className="h-6">
+                <AnimatePresence>
+                  {passwordError && (
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-400 text-sm">
+                      {t.wrongPassword}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <button
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-sm tracking-wider"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  onClick={handlePasswordSubmit}
+                  className="flex-1 px-4 py-3 bg-lux-gold text-black font-medium hover:bg-white transition-colors rounded-sm uppercase text-sm tracking-wider"
+                >
+                  {t.submit}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -51,6 +51,7 @@ interface SavedGallery {
   slug: string;
   hasPhotos: boolean;
   count: number;
+  isVip: boolean; // ← Новое поле
 }
 
 export default function PWAHome() {
@@ -65,7 +66,7 @@ export default function PWAHome() {
   
   const t = translations[language];
 
-  // УМНЫЙ СКАНЕР LOCALSTORAGE (Обновленный)
+  // УМНЫЙ СКАНЕР LOCALSTORAGE (Теперь видит и фото, и VIP)
   useEffect(() => {
     const savedGlobalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
     if (savedGlobalLang) setLanguage(savedGlobalLang);
@@ -76,17 +77,26 @@ export default function PWAHome() {
       const key = localStorage.key(i);
       if (!key) continue;
 
-      // Ищем ТОЛЬКО реальные фото. Если фото нет - свадьба не сохраняется.
+      // 1. ИЩЕМ СЕЛФИ-ФОТО
       if (key.startsWith('photos_')) {
         const slug = key.replace('photos_', '');
         try {
           const photos = JSON.parse(localStorage.getItem(key) || '[]');
           if (photos.length > 0) {
-            foundGalleries.set(slug, { slug, hasPhotos: true, count: photos.length });
+            // Сохраняем или обновляем запись
+            const existing = foundGalleries.get(slug) || { slug, hasPhotos: false, count: 0, isVip: false };
+            foundGalleries.set(slug, { ...existing, hasPhotos: true, count: photos.length });
           }
         } catch (e) {
           console.error("Ошибка парсинга фото для", slug);
         }
+      }
+      // 2. ИЩЕМ VIP ДОСТУП
+      else if (key.startsWith('vip_code_')) {
+        const slug = key.replace('vip_code_', '');
+        // Если свадьба уже есть (нашли фото), просто ставим флажок isVip
+        const existing = foundGalleries.get(slug) || { slug, hasPhotos: false, count: 0, isVip: false };
+        foundGalleries.set(slug, { ...existing, isVip: true });
       }
     }
 
@@ -210,15 +220,24 @@ export default function PWAHome() {
                         key={gallery.slug}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => router.push(`/weddings/${gallery.slug}`)}
-                        className="bg-[#0a0a0a] border border-white/5 rounded-sm p-4 cursor-pointer hover:border-lux-gold/50 transition-all flex justify-between items-center group"
+                        // Умный роутинг: если есть VIP, кидаем в админку, если нет — в гостевую
+                        onClick={() => router.push(gallery.isVip ? `/weddings/${gallery.slug}/admin` : `/weddings/${gallery.slug}`)}
+                        className="bg-[#0a0a0a] border border-white/5 rounded-sm p-4 cursor-pointer hover:border-lux-gold/50 transition-all flex justify-between items-center group relative overflow-hidden"
                       >
-                        <div>
-                          <h3 className="font-cinzel text-white tracking-wider text-sm md:text-base mb-1">
+                        {/* Золотая полоска слева для VIP */}
+                        {gallery.isVip && <div className="absolute left-0 top-0 bottom-0 w-1 bg-lux-gold shadow-gold-glow" />}
+                        
+                        <div className={gallery.isVip ? "pl-2" : ""}>
+                          <h3 className="font-cinzel text-white tracking-wider text-sm md:text-base mb-1 flex items-center gap-2">
                             {formatSlug(gallery.slug)}
+                            {gallery.isVip && (
+                              <span className="bg-lux-gold text-black text-[9px] px-1.5 py-0.5 rounded-sm font-bold tracking-widest">VIP</span>
+                            )}
                           </h3>
-                          <span className="text-xs text-green-400 font-medium">
-                            ✓ {gallery.count} {t.photosFound}
+                          <span className={`text-xs font-medium ${gallery.hasPhotos ? 'text-green-400' : 'text-gray-500'}`}>
+                            {gallery.hasPhotos 
+                              ? `✓ ${gallery.count} ${t.photosFound}` 
+                              : (language === 'ru' ? 'Полный доступ' : language === 'en' ? 'Full access' : 'Accès complet')}
                           </span>
                         </div>
                         <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-colors">
