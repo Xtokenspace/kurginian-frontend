@@ -33,7 +33,6 @@ export const metadata: Metadata = {
     startupImage: [
       {
         url: "/apple-touch-icon.png",
-        sizes: "180x180",
       },
     ],
   },
