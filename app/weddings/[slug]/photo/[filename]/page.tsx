@@ -1,9 +1,42 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
+
+const translations = {
+  fr: {
+    title: "Vos souvenirs • 1 photo",
+    download: "Télécharger",
+    share: "Partager",
+    findMore: "Trouver encore des photos",
+    instagram: "Suivre sur Instagram",
+    discover: "Découvrir mon univers",
+    thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
+    toast: "Lien copié dans le presse-papiers"
+  },
+  en: {
+    title: "Your memories • 1 photo",
+    download: "Download",
+    share: "Share",
+    findMore: "Find more photos",
+    instagram: "Follow on Instagram",
+    discover: "Discover my work",
+    thanks: "Thank you for using KURGINIAN Premium Gallery",
+    toast: "Link copied to clipboard"
+  },
+  ru: {
+    title: "Ваши воспоминания • 1 фото",
+    download: "Скачать",
+    share: "Поделиться",
+    findMore: "Найти ещё фото",
+    instagram: "Подписаться в Instagram",
+    discover: "Узнать о моих услугах",
+    thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
+    toast: "Ссылка скопирована в буфер обмена"
+  }
+} as const;
 
 export default function SinglePhotoPage({ params }: { params: Promise<{ slug: string; filename: string }> }) {
   const resolvedParams = use(params);
@@ -18,6 +51,22 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
 
   const [showMenu, setShowMenu] = useState(false);
   const [showToast, setShowToast] = useState(false);
+
+  // === ЯЗЫК + ПЕРЕКЛЮЧАТЕЛЬ ===
+  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  const [showLanguageSwitcher, setShowLanguageSwitcher] = useState(true); // ← новое состояние
+  const t = translations[language];
+
+  // Загрузка сохранённого языка
+  useEffect(() => {
+    const savedLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru' | null;
+    if (savedLang) setLanguage(savedLang);
+  }, [slug]);
+
+  // Сохранение языка
+  useEffect(() => {
+    localStorage.setItem(`lang_${slug}`, language);
+  }, [language, slug]);
 
   const handleDownload = async () => {
     try {
@@ -47,11 +96,38 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
 
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative">
-      
+
+      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ — исчезает после выбора */}
+      <AnimatePresence>
+        {showLanguageSwitcher && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="absolute top-6 right-6 z-50 flex gap-1 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-1 py-1 text-sm font-medium shadow-gold-glow"
+          >
+            {(['fr', 'en', 'ru'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => {
+                  setLanguage(lang);
+                  setShowLanguageSwitcher(false);   // ← вот это убирает переключатель
+                }}
+                className={`px-4 py-2 rounded-3xl transition-all ${
+                  language === lang ? 'bg-lux-gold text-black shadow-inner' : 'text-gray-400 hover:text-lux-gold hover:bg-white/10'
+                }`}
+              >
+                {lang.toUpperCase()}
+              </button>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Заголовок */}
       <div className="w-full max-w-7xl pt-10">
         <h2 className="font-cinzel text-3xl text-lux-gold mb-8">
-          Vos souvenirs • 1 photo
+          {t.title}
         </h2>
 
         {/* Большое фото */}
@@ -86,22 +162,22 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               onClick={() => window.open("https://www.instagram.com/hdart26/", "_blank")}
               className="flex-1 px-8 py-5 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all flex items-center justify-center gap-3 rounded-sm text-base"
             >
-              📸 Suivre sur Instagram
+              📸 {t.instagram}
             </button>
             <button
               onClick={() => window.open("https://kurginian.pro", "_blank")}
               className="flex-1 px-8 py-5 bg-lux-gold text-black hover:bg-white transition-all flex items-center justify-center gap-3 rounded-sm font-medium text-base"
             >
-              🌐 Découvrir mon univers
+              🌐 {t.discover}
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-12">
-            Merci d'avoir utilisé KURGINIAN Premium Gallery
+            {t.thanks}
           </p>
         </motion.div>
       </div>
 
-      {/* Плавающая кнопка меню */}
+      {/* Плавающая кнопка меню ⋮ */}
       <button
         onClick={() => setShowMenu(true)}
         className="fixed bottom-8 right-8 w-14 h-14 bg-lux-gold text-black rounded-full flex items-center justify-center shadow-gold-glow-hover hover:scale-110 transition-all duration-300 z-[90] text-3xl"
@@ -109,7 +185,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         ⋮
       </button>
 
-      {/* МОДАЛЬНОЕ МЕНЮ — ОБНОВЛЁННОЕ */}
+      {/* МОДАЛЬНОЕ МЕНЮ */}
       <AnimatePresence>
         {showMenu && (
           <motion.div
@@ -126,7 +202,6 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* НОВАЯ КНОПКА — Trouver encore des photos */}
               <button
                 onClick={() => {
                   setShowMenu(false);
@@ -135,42 +210,39 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
                 }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
-                🔎 Trouver encore des photos
+                🔎 {t.findMore}
               </button>
 
-              {/* НОВАЯ ПАНЕЛЬ В СТИЛЕ GOOGLE IMAGES (ГДЕ РАНЬШЕ БЫЛИ ДВЕ КНОПКИ) */}
               <div className="flex gap-3 p-4 justify-center">
                 <button
                   onClick={() => { setShowMenu(false); handleDownload(); }}
                   className="flex-1 flex items-center justify-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl border border-white/5"
                 >
                   <span className="text-2xl leading-none">↓</span>
-                  <span className="font-medium">Télécharger</span>
+                  <span className="font-medium">{t.download}</span>
                 </button>
                 <button
                   onClick={() => { setShowMenu(false); handleShare(); }}
                   className="flex-1 flex items-center justify-center gap-3 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-white px-6 py-3.5 rounded-3xl transition-all active:scale-95 shadow-xl border border-white/5"
                 >
                   <span className="text-2xl leading-none">↗</span>
-                  <span className="font-medium">Partager</span>
+                  <span className="font-medium">{t.share}</span>
                 </button>
               </div>
 
               <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
 
-              {/* Нижние кнопки */}
               <button
                 onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
-                📸 Suivre sur Instagram
+                📸 {t.instagram}
               </button>
-
               <button
                 onClick={() => { setShowMenu(false); window.open("https://kurginian.pro", "_blank"); }}
                 className="w-full text-left px-6 py-5 hover:bg-white/10 rounded-2xl flex items-center gap-4 text-lg"
               >
-                🌐 Découvrir mon univers
+                🌐 {t.discover}
               </button>
             </motion.div>
           </motion.div>
@@ -186,7 +258,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             exit={{ opacity: 0, y: 20 }}
             className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-3xl font-medium shadow-gold-glow flex items-center gap-2 z-[200]"
           >
-            ✅ Lien copié dans le presse-papiers
+            ✅ {t.toast}
           </motion.div>
         )}
       </AnimatePresence>
