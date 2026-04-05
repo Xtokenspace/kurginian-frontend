@@ -324,7 +324,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               </h2>
             </div>
             
-            <Gallery photos={photos} />
+            <Gallery photos={photos} slug={slug} />
 
             {/* ПРЕМИУМ БЛОК КОНВЕРСИИ */}
             <motion.div 

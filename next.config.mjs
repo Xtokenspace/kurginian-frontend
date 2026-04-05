@@ -9,10 +9,12 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '*.r2.dev', 
+        hostname: '*.r2.dev',
         pathname: '/**',
-      }
+      },
     ],
+    // ← Добавили поддержку quality=95 (убирает warning)
+    qualities: [75, 95],
   },
 };
 

@@ -14,17 +14,43 @@ const cormorant = Cormorant_Garamond({
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
 export const viewport: Viewport = {
-  themeColor: "#050505",
+  themeColor: "#D4AF37",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export const metadata: Metadata = {
   title: "KURGINIAN Premium Gallery",
-  description: "Votre galerie de mariage numérique",
+  description: "Votre galerie de mariage numérique avec reconnaissance faciale",
   manifest: "/manifest.json",
+
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Kurginian",
+    title: "KURGINIAN",
+    startupImage: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+      },
+    ],
+  },
+
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",           // Главная иконка для iOS
+  },
+
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "format-detection": "telephone=no",       // Отключаем автоматическое превращение номеров в ссылки
   },
 };
 
