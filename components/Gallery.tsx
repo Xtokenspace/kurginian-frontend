@@ -223,7 +223,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
         </motion.div>
       </Suspense>
 
-      {/* ПРЕМИАЛЬНЫЙ LIGHTBOX */}
+      {/* ПРЕМИАЛЬНЫЙ LIGHTBOX (Всплывающее окно) */}
       <AnimatePresence>
         {selectedIndex !== null && (
           <motion.div
@@ -234,11 +234,25 @@ export default function Gallery({ photos, slug }: GalleryProps) {
           >
             {/* Кнопка закрытия */}
             <button 
-              onClick={closeLightbox} // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
+              onClick={closeLightbox}
               className="absolute top-6 right-6 z-[110] w-12 h-12 flex items-center justify-center text-white text-4xl hover:text-lux-gold transition-colors"
             >
               ✕
             </button>
+
+            {/* === ПРЕМИУМ-БРЕНДИНГ (Кликабельный водяной знак по центру) === */}
+            <motion.a
+              href="https://kurginian.pro"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => triggerVibration(10)}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
+              className="absolute top-9 left-1/2 -translate-x-1/2 z-[110] font-cinzel text-lux-gold/40 hover:text-lux-gold tracking-[0.4em] text-[10px] md:text-xs uppercase transition-all duration-500 drop-shadow-lg"
+            >
+              Kurginian Premium
+            </motion.a>
 
             {/* Основное фото с поддержкой СВАЙПА */}
             <div className="relative w-full h-full flex items-center justify-center p-4">
