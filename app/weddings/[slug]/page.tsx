@@ -166,16 +166,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }
   }, [slug]);
 
-  // === УМНЫЙ РЕДИРЕКТ ДЛЯ VIP ===
-  // Если у пользователя есть VIP-код для этой свадьбы,
-  // гостевая страница ему не нужна. Мгновенно кидаем в админку.
-  useEffect(() => {
-    const vipCode = localStorage.getItem(`vip_code_${slug}`);
-    if (vipCode) {
-      router.replace(`/weddings/${slug}/admin`);
-    }
-  }, [slug, router]);
-
+  
   // === ИНТЕГРАЦИЯ API: Сжатие и отправка селфи ===
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');

@@ -203,15 +203,15 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         <span className="w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
       </button>
 
-      {/* КНОПКА ЗАКРЫТИЯ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
+      {/* КНОПКА ДОМОЙ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
       <div className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4">
         <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-red-900/50 rounded-3xl px-5 py-2.5 text-sm font-medium hover:bg-red-900/20 text-gray-300 transition-all shadow-lg"
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium hover:bg-lux-gold hover:text-black text-gray-300 transition-all shadow-lg group"
         >
-          <span>✕</span>
+          <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
           <span className="hidden md:inline uppercase tracking-widest">
-            {language === 'ru' ? 'Закрыть VIP' : language === 'en' ? 'Close VIP' : 'Fermer VIP'}
+            {language === 'ru' ? 'Домой' : language === 'en' ? 'Home' : 'Accueil'}
           </span>
         </button>
         

@@ -46,73 +46,88 @@ const translations = {
   }
 } as const;
 
-// Интерфейс для нашей локальной базы свадеб
-interface SavedGallery {
+// НОВАЯ СТРУКТУРА: Отдельная карточка для каждого типа доступа
+interface GallerySession {
+  id: string; // Уникальный ID для React
   slug: string;
-  hasPhotos: boolean;
-  count: number;
-  isVip: boolean; // ← Новое поле
+  title: string;
+  type: 'vip' | 'guest'; // Тип карточки
+  count?: number;
+  rawKey: string; // Ключ в localStorage (для удаления)
 }
 
 export default function PWAHome() {
   const router = useRouter();
-  const [galleries, setGalleries] = useState<SavedGallery[]>([]);
+  const [galleries, setGalleries] = useState<GallerySession[]>([]);
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // НОВЫЙ СТЕЙТ ДЛЯ ГАРМОШКИ
+  // СТЕЙТ ДЛЯ ГАРМОШКИ
   const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
   
   const t = translations[language];
 
-  // УМНЫЙ СКАНЕР LOCALSTORAGE (Теперь видит и фото, и VIP)
+  // Умный сканер сессий
   useEffect(() => {
-    const savedGlobalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (savedGlobalLang) setLanguage(savedGlobalLang);
+    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
+    if (globalLang) setLanguage(globalLang);
 
-    const foundGalleries = new Map<string, SavedGallery>();
+    const scanGalleries = () => {
+      const sessions: GallerySession[] = [];
+      
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
 
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-
-      // 1. ИЩЕМ СЕЛФИ-ФОТО
-      if (key.startsWith('photos_')) {
-        const slug = key.replace('photos_', '');
-        try {
-          const photos = JSON.parse(localStorage.getItem(key) || '[]');
-          if (photos.length > 0) {
-            // Сохраняем или обновляем запись
-            const existing = foundGalleries.get(slug) || { slug, hasPhotos: false, count: 0, isVip: false };
-            foundGalleries.set(slug, { ...existing, hasPhotos: true, count: photos.length });
-          }
-        } catch (e) {
-          console.error("Ошибка парсинга фото для", slug);
+        // Ищем VIP-сессии
+        if (key.startsWith('vip_code_')) {
+          const slug = key.replace('vip_code_', '');
+          sessions.push({
+            id: `vip_${slug}`,
+            slug,
+            title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            type: 'vip',
+            rawKey: key
+          });
+        } 
+        // Ищем Гостевые сессии (Селфи)
+        else if (key.startsWith('photos_')) {
+          const slug = key.replace('photos_', '');
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '[]');
+            if (data.length > 0) {
+              sessions.push({
+                id: `guest_${slug}`,
+                slug,
+                title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                type: 'guest',
+                count: data.length,
+                rawKey: key
+              });
+            }
+          } catch (e) {}
         }
       }
-      // 2. ИЩЕМ VIP ДОСТУП
-      else if (key.startsWith('vip_code_')) {
-        const slug = key.replace('vip_code_', '');
-        // Если свадьба уже есть (нашли фото), просто ставим флажок isVip
-        const existing = foundGalleries.get(slug) || { slug, hasPhotos: false, count: 0, isVip: false };
-        foundGalleries.set(slug, { ...existing, isVip: true });
-      }
-    }
+      setGalleries(sessions);
+      setIsLoaded(true);
+    };
 
-    setGalleries(Array.from(foundGalleries.values()));
-    setIsLoaded(true);
+    scanGalleries();
+    window.addEventListener('storage', scanGalleries);
+    return () => window.removeEventListener('storage', scanGalleries);
   }, []);
 
-  // Красивое форматирование slug: "yester-david-28-03-2026" -> "YESTER & DAVID • 28.03.2026"
-  const formatSlug = (slug: string) => {
-    const match = slug.match(/^([a-zA-Z-]+)-(\d{2}-\d{2}-\d{4})$/);
-    if (match) {
-      const names = match[1].replace(/-/g, ' & ').toUpperCase();
-      const date = match[2].replace(/-/g, '.');
-      return `${names} • ${date}`;
+  // ФУНКЦИЯ УДАЛЕНИЯ КАРТОЧКИ
+  const handleDeleteSession = (e: React.MouseEvent, rawKey: string) => {
+    e.stopPropagation(); // ВАЖНО: Останавливаем клик, чтобы не перейти в галерею
+    const confirmMsg = language === 'ru' ? 'Удалить этот доступ?' : language === 'en' ? 'Delete this access?' : 'Supprimer cet accès ?';
+    
+    if (window.confirm(confirmMsg)) {
+      localStorage.removeItem(rawKey);
+      // Принудительно вызываем обновление сканера
+      window.dispatchEvent(new Event('storage'));
     }
-    return slug.replace(/-/g, ' ').toUpperCase();
   };
 
   const handleLangChange = (lang: 'fr' | 'en' | 'ru') => {
@@ -215,36 +230,44 @@ export default function PWAHome() {
                   className="overflow-hidden"
                 >
                   <div className="pt-4 space-y-3">
-                    {galleries.map((gallery) => (
+                    {galleries.map((session) => (
                       <motion.div
-                        key={gallery.slug}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        // Умный роутинг: если есть VIP, кидаем в админку, если нет — в гостевую
-                        onClick={() => router.push(gallery.isVip ? `/weddings/${gallery.slug}/admin` : `/weddings/${gallery.slug}`)}
-                        className="bg-[#0a0a0a] border border-white/5 rounded-sm p-4 cursor-pointer hover:border-lux-gold/50 transition-all flex justify-between items-center group relative overflow-hidden"
+                        key={session.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
+                        className="group flex items-center justify-between p-4 bg-[#111111] hover:bg-[#1a1a1a] rounded-sm border border-white/5 cursor-pointer transition-all hover:border-lux-gold/30 shadow-sm"
                       >
-                        {/* Золотая полоска слева для VIP */}
-                        {gallery.isVip && <div className="absolute left-0 top-0 bottom-0 w-1 bg-lux-gold shadow-gold-glow" />}
-                        
-                        <div className={gallery.isVip ? "pl-2" : ""}>
-                          <h3 className="font-cinzel text-white tracking-wider text-sm md:text-base mb-1 flex items-center gap-2">
-                            {formatSlug(gallery.slug)}
-                            {gallery.isVip && (
-                              <span className="bg-lux-gold text-black text-[9px] px-1.5 py-0.5 rounded-sm font-bold tracking-widest">VIP</span>
-                            )}
+                        {/* Текстовая часть */}
+                        <div className="flex flex-col gap-1 pr-4 overflow-hidden">
+                          <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate">
+                            {session.title}
                           </h3>
-                          <span className={`text-xs font-medium ${gallery.isVip ? 'text-lux-gold' : gallery.hasPhotos ? 'text-green-400' : 'text-gray-500'}`}>
-                            {gallery.isVip 
+                          <span className={`text-xs font-medium ${session.type === 'vip' ? 'text-lux-gold' : 'text-green-400'}`}>
+                            {session.type === 'vip' 
                               ? (language === 'ru' ? '★ Полный VIP доступ' : language === 'en' ? '★ Full VIP access' : '★ Accès VIP complet')
-                              : gallery.hasPhotos 
-                              ? `✓ ${gallery.count} ${t.photosFound}` 
-                              : (language === 'ru' ? 'Доступ закрыт' : language === 'en' ? 'No access' : 'Aucun accès')}
+                              : `✓ ${session.count} ${t.photosFound}`}
                           </span>
                         </div>
-                        <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-colors">
-                          →
-                        </span>
+                        
+                        {/* Блок с действиями (Стрелка + Крестик) */}
+                        <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
+                          {/* СТРЕЛКА (слегка сдвигается при наведении) */}
+                          <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-all transform group-hover:-translate-x-1">
+                            →
+                          </span>
+                          
+                          {/* КНОПКА УДАЛЕНИЯ (Без absolute!) */}
+                          <button
+                            onClick={(e) => handleDeleteSession(e, session.rawKey)}
+                            // На телефоне видна всегда (opacity-100), на ПК появляется при наведении (md:opacity-0 group-hover:opacity-100)
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
+                            title={language === 'ru' ? 'Удалить' : 'Delete'}
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </motion.div>
                     ))}
                   </div>
