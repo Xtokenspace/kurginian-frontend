@@ -22,7 +22,7 @@ export interface AuthResponse {
   data: MatchedPhoto[];
 }
 
-// === ПЕРЕВОДЫ (С комплиментарным отказом) ===
+// === ПЕРЕВОДЫ (С комплиментарным отказом и Оффлайн режимом) ===
 const translations = {
   fr: {
     welcome: "Bienvenue",
@@ -46,11 +46,13 @@ const translations = {
     takeSelfie: "Prendre la photo",
     errorTitle: "Vous étiez éblouissante ! ✨",
     errorDesc: "Notre IA ne vous a pas reconnue dans ce nouveau look. Prenez un selfie réalisé lors de l'événement.",
-    tryAgain: "Réessayer", // <-- Добавлена запятая
+    tryAgain: "Réessayer",
     verifyTitle: "Est-ce bien vous ?",
     verifyDesc: "Nous avons trouvé ces photos avec une correspondance partielle. Confirmez-vous qu'il s'agit de vous ?",
     yesItsMe: "Oui, c'est moi",
     noTryAgain: "Non, réessayer",
+    offlineMode: "Mode hors ligne", 
+    offlineReq: "Connexion Internet requise",
   },
   en: {
     welcome: "Welcome",
@@ -74,11 +76,13 @@ const translations = {
     takeSelfie: "Take photo",
     errorTitle: "You looked stunning! ✨",
     errorDesc: "Our AI didn't recognize your new look. Please upload a photo taken at the event.",
-    tryAgain: "Try Again", // <-- Добавлена запятая
+    tryAgain: "Try Again",
     verifyTitle: "Is this you?",
     verifyDesc: "We found these photos with a partial match. Can you confirm this is you?",
     yesItsMe: "Yes, it's me",
     noTryAgain: "No, try again",
+    offlineMode: "Offline Mode", 
+    offlineReq: "Internet connection required",
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -102,11 +106,13 @@ const translations = {
     takeSelfie: "Сделать фото",
     errorTitle: "Вы выглядели ослепительно! ✨",
     errorDesc: "Наш ИИ не узнал вас в новом образе. Пожалуйста, загрузите селфи, сделанное прямо на мероприятии.",
-    tryAgain: "Попробовать снова", // <-- Добавлена запятая
+    tryAgain: "Попробовать снова",
     verifyTitle: "Это вы?",
     verifyDesc: "Мы нашли эти фотографии с частичным совпадением. Подтверждаете, что это вы?",
     yesItsMe: "Да, это я",
     noTryAgain: "Нет, попробовать еще",
+    offlineMode: "Режим оффлайн", 
+    offlineReq: "Требуется интернет",
   }
 } as const;
 
@@ -143,8 +149,39 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const t = translations[language];
 
+  // === ОФФЛАЙН И ТАКТИЛЬНОСТЬ ===
+  const [isOffline, setIsOffline] = useState(false);
+
+  const triggerVibration = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOffline(!navigator.onLine);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => {
+        setIsOffline(true);
+        triggerVibration([50, 100, 50]);
+      };
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
+
   // Обработчик проверки пароля через API
   const handlePasswordSubmit = async () => {
+    if (isOffline) {
+      alert(t.offlineReq);
+      return;
+    }
+    
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/verify-vip`, {
@@ -157,12 +194,15 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         // СОХРАНЯЕМ ПАРОЛЬ КАК VIP-КЛЮЧ
         localStorage.setItem(`vip_code_${slug}`, passwordInput);
         setShowPasswordModal(false);
+        triggerVibration(50);
         router.push(`/weddings/${slug}/admin`);
       } else {
+        triggerVibration([50, 100, 50]);
         setPasswordError(true);
         setTimeout(() => setPasswordError(false), 2000);
       }
     } catch (error) {
+      triggerVibration([50, 100, 50]);
       setPasswordError(true);
       setTimeout(() => setPasswordError(false), 2000);
     }
@@ -205,6 +245,12 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
   // === ФУНКЦИИ КАМЕРЫ ===
   const startCamera = async () => {
+    if (isOffline) {
+      alert(t.offlineReq);
+      return;
+    }
+    triggerVibration(10);
+    
     try {
       setShowChoiceModal(false);
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -247,6 +293,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
       if (blob) {
         // СОХРАНЯЕМ ФОТО ДЛЯ КРАСИВОГО ФОНА СКАНИРОВАНИЯ
         setCapturedImage(URL.createObjectURL(blob)); 
+        triggerVibration(50); // Имитация затвора камеры
         const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
         stopCamera();
         handleSelfieUpload(file);
@@ -294,15 +341,18 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
         // Если это 3-я попытка (порог 0.3), мы не пускаем сразу, а просим подтвердить
         if (attemptCount >= 3) {
+          triggerVibration([30, 50, 30]); // Мягкое внимание
           setPendingPhotos(sortedPhotos);
           setStatus('verify');
         } else {
           // Обычный успех
+          triggerVibration(50); // Успех!
           setPhotos(sortedPhotos);
           setStatus('success');
           localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
         }
       } else {
+        triggerVibration([50, 100, 50]); // Ошибка распознавания
         setStatus('error');
       }
     } catch (error) {
@@ -320,6 +370,11 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
   // === СКАЧИВАНИЕ ВСЕХ ФОТО (ZIP) ===
   const downloadAllPhotos = async () => {
+    if (isOffline) {
+      alert(t.offlineReq);
+      return;
+    }
+    
     if (photos.length === 0) return;
       
     setIsDownloadingAll(true);
@@ -362,6 +417,22 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
+      {/* === ОФФЛАЙН БЕЙДЖ === */}
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-lux-gold text-black px-4 py-2 rounded-3xl font-bold text-xs uppercase tracking-widest shadow-gold-glow flex items-center gap-2"
+          >
+            <span>⚠️</span> 
+            {/* @ts-ignore */}
+            {t.offlineMode}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
       <AnimatePresence>
         {(status === 'idle' || status === 'success') && (

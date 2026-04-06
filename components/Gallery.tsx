@@ -110,8 +110,16 @@ export default function Gallery({ photos, slug }: GalleryProps) {
 
   const t = translations[language];
 
+  // === HAPTIC FEEDBACK (Тактильность) ===
+  const triggerVibration = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  };
+
   // Функция скачивания
   const handleDownload = async (filename: string, url: string) => {
+    triggerVibration(50); // Уверенный отклик при скачивании
     try {
       const fetchUrl = `${url}?download=${Date.now()}`;
       const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
@@ -128,6 +136,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
 
   // Функция "Поделиться"
   const handleShare = async (filename: string) => {
+    triggerVibration(50); // Уверенный отклик
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
     try {
       await navigator.clipboard.writeText(shareLink);
@@ -140,13 +149,14 @@ export default function Gallery({ photos, slug }: GalleryProps) {
 
   // === HISTORY API: Умный перехват кнопки Назад ===
   const openLightbox = (index: number) => {
+    triggerVibration(10); // Легкий "тык" при открытии фото
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
   };
 
   const closeLightbox = () => {
+    triggerVibration(10);
     setSelectedIndex(null);
-    // Если мы закрыли вручную (нажали крестик), чистим историю браузера
     if (window.history.state && window.history.state.lightbox) {
       window.history.back();
     }
@@ -154,27 +164,33 @@ export default function Gallery({ photos, slug }: GalleryProps) {
 
   useEffect(() => {
     const handlePopState = () => {
-      // Если юзер сделал свайп "Назад" на телефоне, просто закрываем фото
       if (selectedIndex !== null) setSelectedIndex(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedIndex]);
 
-  // Обработка клавиатуры (Стрелки и Escape)
+  // Обработка клавиатуры и свайпов (Стрелки и Escape)
   useEffect(() => {
     if (selectedIndex === null) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowRight') setSelectedIndex((prev) => (prev! + 1) % photos.length);
-      if (e.key === 'ArrowLeft') setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
+      if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'ArrowLeft') goToPrev();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedIndex, photos.length]);
 
-  const goToNext = () => setSelectedIndex((prev) => (prev! + 1) % photos.length);
-  const goToPrev = () => setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
+  const goToNext = () => {
+    triggerVibration(10); // Легкий "тык" при свайпе
+    setSelectedIndex((prev) => (prev! + 1) % photos.length);
+  };
+  
+  const goToPrev = () => {
+    triggerVibration(10); // Легкий "тык" при свайпе
+    setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
+  };
 
   if (!photos || photos.length === 0) {
     return (

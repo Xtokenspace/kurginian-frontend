@@ -63,10 +63,36 @@ export default function PWAHome() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  // СТЕЙТ ДЛЯ ГАРМОШКИ
+  // === НОВЫЕ СТЕЙТЫ (Оффлайн и Гармошка) ===
+  const [isOffline, setIsOffline] = useState(false);
   const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
   
   const t = translations[language];
+
+  // === HAPTIC FEEDBACK ===
+  const triggerVibration = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  };
+
+  // === ДЕТЕКТОР ИНТЕРНЕТА ===
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOffline(!navigator.onLine);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => {
+        setIsOffline(true);
+        triggerVibration([50, 100, 50]); // Предупреждающая вибрация при потере сети
+      };
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
 
   // Умный сканер сессий
   useEffect(() => {
@@ -120,28 +146,32 @@ export default function PWAHome() {
 
   // ФУНКЦИЯ УДАЛЕНИЯ КАРТОЧКИ
   const handleDeleteSession = (e: React.MouseEvent, rawKey: string) => {
-    e.stopPropagation(); // ВАЖНО: Останавливаем клик, чтобы не перейти в галерею
+    e.stopPropagation();
+    triggerVibration(10);
     const confirmMsg = language === 'ru' ? 'Удалить этот доступ?' : language === 'en' ? 'Delete this access?' : 'Supprimer cet accès ?';
     
     if (window.confirm(confirmMsg)) {
+      triggerVibration([50, 50, 50]); // Вибрация удаления
       localStorage.removeItem(rawKey);
-      // Принудительно вызываем обновление сканера
       window.dispatchEvent(new Event('storage'));
     }
   };
 
   const handleLangChange = (lang: 'fr' | 'en' | 'ru') => {
+    triggerVibration(10);
     setLanguage(lang);
     localStorage.setItem('kurginian_global_lang', lang);
     setShowLangMenu(false);
   };
 
   const openWhatsApp = () => {
+    triggerVibration(10);
     const message = encodeURIComponent(t.whatsappMessage);
     window.open(`https://wa.me/33743300000?text=${message}`, '_blank');
   };
 
   const openLinkModal = () => {
+    triggerVibration(10);
     const slug = prompt(
       language === 'ru' ? 'Введите название или код свадьбы (Например: noah-maria-11-11-2011)' :
       language === 'en' ? 'Enter wedding name or code (Example: noah-maria-11-11-2011)' :
@@ -158,6 +188,21 @@ export default function PWAHome() {
   return (
     <main className="min-h-screen bg-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
       
+      {/* === ОФФЛАЙН БЕЙДЖ === */}
+      <AnimatePresence>
+        {isOffline && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-lux-gold text-black px-4 py-2 rounded-3xl font-bold text-xs uppercase tracking-widest shadow-gold-glow flex items-center gap-2"
+          >
+            <span>⚠️</span> 
+            {language === 'ru' ? 'Режим оффлайн' : language === 'en' ? 'Offline Mode' : 'Mode hors ligne'}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ */}
       <div className="absolute top-6 right-6 z-50">
         <button
@@ -207,7 +252,10 @@ export default function PWAHome() {
         {galleries.length > 0 && (
           <div className="mb-10 text-left">
             <button
-              onClick={() => setIsGalleriesOpen(!isGalleriesOpen)}
+              onClick={() => { 
+                triggerVibration(10); 
+                setIsGalleriesOpen(!isGalleriesOpen); 
+              }}
               className="w-full flex items-center justify-between bg-lux-card border border-lux-gold/30 p-5 rounded-sm hover:border-lux-gold transition-colors shadow-lg active:scale-[0.98]"
             >
               <span className="font-cinzel text-lux-gold tracking-widest uppercase text-sm md:text-base">
