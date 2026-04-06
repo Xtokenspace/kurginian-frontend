@@ -364,6 +364,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      triggerVibration(10); // Тактильный отклик при выборе файла
+      setCapturedImage(URL.createObjectURL(file)); 
       handleSelfieUpload(file);
     }
   };
