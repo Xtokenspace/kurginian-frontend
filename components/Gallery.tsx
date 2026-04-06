@@ -232,15 +232,14 @@ export default function Gallery({ photos, slug }: GalleryProps) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center select-none touch-none"
           >
-            {/* Кнопка закрытия */}
             <button 
               onClick={closeLightbox}
-              className="absolute top-6 right-6 z-[110] w-12 h-12 flex items-center justify-center text-white text-4xl hover:text-lux-gold transition-colors"
+              className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] w-16 h-16 flex items-center justify-center text-white/70 hover:text-lux-gold text-3xl md:text-4xl transition-colors"
             >
               ✕
             </button>
 
-            {/* === ПРЕМИУМ-БРЕНДИНГ (Кликабельный водяной знак по центру) === */}
+            {/* === ПРЕМИУМ-БРЕНДИНГ (Снайперское выравнивание) === */}
             <motion.a
               href="https://kurginian.pro"
               target="_blank"
@@ -249,7 +248,8 @@ export default function Gallery({ photos, slug }: GalleryProps) {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
-              className="absolute top-9 left-1/2 -translate-x-1/2 z-[110] font-cinzel text-lux-gold/40 hover:text-lux-gold tracking-[0.4em] text-[10px] md:text-xs uppercase transition-all duration-500 drop-shadow-lg"
+              // pl-[0.4em] идеально компенсирует смещение от tracking-[0.4em]
+              className="absolute top-8 md:top-10 left-1/2 -translate-x-1/2 z-[105] font-cinzel text-lux-gold/40 hover:text-lux-gold tracking-[0.4em] pl-[0.4em] text-[10px] md:text-xs uppercase transition-all duration-500 drop-shadow-lg whitespace-nowrap"
             >
               Kurginian Premium
             </motion.a>
