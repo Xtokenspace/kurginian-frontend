@@ -35,6 +35,11 @@ export default function InstallPrompt() {
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
 
   useEffect(() => {
+    // 0. ТИХАЯ РЕГИСТРАЦИЯ SERVICE WORKER (Для чистой иконки на Android)
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW ref:', err));
+    }
+    
     // 1. Устанавливаем язык
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
