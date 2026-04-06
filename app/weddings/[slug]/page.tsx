@@ -22,14 +22,14 @@ export interface AuthResponse {
   data: MatchedPhoto[];
 }
 
-// === ПЕРЕВОДЫ ===
+// === ПЕРЕВОДЫ (С комплиментарным отказом) ===
 const translations = {
   fr: {
     welcome: "Bienvenue",
     subtitle: "Bienvenue dans votre galerie. Je suis l'assistant numérique de ce mariage.",
     findPhotos: "Trouver mes photos",
     takePhoto: "Prendre une photo maintenant",
-    chooseGallery: "Choisir une photo depuis la galerie",
+    chooseGallery: "Choisir depuis la galerie",
     foundPhotos: "Vos souvenirs",
     downloadAll: "Télécharger toutes les photos",
     findMore: "Trouver encore des photos",
@@ -41,7 +41,16 @@ const translations = {
     enterPassword: "Code d'accès VIP",
     submit: "Valider",
     cancel: "Annuler",
-    wrongPassword: "Code incorrect"
+    wrongPassword: "Code incorrect",
+    camPermission: "Veuillez autoriser l'accès à la caméra",
+    takeSelfie: "Prendre la photo",
+    errorTitle: "Vous étiez éblouissante ! ✨",
+    errorDesc: "Notre IA ne vous a pas reconnue dans ce nouveau look. Prenez un selfie réalisé lors de l'événement.",
+    tryAgain: "Réessayer", // <-- Добавлена запятая
+    verifyTitle: "Est-ce bien vous ?",
+    verifyDesc: "Nous avons trouvé ces photos avec une correspondance partielle. Confirmez-vous qu'il s'agit de vous ?",
+    yesItsMe: "Oui, c'est moi",
+    noTryAgain: "Non, réessayer",
   },
   en: {
     welcome: "Welcome",
@@ -60,7 +69,16 @@ const translations = {
     enterPassword: "VIP Access Code",
     submit: "Submit",
     cancel: "Cancel",
-    wrongPassword: "Incorrect code"
+    wrongPassword: "Incorrect code",
+    camPermission: "Please allow camera access",
+    takeSelfie: "Take photo",
+    errorTitle: "You looked stunning! ✨",
+    errorDesc: "Our AI didn't recognize your new look. Please upload a photo taken at the event.",
+    tryAgain: "Try Again", // <-- Добавлена запятая
+    verifyTitle: "Is this you?",
+    verifyDesc: "We found these photos with a partial match. Can you confirm this is you?",
+    yesItsMe: "Yes, it's me",
+    noTryAgain: "No, try again",
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -79,7 +97,16 @@ const translations = {
     enterPassword: "VIP Код доступа",
     submit: "Войти",
     cancel: "Отмена",
-    wrongPassword: "Неверный код"
+    wrongPassword: "Неверный код",
+    camPermission: "Пожалуйста, разрешите доступ к камере",
+    takeSelfie: "Сделать фото",
+    errorTitle: "Вы выглядели ослепительно! ✨",
+    errorDesc: "Наш ИИ не узнал вас в новом образе. Пожалуйста, загрузите селфи, сделанное прямо на мероприятии.",
+    tryAgain: "Попробовать снова", // <-- Добавлена запятая
+    verifyTitle: "Это вы?",
+    verifyDesc: "Мы нашли эти фотографии с частичным совпадением. Подтверждаете, что это вы?",
+    yesItsMe: "Да, это я",
+    noTryAgain: "Нет, попробовать еще",
   }
 } as const;
 
@@ -89,7 +116,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const slug = resolvedParams.slug;
   const router = useRouter();
 
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error' | 'verify'>('idle');
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
@@ -97,6 +124,16 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [downloadProgress, setDownloadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // === НОВЫЕ СТЕЙТЫ ДЛЯ КАМЕРЫ (Digital Concierge) ===
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  // ДОБАВЛЯЕМ НОВЫЕ СТЕЙТЫ (Счетчик попыток, Замороженное фото, Фото для проверки):
+  const [attemptCount, setAttemptCount] = useState(1);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<MatchedPhoto[]>([]);
+  
   // Стейты для VIP-пароля
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -166,55 +203,110 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }
   }, [slug]);
 
+  // === ФУНКЦИИ КАМЕРЫ ===
+  const startCamera = async () => {
+    try {
+      setShowChoiceModal(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      });
+      streamRef.current = stream;
+      setIsCameraActive(true);
+    } catch (err) {
+      alert(t.camPermission);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // Привязываем поток к <video> когда оно отрендерится
+  useEffect(() => {
+    if (isCameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [isCameraActive]);
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext('2d');
+    
+    ctx?.translate(canvas.width, 0);
+    ctx?.scale(-1, 1);
+    ctx?.drawImage(videoRef.current, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        // СОХРАНЯЕМ ФОТО ДЛЯ КРАСИВОГО ФОНА СКАНИРОВАНИЯ
+        setCapturedImage(URL.createObjectURL(blob)); 
+        const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
+        stopCamera();
+        handleSelfieUpload(file);
+      }
+    }, 'image/jpeg', 0.9);
+  };
+
+  // ФУНКЦИЯ "ПОПРОБОВАТЬ ЕЩЕ РАЗ" (Чинит черный экран)
+  const handleTryAgain = () => {
+    setAttemptCount(prev => prev + 1); // Увеличиваем счетчик попыток
+    setStatus('idle');
+    setCapturedImage(null);
+    startCamera(); // Сразу включаем камеру!
+  };
+
   
   // === ИНТЕГРАЦИЯ API: Сжатие и отправка селфи ===
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');
-
     try {
-      const options = {
-        maxSizeMB: 0.5,
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 1,
         maxWidthOrHeight: 800,
         useWebWorker: true,
-        fileType: 'image/jpeg'
-      };
+      });
 
-      const compressedFile = await imageCompression(file, options);
-      
       const formData = new FormData();
-      formData.append('selfie', compressedFile, compressedFile.name);
+      formData.append('selfie', compressedFile);
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      
-      const response = await fetch(`${apiUrl}/api/weddings/${slug}/auth`, {
+      // === УМНОЕ СНИЖЕНИЕ ПОРОГА ===
+      // 1 попытка: 0.5 | 2 попытка: 0.4 | 3 и далее попытки: 0.3
+      const currentThreshold = attemptCount === 1 ? 0.5 : attemptCount === 2 ? 0.4 : 0.3;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/weddings/${slug}/auth?threshold=${currentThreshold}`, {
         method: 'POST',
         body: formData,
       });
 
-      // Обработка конкретной ошибки: Свадьба не найдена
-      if (response.status === 404) {
-        setStatus('error'); // Или можно добавить новый статус 'not_found'
-        return;
-      }
-
-      if (!response.ok) throw new Error('HTTP error');
-
       const data: AuthResponse = await response.json();
 
       if (data.matches_count > 0) {
-        // Сортируем фото гостя по хронологии (по имени файла), а не по % сходства
         const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
           a.filename.localeCompare(b.filename)
         );
-        setPhotos(sortedPhotos);
-        setStatus('success');
-        // Сохраняем в память уже отсортированный массив
-        localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
+
+        // Если это 3-я попытка (порог 0.3), мы не пускаем сразу, а просим подтвердить
+        if (attemptCount >= 3) {
+          setPendingPhotos(sortedPhotos);
+          setStatus('verify');
+        } else {
+          // Обычный успех
+          setPhotos(sortedPhotos);
+          setStatus('success');
+          localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
+        }
       } else {
         setStatus('error');
       }
     } catch (error) {
-      console.error('Ошибка при обращении к API или сжатии:', error);
+      console.error(error);
       setStatus('network_error');
     }
   };
@@ -373,49 +465,118 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
           </motion.div>
         )}
 
-        {/* ЭКРАН ЗАГРУЗКИ */}
+        {/* === ЭКРАН ЗАГРУЗКИ (МАГИЯ FACE ID С ЗАМОРОЖЕННЫМ ФОТО) === */}
         {status === 'loading' && (
           <motion.div 
             key="loading"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, filter: "blur(5px)" }}
-            transition={{ duration: 0.4 }}
-            className="fixed inset-0 bg-lux-bg flex items-center justify-center z-50 p-6 text-center"
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[150] overflow-hidden"
           >
-            <motion.p 
-              animate={{ opacity: [0.4, 1, 0.4], scale: [0.98, 1, 0.98] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="font-cinzel text-xl text-lux-gold tracking-widest"
-            >
-              {language === 'ru' ? 'Ищем ваше лицо среди воспоминаний...' : 
-               language === 'en' ? 'Searching for your face among memories...' : 
-               'Recherche de votre visage parmi les souvenirs...'}
-            </motion.p>
+            {/* Замороженное фото на фоне (затемненное) */}
+            {capturedImage && (
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-40 scale-105"
+                style={{ backgroundImage: `url(${capturedImage})` }}
+              />
+            )}
+            
+            {/* Анимация сканирования поверх лица */}
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="relative w-64 h-80 mb-8">
+                {/* Рамка */}
+                <svg viewBox="0 0 200 250" className="w-full h-full text-lux-gold/40">
+                  <rect x="10" y="10" width="180" height="230" rx="90" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="10 10" />
+                </svg>
+                {/* Бегающий лазер */}
+                <motion.div 
+                  animate={{ y: [0, 320, 0] }}
+                  transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[3px] bg-lux-gold shadow-[0_0_20px_rgba(212,175,55,1)] rounded-full"
+                />
+              </div>
+              
+              <motion.p 
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                className="font-cinzel text-sm md:text-lg text-lux-gold tracking-[0.2em] uppercase bg-black/50 px-6 py-2 rounded-full backdrop-blur-sm"
+              >
+                {language === 'ru' ? 'Анализ биометрии...' : 
+                 language === 'en' ? 'Biometric analysis...' : 
+                 'Analyse biométrique...'}
+              </motion.p>
+            </div>
           </motion.div>
         )}
 
-        {/* ЭКРАН ОШИБКИ */}
+        {/* === ЭКРАН ОШИБКИ (КОМПЛИМЕНТАРНЫЙ ОТКАЗ) === */}
         {status === 'error' && (
           <motion.div 
             key="error"
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="text-center max-w-md"
+            className="text-center max-w-md bg-lux-card/80 backdrop-blur-xl p-8 border border-lux-gold/20 rounded-2xl shadow-2xl z-[150]"
           >
-            <p className="font-cormorant text-2xl text-lux-text mb-8">
-              {language === 'ru' ? 'Извините, мы не нашли ваше лицо. Попробуйте другое фото.' : 
-               language === 'en' ? 'Sorry, we couldn\'t find your face. Try another photo.' : 
-               'Désolé, nous n\'avons pas trouvé votre visage. Essayez avec une autre photo.'}
+            <div className="text-4xl mb-4">✨</div>
+            <h2 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest mb-4">
+              {t.errorTitle}
+            </h2>
+            <p className="font-montserrat text-sm text-gray-300 mb-8 leading-relaxed">
+              {t.errorDesc}
             </p>
             <button 
-              onClick={() => setStatus('idle')}
-              className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all duration-300"
+              onClick={handleTryAgain} // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ (Чинит черный экран)
+              className="w-full px-6 py-4 bg-lux-gold text-black uppercase tracking-wider rounded-sm hover:bg-white transition-all duration-300 font-bold text-sm shadow-gold-glow"
             >
-              {language === 'ru' ? 'Попробовать снова' : language === 'en' ? 'Try Again' : 'Réessayer'}
+              {t.tryAgain}
             </button>
+          </motion.div>
+        )}
+
+        {/* === ЭКРАН ВЕРИФИКАЦИИ (3-я попытка: Это вы?) === */}
+        {status === 'verify' && pendingPhotos.length > 0 && (
+          <motion.div 
+            key="verify"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="fixed inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center z-[150] p-6 text-center"
+          >
+            <h2 className="font-cinzel text-2xl text-lux-gold uppercase tracking-widest mb-4">
+              {/* @ts-ignore - игнорируем ошибку TS, так как мы добавили ключи */}
+              {t.verifyTitle}
+            </h2>
+            <p className="font-montserrat text-sm text-gray-300 mb-8 max-w-sm">
+               {/* @ts-ignore */}
+              {t.verifyDesc}
+            </p>
+            
+            {/* Показываем кружочек с найденным лицом */}
+            <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-lux-gold mb-8 shadow-gold-glow relative">
+               <img src={pendingPhotos[0].urls.thumb} alt="Match" className="w-full h-full object-cover" />
+            </div>
+
+            <div className="flex gap-4 w-full max-w-sm">
+              <button 
+                onClick={handleTryAgain}
+                className="flex-1 px-4 py-4 border border-lux-gold/50 text-gray-300 hover:text-lux-gold rounded-sm uppercase tracking-wider text-xs font-bold transition-all"
+              >
+                 {/* @ts-ignore */}
+                {t.noTryAgain}
+              </button>
+              <button 
+                onClick={() => {
+                  setPhotos(pendingPhotos);
+                  setStatus('success');
+                  localStorage.setItem(`photos_${slug}`, JSON.stringify(pendingPhotos));
+                }}
+                className="flex-1 px-4 py-4 bg-lux-gold text-black rounded-sm uppercase tracking-wider text-xs font-bold shadow-gold-glow hover:bg-white transition-all"
+              >
+                 {/* @ts-ignore */}
+                {t.yesItsMe}
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -569,6 +730,49 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
       </AnimatePresence>
 
+      {/* === ВСТРОЕННАЯ КАМЕРА (DIGITAL CONCIERGE) === */}
+      <AnimatePresence>
+        {isCameraActive && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed inset-0 z-[200] bg-black flex flex-col"
+          >
+            {/* Верхняя панель камеры */}
+            <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
+              <button onClick={stopCamera} className="text-white hover:text-lux-gold text-sm tracking-widest uppercase">
+                {t.cancel}
+              </button>
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            </div>
+
+            {/* Видоискатель */}
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                playsInline 
+                muted 
+                className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" 
+              />
+              {/* Золотая рамка-подсказка */}
+              <div className="absolute inset-0 border-[1px] border-lux-gold/30 m-8 rounded-[3rem] pointer-events-none" />
+            </div>
+
+            {/* Кнопка съемки */}
+            <div className="absolute bottom-0 left-0 right-0 p-10 flex justify-center bg-gradient-to-t from-black/80 to-transparent">
+              <button 
+                onClick={capturePhoto}
+                className="w-20 h-20 rounded-full border-4 border-lux-gold flex items-center justify-center hover:scale-95 transition-transform bg-white/10 backdrop-blur-sm"
+              >
+                <div className="w-16 h-16 bg-lux-gold rounded-full" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ФОТО */}
       <AnimatePresence>
         {showChoiceModal && (
@@ -576,47 +780,44 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+            className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-6"
             onClick={() => setShowChoiceModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-lux-card border border-lux-gold/30 rounded-sm max-w-md w-full p-8 text-center shadow-2xl"
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-lux-card border border-lux-gold/30 rounded-3xl md:rounded-sm max-w-md w-full p-2 text-center shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="space-y-4">
-                <button
-                  onClick={() => {
-                    setShowChoiceModal(false);
-                    fileInputRef.current?.setAttribute('capture', 'user');
-                    fileInputRef.current?.click();
-                  }}
-                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-4 text-lg font-medium rounded-sm group"
-                >
-                  <span className="group-hover:scale-110 transition-transform">📸</span> <span>{t.takePhoto}</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setShowChoiceModal(false);
-                    fileInputRef.current?.removeAttribute('capture');
-                    fileInputRef.current?.click();
-                  }}
-                  className="w-full px-6 py-6 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-4 text-lg font-medium rounded-sm group"
-                >
-                  <span className="group-hover:scale-110 transition-transform">📁</span> <span>{t.chooseGallery}</span>
-                </button>
-              </div>
+              <button
+                onClick={startCamera} // ВЫЗЫВАЕМ НАШУ КАМЕРУ
+                className="w-full text-left px-6 py-6 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg font-medium text-white"
+              >
+                <span>📸</span> <span>{t.takePhoto}</span>
+              </button>
+              
+              <div className="h-px bg-lux-gold/20 my-1 mx-4"></div>
 
               <button
-                onClick={() => setShowChoiceModal(false)}
-                className="mt-8 text-gray-400 hover:text-lux-gold text-sm transition-colors uppercase tracking-wider"
+                onClick={() => {
+                  setShowChoiceModal(false);
+                  fileInputRef.current?.removeAttribute('capture');
+                  fileInputRef.current?.click();
+                }}
+                className="w-full text-left px-6 py-6 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg font-medium text-white"
               >
-                {language === 'ru' ? 'Отмена' : language === 'en' ? 'Cancel' : 'Annuler'}
+                <span>📁</span> <span>{t.chooseGallery}</span>
               </button>
+
+              <div className="mt-4 mb-2">
+                <button
+                  onClick={() => setShowChoiceModal(false)}
+                  className="px-6 py-3 text-gray-500 hover:text-lux-gold text-sm transition-colors uppercase tracking-wider"
+                >
+                  {t.cancel}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
