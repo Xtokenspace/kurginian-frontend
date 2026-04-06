@@ -138,11 +138,34 @@ export default function Gallery({ photos, slug }: GalleryProps) {
     }
   };
 
-  // Обработка клавиатуры (Стрелки и Escape) для Lightbox
+  // === HISTORY API: Умный перехват кнопки Назад ===
+  const openLightbox = (index: number) => {
+    window.history.pushState({ lightbox: true }, "");
+    setSelectedIndex(index);
+  };
+
+  const closeLightbox = () => {
+    setSelectedIndex(null);
+    // Если мы закрыли вручную (нажали крестик), чистим историю браузера
+    if (window.history.state && window.history.state.lightbox) {
+      window.history.back();
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      // Если юзер сделал свайп "Назад" на телефоне, просто закрываем фото
+      if (selectedIndex !== null) setSelectedIndex(null);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedIndex]);
+
+  // Обработка клавиатуры (Стрелки и Escape)
   useEffect(() => {
     if (selectedIndex === null) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedIndex(null);
+      if (e.key === 'Escape') closeLightbox();
       if (e.key === 'ArrowRight') setSelectedIndex((prev) => (prev! + 1) % photos.length);
       if (e.key === 'ArrowLeft') setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
     };
@@ -178,7 +201,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
               key={photo.filename} 
               photo={photo} 
               index={index} 
-              onOpen={() => setSelectedIndex(index)}
+              onOpen={() => openLightbox(index)} // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
             />
           ))}
         </motion.div>
@@ -195,7 +218,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
           >
             {/* Кнопка закрытия */}
             <button 
-              onClick={() => setSelectedIndex(null)}
+              onClick={closeLightbox} // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
               className="absolute top-6 right-6 z-[110] w-12 h-12 flex items-center justify-center text-white text-4xl hover:text-lux-gold transition-colors"
             >
               ✕

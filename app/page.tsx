@@ -9,7 +9,7 @@ const translations = {
     title: "KURGINIAN",
     subtitle: "Votre galerie de mariage avec reconnaissance faciale",
     whatsapp: "Contacter le photographe",
-    haveLink: "J'ai un code d'accès",
+    findWedding: "Trouver un mariage",
     bookShoot: "Réserver une séance photo",
     myGalleries: "Mes galeries privées",
     noGalleriesYet: "Vous n'avez encore ouvert aucune galerie",
@@ -22,7 +22,7 @@ const translations = {
     title: "KURGINIAN",
     subtitle: "Your wedding gallery with facial recognition",
     whatsapp: "Contact the photographer",
-    haveLink: "I have an access code",
+    findWedding: "Find a wedding",
     bookShoot: "Book a photoshoot",
     myGalleries: "My private galleries",
     noGalleriesYet: "You haven't opened any gallery yet",
@@ -35,7 +35,7 @@ const translations = {
     title: "KURGINIAN",
     subtitle: "Ваша свадебная галерея с распознаванием лиц",
     whatsapp: "Связаться с фотографом",
-    haveLink: "У меня есть код доступа",
+    findWedding: "Найти свадьбу",
     bookShoot: "Заказать фотосъёмку",
     myGalleries: "Мои приватные галереи",
     noGalleriesYet: "Вы ещё не открывали ни одной галереи",
@@ -128,9 +128,9 @@ export default function PWAHome() {
 
   const openLinkModal = () => {
     const slug = prompt(
-      language === 'ru' ? 'Введите код свадьбы (Например: yester-david-28-03-2026)' :
-      language === 'en' ? 'Enter wedding code (Example: yester-david-28-03-2026)' :
-      'Veuillez entrer le code de la noce (Exemple: yester-david-28-03-2026)'
+      language === 'ru' ? 'Введите название или код свадьбы (Например: noah-maria-11-11-2011)' :
+      language === 'en' ? 'Enter wedding name or code (Example: noah-maria-11-11-2011)' :
+      'Veuillez entrer le nom ou code du mariage (Exemple: noah-maria-11-11-2011)'
     );
     if (slug && slug.trim()) {
       router.push(`/weddings/${slug.trim()}`);
@@ -234,10 +234,12 @@ export default function PWAHome() {
                               <span className="bg-lux-gold text-black text-[9px] px-1.5 py-0.5 rounded-sm font-bold tracking-widest">VIP</span>
                             )}
                           </h3>
-                          <span className={`text-xs font-medium ${gallery.hasPhotos ? 'text-green-400' : 'text-gray-500'}`}>
-                            {gallery.hasPhotos 
+                          <span className={`text-xs font-medium ${gallery.isVip ? 'text-lux-gold' : gallery.hasPhotos ? 'text-green-400' : 'text-gray-500'}`}>
+                            {gallery.isVip 
+                              ? (language === 'ru' ? '★ Полный VIP доступ' : language === 'en' ? '★ Full VIP access' : '★ Accès VIP complet')
+                              : gallery.hasPhotos 
                               ? `✓ ${gallery.count} ${t.photosFound}` 
-                              : (language === 'ru' ? 'Полный доступ' : language === 'en' ? 'Full access' : 'Accès complet')}
+                              : (language === 'ru' ? 'Доступ закрыт' : language === 'en' ? 'No access' : 'Aucun accès')}
                           </span>
                         </div>
                         <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-colors">
@@ -258,7 +260,7 @@ export default function PWAHome() {
             onClick={openLinkModal}
             className={`w-full px-6 py-4 border border-lux-gold/80 text-lux-gold font-medium text-sm md:text-base tracking-widest uppercase rounded-sm hover:bg-lux-gold hover:text-black transition-all ${galleries.length === 0 ? 'bg-lux-gold/5' : ''}`}
           >
-            + {t.haveLink}
+            + {t.findWedding}
           </button>
 
           <button

@@ -166,6 +166,16 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }
   }, [slug]);
 
+  // === УМНЫЙ РЕДИРЕКТ ДЛЯ VIP ===
+  // Если у пользователя есть VIP-код для этой свадьбы,
+  // гостевая страница ему не нужна. Мгновенно кидаем в админку.
+  useEffect(() => {
+    const vipCode = localStorage.getItem(`vip_code_${slug}`);
+    if (vipCode) {
+      router.replace(`/weddings/${slug}/admin`);
+    }
+  }, [slug, router]);
+
   // === ИНТЕГРАЦИЯ API: Сжатие и отправка селфи ===
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');
@@ -269,29 +279,16 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
-      {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Умный глобус) */}
+      {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
       <AnimatePresence>
         {(status === 'idle' || status === 'success') && (
-          <div className="fixed top-6 left-6 right-6 z-[60] flex justify-between items-start pointer-events-none">
-            
-            {/* Кнопка НАЗАД (Домой) */}
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -10 }}
-              className="pointer-events-auto"
-            >
-              <button
-                onClick={() => router.push('/')}
-                className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
-              >
-                <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
-                <span className="hidden md:inline uppercase tracking-widest">{t.home}</span>
-              </button>
-            </motion.div>
-
-            {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ */}
-            <div className="pointer-events-auto relative">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-6 right-6 z-[100]"
+          >
+            <div className="relative">
               <button
                 onClick={() => setShowLangMenu(!showLangMenu)}
                 className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
@@ -326,7 +323,27 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                 )}
               </AnimatePresence>
             </div>
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* КНОПКА НАЗАД (Скроллится вместе со страницей) */}
+      <AnimatePresence>
+        {(status === 'idle' || status === 'success') && (
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            className="absolute top-6 left-6 z-[60]"
+          >
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
+            >
+              <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
+              <span className="hidden md:inline uppercase tracking-widest">{t.home}</span>
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
 

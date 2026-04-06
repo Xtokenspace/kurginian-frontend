@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cinzel, Cormorant_Garamond, Montserrat } from "next/font/google";
 import "./globals.css";
+import InstallPrompt from "@/components/InstallPrompt"; 
 
 // ВАЖНО: Говорим Cloudflare использовать быстрые серверы
 export const runtime = "edge";
@@ -55,13 +56,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="fr">
-      <body className={`${cinzel.variable} ${cormorant.variable} ${montserrat.variable} bg-lux-bg text-lux-text antialiased`}>
+    <html lang="fr" className={`${cinzel.variable} ${cormorant.variable} ${montserrat.variable}`}>
+      <body className="antialiased bg-lux-bg text-lux-text overscroll-none">
         {children}
+        <InstallPrompt /> {/* <-- ДОБАВИТЬ ЭТО СЮДА */}
       </body>
     </html>
   );

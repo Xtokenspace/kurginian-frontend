@@ -40,6 +40,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  const [showLangMenu, setShowLangMenu] = useState(false);
   
   // Новые стейты для меню и загрузки архива
   const [showMenu, setShowMenu] = useState(false);
@@ -154,34 +155,68 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 relative">
       
-      {/* Верхняя панель */}
-      <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-center pointer-events-none">
-        {/* Кнопка выхода */}
+      {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
+      <div className="fixed top-6 right-6 z-[100]">
+        <div className="relative">
+          <button
+            onClick={() => setShowLangMenu(!showLangMenu)}
+            className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
+          >
+            <span className="text-sm md:text-base">{language.toUpperCase()}</span>
+            <span className="text-lg md:text-xl">🌐</span>
+          </button>
+
+          <AnimatePresence>
+            {showLangMenu && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-12 right-0 bg-lux-card border border-lux-gold/30 rounded-3xl p-1 shadow-2xl flex flex-col w-28 z-50"
+              >
+                {(['fr', 'en', 'ru'] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      // Тут вызывай свою функцию смены языка, например setLanguage(lang)
+                      setShowLangMenu(false);
+                    }}
+                    className={`px-6 py-3 text-left rounded-3xl transition-all ${
+                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-300 hover:bg-white/10'
+                    }`}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      {/* МЕНЮ БУРГЕР (Фиксировано СПРАВА СНИЗУ) */}
+      <button 
+        onClick={() => setShowMenu(true)}
+        className="fixed bottom-6 right-6 z-[100] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1.5 shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
+      >
+        <span className="w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
+        <span className="w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
+      </button>
+
+      {/* КНОПКА ЗАКРЫТИЯ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
+      <div className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4">
         <button
           onClick={handleLogout}
-          className="pointer-events-auto flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-red-900/50 rounded-3xl px-5 py-2.5 text-sm font-medium hover:bg-red-900/20 text-gray-300 transition-all shadow-lg"
+          className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-red-900/50 rounded-3xl px-5 py-2.5 text-sm font-medium hover:bg-red-900/20 text-gray-300 transition-all shadow-lg"
         >
           <span>✕</span>
           <span className="hidden md:inline uppercase tracking-widest">
             {language === 'ru' ? 'Закрыть VIP' : language === 'en' ? 'Close VIP' : 'Fermer VIP'}
           </span>
         </button>
-
-        {/* Блок справа с индикатором и бургером */}
-        <div className="flex items-center gap-3 pointer-events-auto">
-          {/* Индикатор VIP */}
-          <div className="bg-lux-gold text-black px-4 py-2 rounded-3xl font-cinzel font-bold text-xs tracking-[0.2em] shadow-gold-glow">
-            VIP ACCESS
-          </div>
-          
-          {/* КНОПКА БУРГЕРА */}
-          <button 
-            onClick={() => setShowMenu(true)}
-            className="bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-11 h-11 rounded-full flex flex-col items-center justify-center gap-1 shadow-gold-glow hover:bg-lux-gold group transition-all"
-          >
-            <span className="w-5 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
-            <span className="w-5 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
-          </button>
+        
+        <div className="bg-lux-gold text-black px-4 py-2 rounded-3xl font-cinzel font-bold text-xs tracking-[0.2em] shadow-gold-glow">
+          VIP ACCESS
         </div>
       </div>
 
