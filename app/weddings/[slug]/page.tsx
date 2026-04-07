@@ -245,19 +245,21 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     setIsCameraActive(false);
   };
 
-  // Привязываем поток к <video> когда оно отрендерится
+  // 1. Привязываем поток к <video> когда оно отрендерится
   useEffect(() => {
     if (isCameraActive && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
-    
-    // CLEANUP: Аппаратно выключаем камеру, если юзер внезапно ушел со страницы
+  }, [isCameraActive]);
+
+  // 2. CLEANUP: Аппаратно выключаем камеру ТОЛЬКО при полном уходе со страницы (unmount)
+  useEffect(() => {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [isCameraActive]);
+  }, []);
 
   const capturePhoto = () => {
     if (!videoRef.current) return;

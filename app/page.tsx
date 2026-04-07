@@ -16,7 +16,11 @@ const translations = {
     whatsappMessage: "Bonjour, je souhaite accéder à la galerie de ma/sa mariage. Pouvez-vous m'envoyer le lien ?",
     photosFound: "photos trouvées",
     actionNeeded: "Recherche requise",
-    openGallery: "Ouvrir"
+    openGallery: "Ouvrir",
+    enterCodeTitle: "Accès à la galerie",
+    codePlaceholder: "Nom ou code (ex: david-maria-2026)",
+    requestCode: "Demander le code au photographe",
+    cancel: "Annuler"
   },
   en: {
     title: "KURGINIAN",
@@ -29,7 +33,11 @@ const translations = {
     whatsappMessage: "Hello, I would like access to the wedding gallery. Can you send me the link please?",
     photosFound: "photos found",
     actionNeeded: "Action needed",
-    openGallery: "Open"
+    openGallery: "Open",
+    enterCodeTitle: "Gallery Access",
+    codePlaceholder: "Name or code (ex: david-maria-2026)",
+    requestCode: "Request code from photographer",
+    cancel: "Cancel"
   },
   ru: {
     title: "KURGINIAN",
@@ -42,7 +50,11 @@ const translations = {
     whatsappMessage: "Здравствуйте, я хочу получить доступ к галерее свадьбы. Можете прислать ссылку?",
     photosFound: "фото найдено",
     actionNeeded: "Требуется поиск",
-    openGallery: "Открыть"
+    openGallery: "Открыть",
+    enterCodeTitle: "Доступ к галерее",
+    codePlaceholder: "Название или код (например: david-maria-2026)",
+    requestCode: "Запросить код у фотографа",
+    cancel: "Отмена"
   }
 } as const;
 
@@ -65,6 +77,10 @@ export default function PWAHome() {
   
   // === НОВЫЕ СТЕЙТЫ (Оффлайн и Гармошка) ===
   const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
+  
+  // === НОВЫЕ СТЕЙТЫ ДЛЯ ПРЕМИУМ МОДАЛКИ ===
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
   
   const t = translations[language];
 
@@ -154,18 +170,18 @@ export default function PWAHome() {
 
   const openLinkModal = () => {
     triggerVibration(10);
-    const slug = prompt(
-      language === 'ru' ? 'Введите название или код свадьбы (Например: noah-maria-11-11-2011)' :
-      language === 'en' ? 'Enter wedding name or code (Example: noah-maria-11-11-2011)' :
-      'Veuillez entrer le nom ou code du mariage (Exemple: noah-maria-11-11-2011)'
-    );
-    if (slug && slug.trim()) {
-      let cleanSlug = slug.trim();
-      // Защита: если юзер случайно вставил полную ссылку, вырезаем из нее только код
+    setShowCodeModal(true);
+  };
+
+  const handleCodeSubmit = () => {
+    if (codeInput && codeInput.trim()) {
+      triggerVibration(50);
+      let cleanSlug = codeInput.trim();
+      // Защита: если юзер вставил ссылку целиком
       if (cleanSlug.includes('/')) {
         cleanSlug = cleanSlug.split('/').filter(Boolean).pop() || cleanSlug;
       }
-      router.push(`/weddings/${cleanSlug}`);
+      router.push(`/weddings/${cleanSlug.toLowerCase()}`);
     }
   };
 
@@ -328,6 +344,64 @@ export default function PWAHome() {
           )}
         </div>
       </motion.div>
+
+      {/* === ПРЕМИУМ МОДАЛКА ВВОДА КОДА === */}
+      <AnimatePresence>
+        {showCodeModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
+            onClick={() => setShowCodeModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-lux-card border border-lux-gold/50 rounded-sm max-w-sm w-full p-8 text-center shadow-gold-glow"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-cinzel text-xl text-lux-gold mb-6 tracking-widest uppercase">
+                {t.enterCodeTitle}
+              </h3>
+              
+              <input
+                type="text"
+                value={codeInput}
+                onChange={(e) => setCodeInput(e.target.value)}
+                placeholder={t.codePlaceholder}
+                className="w-full bg-[#111] border border-lux-gold/30 text-white px-4 py-4 rounded-sm text-center text-sm md:text-base focus:outline-none focus:border-lux-gold transition-colors mb-4"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleCodeSubmit()}
+              />
+
+              <button
+                onClick={openWhatsApp}
+                className="w-full mb-6 text-xs text-gray-400 hover:text-lux-gold transition-colors flex items-center justify-center gap-2 underline underline-offset-4 decoration-white/10 hover:decoration-lux-gold/50"
+              >
+                💬 {t.requestCode}
+              </button>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowCodeModal(false)}
+                  className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
+                >
+                  {t.cancel}
+                </button>
+                <button
+                  onClick={handleCodeSubmit}
+                  disabled={!codeInput.trim()}
+                  className="flex-1 px-4 py-3 bg-lux-gold text-black font-bold hover:bg-white transition-colors rounded-sm uppercase text-xs md:text-sm tracking-wider disabled:opacity-50"
+                >
+                  {t.openGallery}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

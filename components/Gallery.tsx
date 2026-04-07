@@ -23,9 +23,9 @@ interface GalleryProps {
 
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
 const translations = {
-  fr: { download: "Télécharger", share: "Partager", copied: "Lien copié !" },
-  en: { download: "Download", share: "Share", copied: "Link copied!" },
-  ru: { download: "Скачать", share: "Поделиться", copied: "Ссылка скопирована!" }
+  fr: { download: "Télécharger", share: "Partager", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨" },
+  en: { download: "Download", share: "Share", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨" },
+  ru: { download: "Скачать", share: "Поделиться", copied: "Ссылка скопирована!", shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨" }
 } as const;
 
 // --- ВАРИАНТЫ АНИМАЦИИ ---
@@ -145,7 +145,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
       try {
         await navigator.share({
           title: 'KURGINIAN Premium',
-          text: t.share,
+          text: t.shareText, // Используем премиальный текст вместо просто слова "Поделиться"
           url: shareLink,
         });
         return; // Успешно поделились через нативную шторку

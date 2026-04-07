@@ -15,7 +15,8 @@ const translations = {
     instagram: "Suivre sur Instagram",
     discover: "Découvrir mon univers",
     thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
-    toast: "Lien copié dans le presse-papiers"
+    toast: "Lien copié dans le presse-papiers",
+    shareText: "Regardez cette magnifique photo dans la KURGINIAN Premium Gallery ✨"
   },
   en: {
     title: "Memory • 1 photo",
@@ -26,7 +27,8 @@ const translations = {
     instagram: "Follow on Instagram",
     discover: "Discover my work",
     thanks: "Thank you for using KURGINIAN Premium Gallery",
-    toast: "Link copied to clipboard"
+    toast: "Link copied to clipboard",
+    shareText: "Take a look at this wonderful photo in the KURGINIAN Premium Gallery ✨"
   },
   ru: {
     title: "Воспоминание • 1 photo",
@@ -37,7 +39,8 @@ const translations = {
     instagram: "Подписаться в Instagram",
     discover: "Узнать о моих услугах",
     thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
-    toast: "Ссылка скопирована"
+    toast: "Ссылка скопирована",
+    shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨"
   }
 } as const;
 
