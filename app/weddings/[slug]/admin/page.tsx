@@ -194,13 +194,17 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         </div>
       </div>
 
-      {/* МЕНЮ БУРГЕР (Фиксировано СПРАВА СНИЗУ) */}
+      {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
       <button 
-        onClick={() => setShowMenu(true)}
-        className="fixed bottom-6 right-6 z-[100] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex flex-col items-center justify-center gap-1.5 shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
+        onClick={() => {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+          setShowMenu(!showMenu);
+        }}
+        className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
       >
-        <span className="w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
-        <span className="w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-colors"></span>
+        {/* Анимация превращения 2-х полосок бургера в крестик (Х) */}
+        <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
+        <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
       </button>
 
       {/* КНОПКА ДОМОЙ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
@@ -234,61 +238,104 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         <Gallery photos={photos} slug={slug} />
       </div>
 
-      {/* МОДАЛЬНОЕ МЕНЮ */}
+      {/* МОДАЛЬНОЕ МЕНЮ (PREMIUM BOTTOM SHEET) */}
       <AnimatePresence>
         {showMenu && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-end md:items-center justify-center p-4"
-            onClick={() => setShowMenu(false)}
-          >
+          <>
+            {/* Затемнение заднего фона */}
             <motion.div
-              initial={{ y: 100, opacity: 0, scale: 0.95 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 50, opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2 shadow-2xl pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                setShowMenu(false);
+              }}
+              className="fixed inset-0 bg-black/70 md:backdrop-blur-sm z-[100] will-change-[opacity]"
+            />
+
+            {/* Сама шторка меню */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              // Используем tween вместо spring для моментального старта, с iOS-подобным смягчением в конце
+              transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+              className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
             >
-              <button
-                onClick={() => { setShowMenu(false); downloadAllPhotos(); }}
-                disabled={isDownloadingAll}
-                className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg disabled:opacity-70"
-              >
-                {isDownloadingAll ? (
-                  <>
-                    <span className="animate-spin">⏳</span>
-                    <span>
-                      {downloadProgress < 100 
-                        ? `${language === 'ru' ? 'Загрузка' : 'Chargement'} ${downloadProgress}%` 
-                        : (language === 'ru' ? 'Создание архива...' : 'Archivage...')}
-                    </span>
-                  </>
-                ) : (
-                  <><span>⬇️</span> <span>{t.downloadAll}</span></>
-                )}
-              </button>
-              
-              <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
-              
-              <button
-                onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
-                className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
-              >
-                📸 {t.contactPhotographer}
-              </button>
-              
-              <button
-                onClick={() => { setShowMenu(false); window.open("https://kurginian.pro", "_blank"); }}
-                className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
-              >
-                🌐 {t.discoverServices}
-              </button>
+              <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                
+                {/* Индикатор свайпа (Pill) */}
+                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
+
+                <div className="space-y-3">
+                  {/* Кнопка скачивания с заливкой (Progress Bar) */}
+                  <button
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      if (!isDownloadingAll) downloadAllPhotos();
+                    }}
+                    disabled={isDownloadingAll}
+                    className="relative w-full overflow-hidden bg-white/5 border border-white/10 hover:border-lux-gold/50 transition-colors rounded-2xl flex items-center justify-between p-5 group disabled:cursor-not-allowed"
+                  >
+                    {/* Анимированный фон прогресса */}
+                    {isDownloadingAll && (
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
+                        style={{ width: `${downloadProgress}%` }}
+                      />
+                    )}
+                    
+                    <div className="relative z-10 flex items-center gap-4">
+                      {/* SVG Icon Arrow Down / Loader */}
+                      <svg className={`w-5 h-5 ${isDownloadingAll ? 'text-lux-gold animate-bounce' : 'text-white group-hover:text-lux-gold transition-colors'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      <span className="text-white text-sm uppercase tracking-widest font-medium">
+                        {isDownloadingAll 
+                          ? (language === 'ru' ? (downloadProgress < 100 ? `Загрузка ${downloadProgress}%` : 'Создание архива...') : language === 'en' ? (downloadProgress < 100 ? `Loading ${downloadProgress}%` : 'Archiving...') : (downloadProgress < 100 ? `Chargement ${downloadProgress}%` : 'Archivage...'))
+                          : t.downloadAll}
+                      </span>
+                    </div>
+                  </button>
+                  
+                  <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
+                  
+                  {/* Кнопка Instagram */}
+                  <button
+                    onClick={() => { 
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      setShowMenu(false); 
+                      window.open("https://www.instagram.com/hdart26/", "_blank"); 
+                    }}
+                    className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                  >
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                    </svg>
+                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.contactPhotographer}</span>
+                  </button>
+                  
+                  {/* Кнопка Сайта */}
+                  <button
+                    onClick={() => { 
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      setShowMenu(false); 
+                      window.open("https://kurginian.pro", "_blank"); 
+                    }}
+                    className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                  >
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                    </svg>
+                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.discoverServices}</span>
+                  </button>
+                </div>
+              </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
     </main>

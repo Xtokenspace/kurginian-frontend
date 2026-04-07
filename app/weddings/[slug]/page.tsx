@@ -702,82 +702,148 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               </p>
             </motion.div>
             
-            {/* ПРЕМИУМ ПЛАВАЮЩАЯ КНОПКА */}
+            {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
             <motion.button
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
-              onClick={() => setShowMenu(true)}
-              className="fixed bottom-8 right-8 w-14 h-14 bg-lux-gold text-black rounded-full flex items-center justify-center shadow-gold-glow hover:shadow-gold-glow-hover hover:scale-110 transition-all duration-300 z-[90] text-3xl"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setShowMenu(!showMenu);
+              }}
+              className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
             >
-              ⋮
+              <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
+              <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
             </motion.button>
 
-            {/* МОДАЛЬНОЕ МЕНЮ (БЕЗ ЯЗЫКОВ) */}
+            {/* МОДАЛЬНОЕ МЕНЮ (PREMIUM BOTTOM SHEET КАК В АДМИНКЕ) */}
             <AnimatePresence>
               {showMenu && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-md flex items-end md:items-center justify-center p-4"
-                  onClick={() => setShowMenu(false)}
-                >
+                <>
+                  {/* Затемняющий фон */}
                   <motion.div
-                    initial={{ y: 100, opacity: 0, scale: 0.95 }}
-                    animate={{ y: 0, opacity: 1, scale: 1 }}
-                    exit={{ y: 50, opacity: 0, scale: 0.95 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="bg-lux-card border border-lux-gold/30 rounded-3xl w-full max-w-md p-2 shadow-2xl"
-                    onClick={(e) => e.stopPropagation()}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      setShowMenu(false);
+                    }}
+                    className="fixed inset-0 bg-black/70 md:backdrop-blur-sm z-[100] will-change-[opacity]"
+                  />
+
+                  {/* Выезжающая шторка */}
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+                    className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
                   >
-                    <button
-                      onClick={() => { setShowMenu(false); setShowChoiceModal(true); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
-                    >
-                      🔎 {t.findMore}
-                    </button>
-                    <button
-                      onClick={() => { setShowMenu(false); downloadAllPhotos(); }}
-                      disabled={isDownloadingAll}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg disabled:opacity-70"
-                    >
-                      {isDownloadingAll ? (
-                        <>
-                          <span className="animate-spin">⏳</span>
-                          <span>
-                            {downloadProgress < 100 
-                              ? `${language === 'ru' ? 'Загрузка' : 'Chargement'} ${downloadProgress}%` 
-                              : (language === 'ru' ? 'Создание архива...' : 'Archivage...')}
-                          </span>
-                        </>
-                      ) : (
-                        <><span>⬇️</span> <span>{t.downloadAll}</span></>
-                      )}
-                    </button>
-                    <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
-                    <button
-                      onClick={() => { setShowMenu(false); setShowPasswordModal(true); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg text-lux-gold"
-                    >
-                      🔓 {t.viewAll}
-                    </button>
-                    <div className="h-px bg-lux-gold/20 my-2 mx-4"></div>
-                    <button
-                      onClick={() => { setShowMenu(false); window.open("https://www.instagram.com/hdart26/", "_blank"); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
-                    >
-                      📸 {t.contactPhotographer}
-                    </button>
-                    <button
-                      onClick={() => { setShowMenu(false); window.open("https://kurginian.pro", "_blank"); }}
-                      className="w-full text-left px-6 py-5 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg"
-                    >
-                      🌐 {t.discoverServices}
-                    </button>
+                    <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                      
+                      {/* Индикатор свайпа (Pill) */}
+                      <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
+
+                      <div className="space-y-3">
+                        {/* 1. Скачать фото (с прогресс-баром) */}
+                        <button
+                          onClick={() => {
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                            if (!isDownloadingAll) downloadAllPhotos();
+                          }}
+                          disabled={isDownloadingAll}
+                          className="relative w-full overflow-hidden bg-white/5 border border-white/10 hover:border-lux-gold/50 transition-colors rounded-2xl flex items-center justify-between p-5 group disabled:cursor-not-allowed"
+                        >
+                          {isDownloadingAll && (
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
+                              style={{ width: `${downloadProgress}%` }}
+                            />
+                          )}
+                          <div className="relative z-10 flex items-center gap-4">
+                            <svg className={`w-5 h-5 ${isDownloadingAll ? 'text-lux-gold animate-bounce' : 'text-white group-hover:text-lux-gold transition-colors'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            <span className="text-white text-sm uppercase tracking-widest font-medium">
+                              {isDownloadingAll 
+                                ? (language === 'ru' ? (downloadProgress < 100 ? `Загрузка ${downloadProgress}%` : 'Создание архива...') : language === 'en' ? (downloadProgress < 100 ? `Loading ${downloadProgress}%` : 'Archiving...') : (downloadProgress < 100 ? `Chargement ${downloadProgress}%` : 'Archivage...'))
+                                : t.downloadAll}
+                            </span>
+                          </div>
+                        </button>
+
+                        <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
+
+                        {/* 2. Новый поиск */}
+                        <button
+                          onClick={() => { 
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            setShowMenu(false); 
+                            setShowChoiceModal(true); 
+                          }}
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                        >
+                          <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                          </svg>
+                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.findMore}</span>
+                        </button>
+
+                        {/* 3. Ввести VIP код */}
+                        <button
+                          onClick={() => { 
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            setShowMenu(false); 
+                            setShowPasswordModal(true); 
+                          }}
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                        >
+                          {/* Иконка ключа */}
+                          <svg className="w-5 h-5 text-lux-gold group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                          </svg>
+                          <span className="text-lux-gold group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{language === 'ru' ? 'Ввести VIP-код' : language === 'en' ? 'Enter VIP code' : 'Entrer le code VIP'}</span>
+                        </button>
+
+                        <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
+
+                        {/* 4. Instagram */}
+                        <button
+                          onClick={() => { 
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            setShowMenu(false); 
+                            window.open("https://www.instagram.com/hdart26/", "_blank"); 
+                          }}
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                        >
+                          <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                          </svg>
+                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.contactPhotographer}</span>
+                        </button>
+
+                        {/* 5. Website */}
+                        <button
+                          onClick={() => { 
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            setShowMenu(false); 
+                            window.open("https://kurginian.pro", "_blank"); 
+                          }}
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                        >
+                          <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                          </svg>
+                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.discoverServices}</span>
+                        </button>
+                      </div>
+                    </div>
                   </motion.div>
-                </motion.div>
+                </>
               )}
             </AnimatePresence>
           </motion.div>
@@ -867,40 +933,57 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-6"
             onClick={() => setShowChoiceModal(false)}
           >
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="bg-lux-card border border-lux-gold/30 rounded-3xl md:rounded-sm max-w-md w-full p-2 text-center shadow-2xl"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-lux-card border border-lux-gold/50 p-8 rounded-sm max-w-sm w-full shadow-gold-glow text-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                onClick={startCamera} // ВЫЗЫВАЕМ НАШУ КАМЕРУ
-                className="w-full text-left px-6 py-6 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg font-medium text-white"
-              >
-                <span>📸</span> <span>{t.takePhoto}</span>
-              </button>
+              <h3 className="font-cinzel text-xl text-lux-gold mb-8 tracking-widest uppercase">
+                {language === 'ru' ? 'Поиск фото' : language === 'en' ? 'Find photos' : 'Trouver des photos'}
+              </h3>
               
-              <div className="h-px bg-lux-gold/20 my-1 mx-4"></div>
+              <div className="space-y-4">
+                {/* Кнопка Камеры */}
+                <button
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                    startCamera();
+                  }}
+                  className="w-full px-6 py-4 bg-lux-gold text-black font-bold hover:bg-white transition-all rounded-sm uppercase tracking-wider flex items-center justify-center gap-3 text-xs md:text-sm shadow-gold-glow"
+                >
+                  <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                  </svg>
+                  <span>{t.takePhoto}</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setShowChoiceModal(false);
-                  fileInputRef.current?.removeAttribute('capture');
-                  fileInputRef.current?.click();
-                }}
-                className="w-full text-left px-6 py-6 hover:bg-white/10 transition-colors rounded-2xl flex items-center gap-4 text-lg font-medium text-white"
-              >
-                <span>📁</span> <span>{t.chooseGallery}</span>
-              </button>
+                {/* Кнопка Галереи */}
+                <button
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                    setShowChoiceModal(false);
+                    fileInputRef.current?.removeAttribute('capture');
+                    fileInputRef.current?.click();
+                  }}
+                  className="w-full px-6 py-4 bg-transparent border border-lux-gold/50 text-lux-gold font-medium hover:bg-lux-gold hover:text-black transition-all rounded-sm uppercase tracking-wider flex items-center justify-center gap-3 text-xs md:text-sm group"
+                >
+                  <svg className="w-5 h-5 text-lux-gold group-hover:text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                  <span>{t.chooseGallery}</span>
+                </button>
+              </div>
 
-              <div className="mt-4 mb-2">
+              <div className="mt-8">
                 <button
                   onClick={() => setShowChoiceModal(false)}
-                  className="px-6 py-3 text-gray-500 hover:text-lux-gold text-sm transition-colors uppercase tracking-wider"
+                  className="text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors underline underline-offset-4 decoration-transparent hover:decoration-white/50"
                 >
                   {t.cancel}
                 </button>
@@ -921,10 +1004,10 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             onClick={() => setShowPasswordModal(false)}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-lux-card border border-lux-gold/50 rounded-sm max-w-sm w-full p-8 text-center shadow-gold-glow"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-lux-card border border-lux-gold/50 p-8 rounded-sm max-w-sm w-full shadow-gold-glow text-center"
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="font-cinzel text-xl text-lux-gold mb-6 tracking-widest uppercase">
@@ -936,7 +1019,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="••••••"
-                className={`w-full bg-[#111] border ${passwordError ? 'border-red-500' : 'border-lux-gold/30'} text-white px-4 py-4 rounded-sm text-center text-2xl tracking-[0.5em] focus:outline-none focus:border-lux-gold transition-colors mb-2`}
+                className={`w-full bg-[#111] border ${passwordError ? 'border-red-500' : 'border-lux-gold/30'} text-white px-4 py-4 rounded-sm text-center text-2xl tracking-[0.5em] pl-[0.5em] focus:outline-none focus:border-lux-gold transition-colors mb-2`}
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
               />
@@ -955,13 +1038,14 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               <div className="flex gap-4 mt-6">
                 <button
                   onClick={() => setShowPasswordModal(false)}
-                  className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-sm tracking-wider"
+                  className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
                 >
                   {t.cancel}
                 </button>
                 <button
                   onClick={handlePasswordSubmit}
-                  className="flex-1 px-4 py-3 bg-lux-gold text-black font-medium hover:bg-white transition-colors rounded-sm uppercase text-sm tracking-wider"
+                  disabled={!passwordInput.trim()}
+                  className="flex-1 px-4 py-3 bg-lux-gold text-black font-bold hover:bg-white transition-colors rounded-sm uppercase text-xs md:text-sm tracking-wider disabled:opacity-50"
                 >
                   {t.submit}
                 </button>
