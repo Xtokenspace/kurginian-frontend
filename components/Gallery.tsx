@@ -53,6 +53,7 @@ const brickVariants: Variants = {
 function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: number; onOpen: () => void }) {
   const flexGrow = photo.width / photo.height;
   const flexBasis = flexGrow * 250; 
+  const [isLoaded, setIsLoaded] = useState(false); // <-- Умный статус загрузки
 
   return (
     <motion.div
@@ -60,22 +61,19 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
       onClick={onOpen}
-      className="relative overflow-hidden group border border-lux-gold/10 hover:border-lux-gold/60 transition-colors shadow-lg active:shadow-gold-glow cursor-pointer"
+      className="relative overflow-hidden group border border-lux-gold/10 hover:border-lux-gold/60 transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card"
       style={{
         flexGrow: flexGrow,
         flexBasis: `${flexBasis}px`,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
-      <div className="absolute inset-0 bg-[#070707] flex items-center justify-center">
-        <motion.div 
-          animate={{ opacity: [0.1, 0.4, 0.1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="font-cinzel text-[10px] text-lux-gold/30 tracking-widest"
-        >
-          KURGINIAN
-        </motion.div>
-      </div>
+      {/* Премиальный лоадер (Скелетон), виден ТОЛЬКО пока фото грузится */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-[#070707] flex items-center justify-center animate-pulse z-10">
+          <span className="font-cinzel text-[10px] text-lux-gold/30 tracking-widest">KURGINIAN</span>
+        </div>
+      )}
 
       <Image
         src={photo.urls.thumb}
@@ -83,10 +81,13 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
         fill
         priority={index < 6}
         sizes="(max-width: 768px) 100vw, 50vw"
-        className="object-cover transition-opacity duration-700 group-hover:scale-105"
+        onLoad={() => setIsLoaded(true)} // <-- Запускаем появление, когда сеть реально отдала файл
+        className={`object-cover group-hover:scale-105 transition-all duration-[800ms] ease-out ${
+          isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-105'
+        }`}
       />
       
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
 }
@@ -134,10 +135,30 @@ export default function Gallery({ photos, slug }: GalleryProps) {
     }
   };
 
-  // Функция "Поделиться"
+  // Функция "Поделиться" (Native Web Share + Fallback)
   const handleShare = async (filename: string) => {
-    triggerVibration(50); // Уверенный отклик
+    triggerVibration(50);
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
+    
+    // Проверяем поддержку Native Web Share API (мобильные ОС и современные браузеры)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'KURGINIAN Premium',
+          text: t.share,
+          url: shareLink,
+        });
+        return; // Успешно поделились через нативную шторку
+      } catch (err) {
+        // Если юзер сам закрыл шторку (AbortError) - просто игнорируем
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+        return; 
+      }
+    }
+    
+    // Fallback: Если Web Share API недоступен, копируем в буфер (старое поведение)
     try {
       await navigator.clipboard.writeText(shareLink);
       setShowToast(true);

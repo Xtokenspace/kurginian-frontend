@@ -150,7 +150,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const t = translations[language];
 
   // === ОФФЛАЙН И ТАКТИЛЬНОСТЬ ===
-  const [isOffline, setIsOffline] = useState(false);
 
   const triggerVibration = (pattern: number | number[]) => {
     if (typeof window !== 'undefined' && navigator.vibrate) {
@@ -158,30 +157,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }
   };
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsOffline(!navigator.onLine);
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => {
-        setIsOffline(true);
-        triggerVibration([50, 100, 50]);
-      };
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
-  }, []);
 
   // Обработчик проверки пароля через API
   const handlePasswordSubmit = async () => {
-    if (isOffline) {
-      alert(t.offlineReq);
-      return;
-    }
-    
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/verify-vip`, {
@@ -245,10 +223,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
   // === ФУНКЦИИ КАМЕРЫ ===
   const startCamera = async () => {
-    if (isOffline) {
-      alert(t.offlineReq);
-      return;
-    }
     triggerVibration(10);
     
     try {
@@ -276,6 +250,13 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     if (isCameraActive && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
     }
+    
+    // CLEANUP: Аппаратно выключаем камеру, если юзер внезапно ушел со страницы
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
   }, [isCameraActive]);
 
   const capturePhoto = () => {
@@ -372,10 +353,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
   // === СКАЧИВАНИЕ ВСЕХ ФОТО (ZIP) ===
   const downloadAllPhotos = async () => {
-    if (isOffline) {
-      alert(t.offlineReq);
-      return;
-    }
     
     if (photos.length === 0) return;
       
@@ -419,22 +396,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
-      {/* === ОФФЛАЙН БЕЙДЖ === */}
-      <AnimatePresence>
-        {isOffline && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-lux-gold text-black px-4 py-2 rounded-3xl font-bold text-xs uppercase tracking-widest shadow-gold-glow flex items-center gap-2"
-          >
-            <span>⚠️</span> 
-            {/* @ts-ignore */}
-            {t.offlineMode}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
       <AnimatePresence>
         {(status === 'idle' || status === 'success') && (

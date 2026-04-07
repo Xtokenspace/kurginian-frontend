@@ -64,7 +64,6 @@ export default function PWAHome() {
   const [isLoaded, setIsLoaded] = useState(false);
   
   // === НОВЫЕ СТЕЙТЫ (Оффлайн и Гармошка) ===
-  const [isOffline, setIsOffline] = useState(false);
   const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
   
   const t = translations[language];
@@ -76,23 +75,6 @@ export default function PWAHome() {
     }
   };
 
-  // === ДЕТЕКТОР ИНТЕРНЕТА ===
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsOffline(!navigator.onLine);
-      const handleOnline = () => setIsOffline(false);
-      const handleOffline = () => {
-        setIsOffline(true);
-        triggerVibration([50, 100, 50]); // Предупреждающая вибрация при потере сети
-      };
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    }
-  }, []);
 
   // Умный сканер сессий
   useEffect(() => {
@@ -178,7 +160,12 @@ export default function PWAHome() {
       'Veuillez entrer le nom ou code du mariage (Exemple: noah-maria-11-11-2011)'
     );
     if (slug && slug.trim()) {
-      router.push(`/weddings/${slug.trim()}`);
+      let cleanSlug = slug.trim();
+      // Защита: если юзер случайно вставил полную ссылку, вырезаем из нее только код
+      if (cleanSlug.includes('/')) {
+        cleanSlug = cleanSlug.split('/').filter(Boolean).pop() || cleanSlug;
+      }
+      router.push(`/weddings/${cleanSlug}`);
     }
   };
 
@@ -188,21 +175,6 @@ export default function PWAHome() {
   return (
     <main className="min-h-screen bg-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
       
-      {/* === ОФФЛАЙН БЕЙДЖ === */}
-      <AnimatePresence>
-        {isOffline && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] bg-lux-gold text-black px-4 py-2 rounded-3xl font-bold text-xs uppercase tracking-widest shadow-gold-glow flex items-center gap-2"
-          >
-            <span>⚠️</span> 
-            {language === 'ru' ? 'Режим оффлайн' : language === 'en' ? 'Offline Mode' : 'Mode hors ligne'}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ */}
       <div className="absolute top-6 right-6 z-50">
         <button
