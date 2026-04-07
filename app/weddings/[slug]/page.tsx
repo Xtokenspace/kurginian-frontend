@@ -547,38 +547,46 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[150] overflow-hidden"
           >
-            {/* Замороженное фото на фоне (затемненное) */}
+            {/* Замороженное фото на фоне (глубокое кинематографичное размытие) */}
             {capturedImage && (
-              <div 
-                className="absolute inset-0 bg-cover bg-center opacity-40 scale-105"
-                style={{ backgroundImage: `url(${capturedImage})` }}
-              />
+              <>
+                <div 
+                  className="absolute inset-0 bg-cover bg-center opacity-50 scale-105 blur-[6px]"
+                  style={{ backgroundImage: `url(${capturedImage})` }}
+                />
+                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+              </>
             )}
             
             {/* Анимация сканирования поверх лица */}
             <div className="relative z-10 flex flex-col items-center">
-              <div className="relative w-64 h-80 mb-8">
-                {/* Рамка */}
-                <svg viewBox="0 0 200 250" className="w-full h-full text-lux-gold/40">
-                  <rect x="10" y="10" width="180" height="230" rx="90" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="10 10" />
-                </svg>
-                {/* Бегающий лазер */}
+              <div className="relative w-64 h-80 mb-10 overflow-hidden">
+                {/* Фокусная рамка (Статичная во время сканирования) */}
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-lux-gold/70" />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-lux-gold/70" />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-lux-gold/70" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-lux-gold/70" />
+                
+                {/* Широкий градиентный скан (Golden Sweep) */}
                 <motion.div 
-                  animate={{ y: [0, 320, 0] }}
-                  transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[3px] bg-lux-gold shadow-[0_0_20px_rgba(212,175,55,1)] rounded-full"
+                  animate={{ y: [-150, 400] }}
+                  transition={{ repeat: Infinity, duration: 2.2, ease: "linear" }}
+                  className="absolute top-0 left-0 w-full h-[150px] bg-gradient-to-b from-transparent via-lux-gold/10 to-lux-gold/60 border-b border-lux-gold shadow-[0_4px_20px_rgba(212,175,55,0.4)]"
                 />
               </div>
               
-              <motion.p 
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="font-cinzel text-sm md:text-lg text-lux-gold tracking-[0.2em] uppercase bg-black/50 px-6 py-2 rounded-full backdrop-blur-sm"
+              {/* Премиальный текст с переливом */}
+              <motion.div
+                animate={{ opacity: [0.6, 1, 0.6], scale: [0.98, 1, 0.98] }}
+                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                className="bg-black/50 border border-lux-gold/20 px-8 py-3 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.1)]"
               >
-                {language === 'ru' ? 'Анализ биометрии...' : 
-                 language === 'en' ? 'Biometric analysis...' : 
-                 'Analyse biométrique...'}
-              </motion.p>
+                <p className="font-cinzel text-xs md:text-sm text-lux-gold tracking-[0.3em] uppercase">
+                  {language === 'ru' ? 'Анализ биометрии...' : 
+                   language === 'en' ? 'Biometric analysis...' : 
+                   'Analyse biométrique...'}
+                </p>
+              </motion.div>
             </div>
           </motion.div>
         )}
@@ -821,16 +829,36 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             </div>
 
             {/* Видоискатель */}
-            <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-black">
+              {/* Эффект "Soft Ring Light" (Умная подсветка лица светом экрана) */}
+              <div className="absolute inset-0 z-10 shadow-[inset_0_0_120px_rgba(255,255,255,0.15)] pointer-events-none" />
+              
               <video 
                 ref={videoRef} 
                 autoPlay 
                 playsInline 
                 muted 
-                className="absolute inset-0 w-full h-full object-cover scale-x-[-1]" 
+                className="absolute inset-0 w-full h-full object-cover scale-x-[-1] z-0" 
               />
-              {/* Золотая рамка-подсказка */}
-              <div className="absolute inset-0 border-[1px] border-lux-gold/30 m-8 rounded-[3rem] pointer-events-none" />
+              
+              {/* Премиальный фокус Leica / Hasselblad */}
+              <motion.div 
+                animate={{ scale: [1, 1.02, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                className="relative w-64 h-80 z-20 pointer-events-none"
+              >
+                {/* Золотые уголки */}
+                <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-lux-gold" />
+                <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-lux-gold" />
+                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-lux-gold" />
+                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-lux-gold" />
+                
+                {/* Центральный крестик фокуса (тонкий и элегантный) */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 opacity-40">
+                  <div className="absolute top-1/2 left-0 w-full h-[1px] bg-lux-gold" />
+                  <div className="absolute top-0 left-1/2 w-[1px] h-full bg-lux-gold" />
+                </div>
+              </motion.div>
             </div>
 
             {/* Кнопка съемки */}
