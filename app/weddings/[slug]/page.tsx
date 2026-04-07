@@ -238,11 +238,16 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   };
 
   const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    } catch (err) {
+      console.error("Ошибка остановки камеры:", err);
+    } finally {
       streamRef.current = null;
+      setIsCameraActive(false);
     }
-    setIsCameraActive(false);
   };
 
   // 1. Привязываем поток к <video> когда оно отрендерится
@@ -284,12 +289,11 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }, 'image/jpeg', 0.9);
   };
 
-  // ФУНКЦИЯ "ПОПРОБОВАТЬ ЕЩЕ РАЗ" (Чинит черный экран)
   const handleTryAgain = () => {
-    setAttemptCount(prev => prev + 1); // Увеличиваем счетчик попыток
-    setStatus('idle');
+    setAttemptCount(prev => prev + 1); 
     setCapturedImage(null);
-    startCamera(); // Сразу включаем камеру!
+    // НЕ сбрасываем status! Пусть экран ошибки висит на фоне, пока камера открыта.
+    startCamera(); 
   };
 
   
@@ -314,6 +318,13 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         method: 'POST',
         body: formData,
       });
+
+      // ДОБАВИТЬ ЭТОТ БЛОК: Явный перехват 400 ошибки (Лицо не найдено)
+      if (!response.ok) {
+        triggerVibration([50, 100, 50]);
+        setStatus('error');
+        return; // Прерываем выполнение, чтобы не парсить пустой JSON
+      }
 
       const data: AuthResponse = await response.json();
 
@@ -785,7 +796,19 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
           >
             {/* Верхняя панель камеры */}
             <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
-              <button onClick={stopCamera} className="text-white hover:text-lux-gold text-sm tracking-widest uppercase">
+              <button 
+                onClick={() => {
+                  stopCamera();
+                  // ТОЧЕЧНОЕ ЛЕЧЕНИЕ: 
+                  // Если мы не в success (например, застряли в error после неудачного селфи):
+                  if (status !== 'success') {
+                    // Если у юзера уже есть фото -> бережно возвращаем его в галерею
+                    // Если фоток нет -> возвращаем на стартовый экран
+                    setStatus(photos.length > 0 ? 'success' : 'idle');
+                  }
+                }} 
+                className="text-white hover:text-lux-gold text-sm tracking-widest uppercase"
+              >
                 {t.cancel}
               </button>
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

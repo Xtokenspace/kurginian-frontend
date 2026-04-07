@@ -91,6 +91,23 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
 
   const handleShare = async () => {
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
+    
+    // Пытаемся вызвать нативную шторку iOS/Android
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'KURGINIAN Premium',
+          text: t.shareText,
+          url: shareLink,
+        });
+        return;
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') console.error(err);
+        return;
+      }
+    }
+
+    // Если нативный шеринг не работает (старый ПК) - просто копируем ссылку
     try {
       await navigator.clipboard.writeText(shareLink);
       setShowToast(true);
