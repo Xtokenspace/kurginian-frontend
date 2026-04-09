@@ -1,3 +1,4 @@
+// === ФАЙЛ: app/page.tsx (ГЛАВНАЯ СТРАНИЦА) ===
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -7,52 +8,52 @@ import { motion, AnimatePresence } from 'framer-motion';
 const translations = {
   fr: {
     title: "KURGINIAN",
-    subtitle: "Votre galerie de mariage avec reconnaissance faciale",
+    subtitle: "Vos souvenirs les plus précieux, accessibles en un clic.",
     whatsapp: "Contacter le photographe",
-    findWedding: "Trouver un mariage",
+    findWedding: "Trouver un événement",
     bookShoot: "Réserver une séance photo",
     myGalleries: "Mes galeries privées",
     noGalleriesYet: "Vous n'avez encore ouvert aucune galerie",
-    whatsappMessage: "Bonjour, je souhaite accéder à la galerie de ma/sa mariage. Pouvez-vous m'envoyer le lien ?",
+    whatsappMessage: "Bonjour, je souhaite accéder à la galerie de mon événement. Pouvez-vous m'envoyer le lien ?",
     photosFound: "photos trouvées",
     actionNeeded: "Recherche requise",
     openGallery: "Ouvrir",
     enterCodeTitle: "Accès à la galerie",
-    codePlaceholder: "Nom ou code (ex: david-maria-2026)",
+    codePlaceholder: "Code (ex: david-maria-2026)",
     requestCode: "Demander le code au photographe",
     cancel: "Annuler"
   },
   en: {
     title: "KURGINIAN",
-    subtitle: "Your wedding gallery with facial recognition",
+    subtitle: "Your most precious memories, accessible in one click.",
     whatsapp: "Contact the photographer",
-    findWedding: "Find a wedding",
+    findWedding: "Find an event",
     bookShoot: "Book a photoshoot",
     myGalleries: "My private galleries",
     noGalleriesYet: "You haven't opened any gallery yet",
-    whatsappMessage: "Hello, I would like access to the wedding gallery. Can you send me the link please?",
+    whatsappMessage: "Hello, I would like to access my event gallery. Could you send me the link please?",
     photosFound: "photos found",
     actionNeeded: "Action needed",
     openGallery: "Open",
     enterCodeTitle: "Gallery Access",
-    codePlaceholder: "Name or code (ex: david-maria-2026)",
+    codePlaceholder: "Code (ex: david-maria-2026)",
     requestCode: "Request code from photographer",
     cancel: "Cancel"
   },
   ru: {
     title: "KURGINIAN",
-    subtitle: "Ваша свадебная галерея с распознаванием лиц",
+    subtitle: "Ваши самые ценные воспоминания, доступные в один клик.",
     whatsapp: "Связаться с фотографом",
-    findWedding: "Найти свадьбу",
-    bookShoot: "Заказать фотосъёмку",
+    findWedding: "Найти мероприятие",
+    bookShoot: "Забронировать съемку",
     myGalleries: "Мои приватные галереи",
-    noGalleriesYet: "Вы ещё не открывали ни одной галереи",
-    whatsappMessage: "Здравствуйте, я хочу получить доступ к галерее свадьбы. Можете прислать ссылку?",
+    noGalleriesYet: "Вы еще не открывали ни одной галереи",
+    whatsappMessage: "Здравствуйте, я хочу получить доступ к галерее мероприятия. Можете прислать ссылку?",
     photosFound: "фото найдено",
     actionNeeded: "Требуется поиск",
     openGallery: "Открыть",
     enterCodeTitle: "Доступ к галерее",
-    codePlaceholder: "Название или код (например: david-maria-2026)",
+    codePlaceholder: "Код (например: david-maria-2026)",
     requestCode: "Запросить код у фотографа",
     cancel: "Отмена"
   }
@@ -189,7 +190,7 @@ export default function PWAHome() {
   if (!isLoaded) return <div className="min-h-screen bg-lux-bg" />;
 
   return (
-    <main className="min-h-screen bg-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lux-gold/10 via-lux-bg to-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
       
       {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ */}
       <div className="absolute top-6 right-6 z-50">
@@ -229,10 +230,29 @@ export default function PWAHome() {
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1, ease: "easeOut" }}
-        className="max-w-md w-full pt-10 pb-20"
+        className="max-w-md w-full pt-10 pb-20 relative z-10"
       >
-        <h1 className="font-cinzel text-5xl md:text-6xl text-lux-gold mb-4 tracking-widest">KURGINIAN</h1>
-        <p className="font-cormorant text-xl md:text-2xl text-lux-text/90 mb-12 italic leading-tight">
+        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА (Идеальное выравнивание по ширине кнопок) */}
+        <h1 className="font-cinzel text-4xl md:text-[2.75rem] text-lux-gold mb-6 max-w-sm mx-auto w-full flex justify-between uppercase">
+          {t.title.split('').map((letter, index) => (
+            <motion.span
+              key={index}
+              initial={{ opacity: 0, y: 15, filter: "blur(5px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{
+                duration: 0.8,
+                delay: 0.1 * index,
+                ease: [0.2, 0.9, 0.3, 1]
+              }}
+              className="inline-block will-change-[transform,opacity,filter]"
+            >
+              {letter === ' ' ? '\u00A0' : letter}
+            </motion.span>
+          ))}
+        </h1>
+        
+        {/* Обновленный строгий подзаголовок */}
+        <p className="font-cormorant text-xl md:text-2xl text-gray-400 mb-14 font-light leading-relaxed px-4">
           {t.subtitle}
         </p>
 
@@ -345,63 +365,93 @@ export default function PWAHome() {
         </div>
       </motion.div>
 
-      {/* === ПРЕМИУМ МОДАЛКА ВВОДА КОДА === */}
-      <AnimatePresence>
-        {showCodeModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
-            onClick={() => setShowCodeModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-lux-card border border-lux-gold/50 rounded-sm max-w-sm w-full p-8 text-center shadow-gold-glow"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="font-cinzel text-xl text-lux-gold mb-6 tracking-widest uppercase">
-                {t.enterCodeTitle}
-              </h3>
-              
-              <input
-                type="text"
-                value={codeInput}
-                onChange={(e) => setCodeInput(e.target.value)}
-                placeholder={t.codePlaceholder}
-                className="w-full bg-[#111] border border-lux-gold/30 text-white px-4 py-4 rounded-sm text-center text-sm md:text-base focus:outline-none focus:border-lux-gold transition-colors mb-4"
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handleCodeSubmit()}
+      {/* МОДАЛЬНОЕ ОКНО РУЧНОГО ВВОДА КОДА (PREMIUM BOTTOM SHEET) */}
+        <AnimatePresence>
+          {showCodeModal && (
+            <>
+              {/* Затемняющий фон */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] will-change-[opacity]"
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                  setShowCodeModal(false);
+                }}
               />
 
-              <button
-                onClick={openWhatsApp}
-                className="w-full mb-6 text-xs text-gray-400 hover:text-lux-gold transition-colors flex items-center justify-center gap-2 underline underline-offset-4 decoration-white/10 hover:decoration-lux-gold/50"
+              {/* Выезжающая шторка */}
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+                className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
               >
-                💬 {t.requestCode}
-              </button>
+                <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]" onClick={(e) => e.stopPropagation()}>
+                  
+                  {/* Индикатор свайпа (Pill) */}
+                  <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setShowCodeModal(false)}
-                  className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
-                >
-                  {t.cancel}
-                </button>
-                <button
-                  onClick={handleCodeSubmit}
-                  disabled={!codeInput.trim()}
-                  className="flex-1 px-4 py-3 bg-lux-gold text-black font-bold hover:bg-white transition-colors rounded-sm uppercase text-xs md:text-sm tracking-wider disabled:opacity-50"
-                >
-                  {t.openGallery}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <h3 className="font-cinzel text-xl text-lux-gold mb-6 text-center tracking-widest uppercase">
+                    {t.enterCodeTitle}
+                  </h3>
+                  
+                  <input
+                    type="text"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    placeholder={t.codePlaceholder}
+                    className="w-full bg-[#111] border border-lux-gold/30 text-white px-4 py-4 rounded-sm text-center text-sm md:text-base focus:outline-none focus:border-lux-gold transition-colors mb-6 shadow-inner"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleCodeSubmit()}
+                  />
+
+                  {/* Кнопка WhatsApp (замена эмодзи на строгий векторный SVG) */}
+                  <button
+                    onClick={() => {
+                       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                       openWhatsApp();
+                    }}
+                    className="w-full mb-8 text-xs text-gray-400 hover:text-lux-gold transition-colors flex items-center justify-center gap-2 group"
+                  >
+                    <svg className="w-4 h-4 text-gray-500 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                    </svg>
+                    <span className="underline underline-offset-4 decoration-white/10 group-hover:decoration-lux-gold/50 transition-colors uppercase tracking-widest">{t.requestCode}</span>
+                  </button>
+
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                        setShowCodeModal(false);
+                      }}
+                      className="flex-1 px-4 py-4 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
+                    >
+                      {t.cancel}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                        handleCodeSubmit();
+                      }}
+                      disabled={!codeInput.trim()}
+                      className="flex-1 px-4 py-4 bg-lux-gold text-black font-bold hover:bg-white transition-colors rounded-sm uppercase text-xs md:text-sm tracking-wider disabled:opacity-50 shadow-gold-glow flex items-center justify-center gap-2"
+                    >
+                      {t.openGallery}
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
     </main>
   );
 }

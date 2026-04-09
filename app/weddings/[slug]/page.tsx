@@ -1,10 +1,10 @@
+// === ФАЙЛ: app/weddings/[slug]/page.tsx (ГОСТЕВАЯ КАМЕРА) ===
 'use client';
 
 import { useState, useRef, use, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
 import imageCompression from 'browser-image-compression';
-import JSZip from 'jszip';
 import { useRouter } from 'next/navigation';
 
 // === ТИПИЗАЦИЯ API ===
@@ -22,15 +22,15 @@ export interface AuthResponse {
   data: MatchedPhoto[];
 }
 
-// === ПЕРЕВОДЫ (С комплиментарным отказом и Оффлайн режимом) ===
+// === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
 const translations = {
   fr: {
     welcome: "Bienvenue",
-    subtitle: "Bienvenue dans votre galerie. Je suis l'assistant numérique de ce mariage.",
+    subtitle: "Vos souvenirs, instantanément. Pour retrouver vos photos, la magie commence par un selfie.",
     findPhotos: "Trouver mes photos",
-    takePhoto: "Prendre une photo maintenant",
+    takePhoto: "Prendre une photo",
     chooseGallery: "Choisir depuis la galerie",
-    foundPhotos: "Vos souvenirs",
+    foundPhotos: "Vous y étiez ! ✨",
     downloadAll: "Télécharger toutes les photos",
     findMore: "Trouver encore des photos",
     contactPhotographer: "Suivre sur Instagram",
@@ -51,16 +51,18 @@ const translations = {
     verifyDesc: "Nous avons trouvé ces photos avec une correspondance partielle. Confirmez-vous qu'il s'agit de vous ?",
     yesItsMe: "Oui, c'est moi",
     noTryAgain: "Non, réessayer",
-    offlineMode: "Mode hors ligne", 
-    offlineReq: "Connexion Internet requise",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
+    privacyText: "Confidentiel. Votre photo ne sera ni partagée ni conservée.",
+    cameraAction: "Prendre un selfie",
+    yourSelfie: "Votre selfie"
   },
   en: {
     welcome: "Welcome",
-    subtitle: "Welcome to your gallery. I am the digital assistant of this wedding.",
+    subtitle: "Your memories, instantly. To find your photos, the magic begins with a selfie.",
     findPhotos: "Find my photos",
-    takePhoto: "Take a photo now",
+    takePhoto: "Take a photo",
     chooseGallery: "Choose from gallery",
-    foundPhotos: "Your memories",
+    foundPhotos: "You were there! ✨",
     downloadAll: "Download all photos",
     findMore: "Find more photos",
     contactPhotographer: "Follow on Instagram",
@@ -81,16 +83,18 @@ const translations = {
     verifyDesc: "We found these photos with a partial match. Can you confirm this is you?",
     yesItsMe: "Yes, it's me",
     noTryAgain: "No, try again",
-    offlineMode: "Offline Mode", 
-    offlineReq: "Internet connection required",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
+    privacyText: "Confidential. Your photo will not be shared or stored.",
+    cameraAction: "Take a selfie",
+    yourSelfie: "Your selfie"
   },
   ru: {
     welcome: "Добро пожаловать",
-    subtitle: "Добро пожаловать в вашу галерею. Я цифровой помощник этой свадьбы.",
+    subtitle: "Ваши воспоминания — мгновенно. Чтобы найти свои фото, магия начинается с селфи.",
     findPhotos: "Найти мои фото",
-    takePhoto: "Сделать фото сейчас",
+    takePhoto: "Сделать фото",
     chooseGallery: "Выбрать из галереи",
-    foundPhotos: "Ваши воспоминания",
+    foundPhotos: "Вы были там! ✨",
     downloadAll: "Скачать все фото",
     findMore: "Найти ещё фото",
     contactPhotographer: "Подписаться в Instagram",
@@ -111,8 +115,10 @@ const translations = {
     verifyDesc: "Мы нашли эти фотографии с частичным совпадением. Подтверждаете, что это вы?",
     yesItsMe: "Да, это я",
     noTryAgain: "Нет, попробовать еще",
-    offlineMode: "Режим оффлайн", 
-    offlineReq: "Требуется интернет",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
+    privacyText: "Конфиденциально. Ваше фото не будет сохранено или передано.",
+    cameraAction: "Сделать селфи",
+    yourSelfie: "Ваше селфи"
   }
 } as const;
 
@@ -126,8 +132,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
-  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // === НОВЫЕ СТЕЙТЫ ДЛЯ КАМЕРЫ (Digital Concierge) ===
@@ -364,47 +368,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     }
   };
 
-  // === СКАЧИВАНИЕ ВСЕХ ФОТО (ZIP) ===
-  const downloadAllPhotos = async () => {
-    
-    if (photos.length === 0) return;
-      
-    setIsDownloadingAll(true);
-    setDownloadProgress(0);
-  
-    try {
-      const zip = new JSZip();
-          
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-        
-        // Показываем прогресс загрузки по сети
-        setDownloadProgress(Math.round(((i) / photos.length) * 100));
-              
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        if (!response.ok) throw new Error();
-        const blob = await response.blob();
-        zip.file(photo.filename, blob);
-      }
-      
-      // Финальная стадия: упаковка (здесь обычно зависает UI, поэтому меняем текст)
-      setDownloadProgress(100); 
-      // Мы будем использовать этот флаг в UI, чтобы написать "Archivage..."
-          
-      const content = await zip.generateAsync({ type: "blob" });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(content);
-      link.download = `mes_photos_${slug}.zip`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch {
-      alert(language === 'ru' ? "Ошибка при создании архива" : "Erreur lors de la création de l'archive");
-    } finally {
-      setIsDownloadingAll(false);
-      setDownloadProgress(0);
-    }
-  };
 
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
@@ -494,18 +457,21 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20, filter: "blur(5px)" }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="text-center max-w-lg w-full"
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-center max-w-2xl w-full px-4 flex flex-col items-center"
           >
-            <h1 className="font-cinzel text-3xl md:text-5xl text-lux-gold mb-6 uppercase tracking-widest">
+            <h1 className="font-cinzel text-4xl md:text-5xl text-lux-gold mb-8 uppercase tracking-[0.3em] pl-[0.3em]">
               {t.welcome}
             </h1>
-            <p className="font-cormorant text-xl md:text-2xl mb-12 italic text-gray-300">
+            <p className="font-cormorant text-xl md:text-2xl mb-14 text-gray-300 leading-relaxed font-light max-w-lg">
               {t.subtitle}
             </p>
             <button 
-              onClick={() => setShowChoiceModal(true)}
-              className="px-10 py-5 bg-transparent border-2 border-lux-gold text-lux-gold font-montserrat uppercase tracking-[0.2em] rounded-sm hover:bg-lux-gold hover:text-black hover:shadow-gold-glow-hover transition-all duration-500 text-lg"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setShowChoiceModal(true);
+              }}
+              className="px-12 py-5 bg-transparent border border-lux-gold/50 text-lux-gold font-montserrat uppercase tracking-[0.2em] rounded-sm hover:bg-lux-gold hover:text-black hover:shadow-gold-glow-hover transition-all duration-500 text-xs md:text-sm shadow-gold-glow"
             >
               {t.findPhotos}
             </button>
@@ -668,10 +634,15 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             transition={{ duration: 0.6, ease: "easeOut" }}
             className="w-full max-w-7xl pt-10 relative"
           >
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="font-cinzel text-3xl text-lux-gold">
-                {t.foundPhotos} • {photos.length} photo{photos.length > 1 ? 's' : ''}
+            {/* ПРЕМИАЛЬНЫЙ ЗАГОЛОВОК ГАЛЕРЕИ */}
+            <div className="text-center mb-12 flex flex-col items-center mt-4">
+              <h2 className="font-cinzel text-3xl md:text-4xl text-lux-gold mb-4 uppercase tracking-widest">
+                {t.foundPhotos}
               </h2>
+              <div className="h-px w-24 bg-gradient-to-r from-transparent via-lux-gold/50 to-transparent mb-4"></div>
+              <p className="font-montserrat text-xs text-gray-400 uppercase tracking-widest">
+                {photos.length} photo{photos.length > 1 ? 's' : ''}
+              </p>
             </div>
             
             <Gallery photos={photos} slug={slug} />
@@ -748,34 +719,6 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                       <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
 
                       <div className="space-y-3">
-                        {/* 1. Скачать фото (с прогресс-баром) */}
-                        <button
-                          onClick={() => {
-                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-                            if (!isDownloadingAll) downloadAllPhotos();
-                          }}
-                          disabled={isDownloadingAll}
-                          className="relative w-full overflow-hidden bg-white/5 border border-white/10 hover:border-lux-gold/50 transition-colors rounded-2xl flex items-center justify-between p-5 group disabled:cursor-not-allowed"
-                        >
-                          {isDownloadingAll && (
-                            <div 
-                              className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
-                              style={{ width: `${downloadProgress}%` }}
-                            />
-                          )}
-                          <div className="relative z-10 flex items-center gap-4">
-                            <svg className={`w-5 h-5 ${isDownloadingAll ? 'text-lux-gold animate-bounce' : 'text-white group-hover:text-lux-gold transition-colors'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                            </svg>
-                            <span className="text-white text-sm uppercase tracking-widest font-medium">
-                              {isDownloadingAll 
-                                ? (language === 'ru' ? (downloadProgress < 100 ? `Загрузка ${downloadProgress}%` : 'Создание архива...') : language === 'en' ? (downloadProgress < 100 ? `Loading ${downloadProgress}%` : 'Archiving...') : (downloadProgress < 100 ? `Chargement ${downloadProgress}%` : 'Archivage...'))
-                                : t.downloadAll}
-                            </span>
-                          </div>
-                        </button>
-
-                        <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
 
                         {/* 2. Новый поиск */}
                         <button
@@ -926,70 +869,81 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
         )}
       </AnimatePresence>
 
-      {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ФОТО */}
+      {/* МОДАЛЬНОЕ ОКНО ВЫБОРА ФОТО (PREMIUM BOTTOM SHEET) */}
       <AnimatePresence>
         {showChoiceModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-6"
-            onClick={() => setShowChoiceModal(false)}
-          >
+          <>
+            {/* Затемняющий фон */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-lux-card border border-lux-gold/50 p-8 rounded-sm max-w-sm w-full shadow-gold-glow text-center"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] will-change-[opacity]"
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setShowChoiceModal(false);
+              }}
+            />
+
+            {/* Выезжающая шторка */}
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+              className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
             >
-              <h3 className="font-cinzel text-xl text-lux-gold mb-8 tracking-widest uppercase">
-                {language === 'ru' ? 'Поиск фото' : language === 'en' ? 'Find photos' : 'Trouver des photos'}
-              </h3>
-              
-              <div className="space-y-4">
-                {/* Кнопка Камеры */}
-                <button
-                  onClick={() => {
-                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                    startCamera();
-                  }}
-                  className="w-full px-6 py-4 bg-lux-gold text-black font-bold hover:bg-white transition-all rounded-sm uppercase tracking-wider flex items-center justify-center gap-3 text-xs md:text-sm shadow-gold-glow"
-                >
-                  <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                  </svg>
-                  <span>{t.takePhoto}</span>
-                </button>
+              <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                
+                {/* Индикатор свайпа (Pill) */}
+                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
 
-                {/* Кнопка Галереи */}
-                <button
-                  onClick={() => {
-                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                    setShowChoiceModal(false);
-                    fileInputRef.current?.removeAttribute('capture');
-                    fileInputRef.current?.click();
-                  }}
-                  className="w-full px-6 py-4 bg-transparent border border-lux-gold/50 text-lux-gold font-medium hover:bg-lux-gold hover:text-black transition-all rounded-sm uppercase tracking-wider flex items-center justify-center gap-3 text-xs md:text-sm group"
-                >
-                  <svg className="w-5 h-5 text-lux-gold group-hover:text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                  </svg>
-                  <span>{t.chooseGallery}</span>
-                </button>
-              </div>
+                <h3 className="font-cinzel text-xl text-lux-gold mb-8 text-center tracking-widest uppercase">
+                  {t.yourSelfie}
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* Primary Кнопка: Камера (Выделена заливкой) */}
+                  <button
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                      startCamera();
+                    }}
+                    className="w-full px-6 py-4 bg-lux-gold text-black font-bold hover:bg-white transition-all rounded-2xl uppercase tracking-wider flex items-center justify-center gap-3 text-sm shadow-gold-glow"
+                  >
+                    <svg className="w-5 h-5 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                    </svg>
+                    <span>{t.cameraAction}</span>
+                  </button>
 
-              <div className="mt-8">
-                <button
-                  onClick={() => setShowChoiceModal(false)}
-                  className="text-gray-500 hover:text-white text-xs uppercase tracking-widest transition-colors underline underline-offset-4 decoration-transparent hover:decoration-white/50"
-                >
-                  {t.cancel}
-                </button>
+                  {/* Secondary Кнопка: Галерея (Скромнее, без заливки) */}
+                  <button
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                      setShowChoiceModal(false);
+                      fileInputRef.current?.removeAttribute('capture');
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full px-6 py-4 bg-transparent border border-lux-gold/30 text-lux-gold font-medium hover:bg-lux-gold hover:text-black transition-all rounded-2xl uppercase tracking-wider flex items-center justify-center gap-3 text-sm group"
+                  >
+                    <svg className="w-5 h-5 text-lux-gold group-hover:text-black transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+                    <span>{t.chooseGallery}</span>
+                  </button>
+                </div>
+
+                {/* Текст конфиденциальности (Психологический триггер Apple-level) */}
+                <p className="mt-8 text-center text-[10px] md:text-[11px] leading-relaxed text-gray-500 uppercase tracking-widest px-4">
+                  {t.privacyText}
+                </p>
+                
               </div>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 

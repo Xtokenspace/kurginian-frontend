@@ -23,9 +23,18 @@ interface GalleryProps {
 
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
 const translations = {
-  fr: { download: "Télécharger", share: "Partager", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨" },
-  en: { download: "Download", share: "Share", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨" },
-  ru: { download: "Скачать", share: "Поделиться", copied: "Ссылка скопирована!", shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨" }
+  fr: { 
+    download: "Télécharger", share: "Partager", saveAll: "Enregistrer mes photos", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨",
+    feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram"
+  },
+  en: { 
+    download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
+    feedbackTitle: "Thank you!", feedbackText: "Your emotions are priceless. Share your experience on Instagram.", instagramBtn: "Message on Instagram"
+  },
+  ru: { 
+    download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
+    feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Буду искренне рад вашему отзыву в Instagram.", instagramBtn: "Написать в Instagram"
+  }
 } as const;
 
 // --- ВАРИАНТЫ АНИМАЦИИ ---
@@ -100,6 +109,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
   // Новые стейты для локализации и уведомлений прямо в галерее
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const [showToast, setShowToast] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Синхронизация языка
   useEffect(() => {
@@ -120,7 +130,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
 
   // Функция скачивания
   const handleDownload = async (filename: string, url: string) => {
-    triggerVibration(50); // Уверенный отклик при скачивании
+    triggerVibration(50);
     try {
       const fetchUrl = `${url}?download=${Date.now()}`;
       const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
@@ -130,6 +140,19 @@ export default function Gallery({ photos, slug }: GalleryProps) {
       link.download = filename;
       link.click();
       URL.revokeObjectURL(link.href);
+
+      // --- УМНЫЙ ПОКАЗ ОКНА ОТЗЫВОВ (1 раз в сутки) ---
+      setTimeout(() => {
+        const lastShown = localStorage.getItem('kurginian_feedback_shown');
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+
+        if (!lastShown || now - parseInt(lastShown) > oneDay) {
+          setShowFeedbackModal(true);
+          localStorage.setItem('kurginian_feedback_shown', now.toString());
+        }
+      }, 1500); // Задержка 1.5 сек, чтобы не перебивать само скачивание
+
     } catch (err) {
       console.error(err);
     }
@@ -165,6 +188,45 @@ export default function Gallery({ photos, slug }: GalleryProps) {
       setTimeout(() => setShowToast(false), 2000);
     } catch {
       prompt(language === 'ru' ? 'Скопируйте ссылку:' : 'Copiez ce lien :', shareLink);
+    }
+  };
+
+  // === НОВАЯ ФУНКЦИЯ: МАССОВОЕ СОХРАНЕНИЕ ФОТО ===
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveAll = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    triggerVibration([50, 30, 50]);
+
+    try {
+      const filesToShare: File[] = [];
+      
+      // Берем все фото из текущей выборки
+      for (const photo of photos) {
+        // Добавляем заголовки CORS и обход кэша, как в одиночном скачивании
+        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
+        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+        const blob = await response.blob();
+        const file = new File([blob], photo.filename, { type: "image/jpeg" });
+        filesToShare.push(file);
+      }
+
+      if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
+        await navigator.share({
+          files: filesToShare,
+          title: 'Mes photos KURGINIAN',
+        });
+      } else {
+        // Fallback: если браузер не тянет Multi-Share, просто качаем по одному
+        for (const photo of photos) {
+          handleDownload(photo.filename, photo.urls.web);
+        }
+      }
+    } catch (err) {
+      console.error("Save all failed:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -227,6 +289,28 @@ export default function Gallery({ photos, slug }: GalleryProps) {
     <>
       {/* СЕТКА ФОТОГРАФИЙ */}
       <Suspense fallback={<div className="min-h-screen bg-lux-bg" />}>
+        {/* Кнопка "Сохранить всё" над сеткой */}
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-center mb-8 px-4"
+        >
+          <button
+            onClick={handleSaveAll}
+            disabled={isSaving}
+            className="w-full max-w-sm py-4 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm shadow-gold-glow flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
+          >
+            {isSaving ? (
+              <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            )}
+            {t.saveAll}
+          </button>
+        </motion.div>
+
         <motion.div 
           initial="hidden"
           animate="visible"
@@ -366,6 +450,62 @@ export default function Gallery({ photos, slug }: GalleryProps) {
               </div>
             </div>
             
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕМИАЛЬНОЕ ОКНО ОТЗЫВА (Pop-up после скачивания) === */}
+      <AnimatePresence>
+        {showFeedbackModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 touch-none"
+            onClick={() => setShowFeedbackModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()} // Чтобы клик по карточке не закрывал её
+              className="w-full max-w-sm bg-[#0a0a0a] border border-lux-gold/30 rounded-xl p-8 text-center shadow-gold-glow relative"
+            >
+              {/* Кнопка закрытия крестиком */}
+              <button
+                onClick={() => setShowFeedbackModal(false)}
+                className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors text-xl"
+              >
+                ✕
+              </button>
+
+              {/* Декоративный элемент (Имитация логотипа/иконки) */}
+              <div className="w-12 h-12 rounded-full bg-lux-gold/10 border border-lux-gold/40 flex items-center justify-center mx-auto mb-5">
+                <svg className="w-5 h-5 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                </svg>
+              </div>
+
+              <h3 className="font-cinzel text-lux-gold text-lg mb-2 uppercase tracking-widest">
+                {t.feedbackTitle}
+              </h3>
+              <p className="text-white/80 font-cormorant text-[1.1rem] italic mb-8 leading-relaxed">
+                {t.feedbackText}
+              </p>
+
+              <a
+                href="https://instagram.com/hdart26"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  triggerVibration(10);
+                  setShowFeedbackModal(false);
+                }}
+                className="block w-full py-3.5 bg-lux-gold text-black text-xs font-bold uppercase tracking-widest hover:bg-white transition-colors rounded-sm shadow-lg active:scale-95"
+              >
+                {t.instagramBtn}
+              </a>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

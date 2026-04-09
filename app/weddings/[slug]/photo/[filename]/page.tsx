@@ -1,3 +1,5 @@
+// === ФАЙЛ: app\weddings\[slug]\photo\[filename]/page.tsx ===
+
 'use client';
 
 import { use, useState, useEffect } from 'react';

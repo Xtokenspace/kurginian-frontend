@@ -1,10 +1,11 @@
+// === ФАЙЛ: app/weddings/[slug]/admin/page.tsx (VIP-ГАЛЕРЕЯ) ===
+
 'use client';
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
-import JSZip from 'jszip';
 
 interface MatchedPhoto {
   filename: string;
@@ -42,10 +43,8 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const [showLangMenu, setShowLangMenu] = useState(false);
   
-  // Новые стейты для меню и загрузки архива
+  // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
-  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const t = translations[language];
 
@@ -100,43 +99,6 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
     router.push(`/weddings/${slug}`);
   };
 
-  // Функция скачивания архива для меню
-  const downloadAllPhotos = async () => {
-    if (photos.length === 0) return;
-      
-    setIsDownloadingAll(true);
-    setDownloadProgress(0);
-  
-    try {
-      const zip = new JSZip();
-          
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-        
-        setDownloadProgress(Math.round(((i) / photos.length) * 100));
-              
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        if (!response.ok) throw new Error();
-        const blob = await response.blob();
-        zip.file(photo.filename, blob);
-      }
-      
-      setDownloadProgress(100); 
-          
-      const content = await zip.generateAsync({ type: "blob" });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(content);
-      link.download = `mes_photos_${slug}.zip`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch {
-      alert(language === 'ru' ? "Ошибка при создании архива" : "Erreur lors de la création de l'archive");
-    } finally {
-      setIsDownloadingAll(false);
-      setDownloadProgress(0);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -270,37 +232,6 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                 <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
 
                 <div className="space-y-3">
-                  {/* Кнопка скачивания с заливкой (Progress Bar) */}
-                  <button
-                    onClick={() => {
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-                      if (!isDownloadingAll) downloadAllPhotos();
-                    }}
-                    disabled={isDownloadingAll}
-                    className="relative w-full overflow-hidden bg-white/5 border border-white/10 hover:border-lux-gold/50 transition-colors rounded-2xl flex items-center justify-between p-5 group disabled:cursor-not-allowed"
-                  >
-                    {/* Анимированный фон прогресса */}
-                    {isDownloadingAll && (
-                      <div 
-                        className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
-                        style={{ width: `${downloadProgress}%` }}
-                      />
-                    )}
-                    
-                    <div className="relative z-10 flex items-center gap-4">
-                      {/* SVG Icon Arrow Down / Loader */}
-                      <svg className={`w-5 h-5 ${isDownloadingAll ? 'text-lux-gold animate-bounce' : 'text-white group-hover:text-lux-gold transition-colors'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                      <span className="text-white text-sm uppercase tracking-widest font-medium">
-                        {isDownloadingAll 
-                          ? (language === 'ru' ? (downloadProgress < 100 ? `Загрузка ${downloadProgress}%` : 'Создание архива...') : language === 'en' ? (downloadProgress < 100 ? `Loading ${downloadProgress}%` : 'Archiving...') : (downloadProgress < 100 ? `Chargement ${downloadProgress}%` : 'Archivage...'))
-                          : t.downloadAll}
-                      </span>
-                    </div>
-                  </button>
-                  
-                  <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
                   
                   {/* Кнопка Instagram */}
                   <button
