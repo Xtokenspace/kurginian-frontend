@@ -229,26 +229,48 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
   // === ПРЕМИАЛЬНАЯ ДВУХШАГОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ ===
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
-  const [readyFiles, setReadyFiles] = useState<File[] | null>(null); // Файлы, готовые ко второму клику (для мобилок)
+  const [readyFiles, setReadyFiles] = useState<File[] | null>(null);
 
   const handleSaveAll = async () => {
-    // ШАГ 2: ВТОРОЙ КЛИК (ТОЛЬКО ДЛЯ ТЕЛЕФОНОВ) -> Мгновенное открытие шторки
+    // ШАГ 2: ВТОРОЙ КЛИК (Мгновенное открытие шторки или ZIP-спасатель)
     if (readyFiles) {
+      let shareSuccess = false;
       try {
-        if (navigator.canShare && navigator.canShare({ files: readyFiles })) {
-          triggerVibration(10);
-          await navigator.share({
-            files: readyFiles,
-            title: t.shareTitle,
-          });
-        }
+        // Передаем СТРОГО только файлы, без title (это спасает от багов iOS)
+        await navigator.share({
+          files: readyFiles,
+        });
+        shareSuccess = true;
       } catch (shareErr) {
-        if ((shareErr as Error).name !== 'AbortError') {
-          console.warn("Шторка закрыта с ошибкой:", shareErr);
+        if ((shareErr as Error).name === 'AbortError') {
+          shareSuccess = true; // Юзер сам смахнул шторку вниз (отмена), всё ок
+        } else {
+          console.warn("Браузер заблокировал шторку:", shareErr);
         }
-      } finally {
-        setReadyFiles(null); // Возвращаем кнопку в исходное "золотое" состояние
       }
+
+      // 🔥 СПАСАТЕЛЬНЫЙ КРУГ: Если телефон отказался открывать шторку -> Мгновенно отдаем ZIP!
+      if (!shareSuccess) {
+        try {
+          setSaveProgress('ZIP...');
+          const zip = new JSZip();
+          readyFiles.forEach(file => zip.file(file.name, file));
+          const zipBlob = await zip.generateAsync({ type: "blob" });
+
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(zipBlob);
+          link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+        } catch (zipErr) {
+          console.error("ZIP fallback failed:", zipErr);
+        }
+      }
+
+      setReadyFiles(null); // Возвращаем кнопку в исходное "золотое" состояние
+      setSaveProgress('');
       return;
     }
 
@@ -278,7 +300,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
       if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
         triggerVibration([30, 50]); // Вибрация "Готово"
         setReadyFiles(filesToShare); // Переключаем UI кнопки
-        return; // Выходим из функции, ждем второго клика пользователя!
+        return; // Выходим из функции, ждем второго клика!
       }
 
       // 3. Поведение для ПК -> Сразу генерируем и отдаем ZIP (без второго клика)
