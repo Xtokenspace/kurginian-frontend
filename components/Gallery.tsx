@@ -32,7 +32,8 @@ const translations = {
     feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram",
     noPhotos: "Aucune photo trouvée.",
     copyPrompt: "Copiez ce lien :",
-    shareTitle: "Mes photos KURGINIAN"
+    shareTitle: "Mes photos KURGINIAN",
+    saveToGallery: "Enregistrer dans la pellicule"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -40,7 +41,8 @@ const translations = {
     feedbackTitle: "Thank you!", feedbackText: "Your emotions are precious. Share your review on Instagram.", instagramBtn: "Write on Instagram",
     noPhotos: "No photos found.",
     copyPrompt: "Copy this link:",
-    shareTitle: "My KURGINIAN photos"
+    shareTitle: "My KURGINIAN photos",
+    saveToGallery: "Save to Camera Roll"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -48,7 +50,8 @@ const translations = {
     feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Поделитесь отзывом в Instagram.", instagramBtn: "Написать в Instagram",
     noPhotos: "Фотографии не найдены.",
     copyPrompt: "Скопируйте ссылку:",
-    shareTitle: "Мои фото KURGINIAN"
+    shareTitle: "Мои фото KURGINIAN",
+    saveToGallery: "Сохранить в фотопленку"
   }
 } as const;
 
@@ -223,74 +226,87 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
     }
   };
 
-  // === УМНАЯ ФУНКЦИЯ: МАССОВОЕ СОХРАНЕНИЕ ФОТО (SMART ZIP) ===
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState(''); // 🔥 НОВОЕ: стейт прогресса
+  // === ПРЕМИАЛЬНАЯ ДВУХШАГОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ ===
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState('');
+  const [readyFiles, setReadyFiles] = useState<File[] | null>(null); // Файлы, готовые ко второму клику (для мобилок)
 
-  const handleSaveAll = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-    setSaveProgress(''); // Очищаем перед стартом
-    triggerVibration([50, 30, 50]);
-    trackAction('save_all');
+  const handleSaveAll = async () => {
+    // ШАГ 2: ВТОРОЙ КЛИК (ТОЛЬКО ДЛЯ ТЕЛЕФОНОВ) -> Мгновенное открытие шторки
+    if (readyFiles) {
+      try {
+        if (navigator.canShare && navigator.canShare({ files: readyFiles })) {
+          triggerVibration(10);
+          await navigator.share({
+            files: readyFiles,
+            title: t.shareTitle,
+          });
+        }
+      } catch (shareErr) {
+        if ((shareErr as Error).name !== 'AbortError') {
+          console.warn("Шторка закрыта с ошибкой:", shareErr);
+        }
+      } finally {
+        setReadyFiles(null); // Возвращаем кнопку в исходное "золотое" состояние
+      }
+      return;
+    }
 
-    try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const filesToShare: File[] = [];
+    // ШАГ 1: ПЕРВЫЙ КЛИК -> Выкачиваем файлы
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveProgress('');
+    triggerVibration([50, 30, 50]);
+    trackAction('save_all');
 
-      // 1. Выкачиваем фото с анимацией прогресса на кнопке
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        setSaveProgress(`${i + 1} / ${photos.length}`); // Обновляем UI
-        
-        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        const blob = await response.blob();
-        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
-      }
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const filesToShare: File[] = [];
 
-      // 2. Поведение для МОБИЛЬНЫХ
-      if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
-        try {
-          setSaveProgress(''); // Убираем цифры перед открытием шторки
-          await navigator.share({
-            files: filesToShare,
-            title: t.shareTitle,
-          });
-          return; 
-        } catch (shareErr) {
-          if ((shareErr as Error).name === 'AbortError') return;
-          console.warn("Шторка не сработала:", shareErr);
-        }
-      }
+      // 1. Выкачиваем фото с анимацией прогресса на кнопке
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        setSaveProgress(`${i + 1} / ${photos.length}`);
+        
+        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
+        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+        const blob = await response.blob();
+        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
+      }
 
-      // 3. Поведение для ПК -> ГЕНЕРАЦИЯ ZIP
-      setSaveProgress('ZIP...'); // Показываем, что идет запаковка
-      const zip = new JSZip();
+      // 2. Поведение для МОБИЛЬНЫХ -> Готовим второй шаг
+      if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
+        triggerVibration([30, 50]); // Вибрация "Готово"
+        setReadyFiles(filesToShare); // Переключаем UI кнопки
+        return; // Выходим из функции, ждем второго клика пользователя!
+      }
 
-      filesToShare.forEach(file => {
-        zip.file(file.name, file);
-      });
+      // 3. Поведение для ПК -> Сразу генерируем и отдаем ZIP (без второго клика)
+      setSaveProgress('ZIP...');
+      const zip = new JSZip();
 
-      const zipBlob = await zip.generateAsync({ type: "blob" });
+      filesToShare.forEach(file => {
+        zip.file(file.name, file);
+      });
 
-      // 🔥 ИСПРАВЛЕНИЕ ОШИБКИ: Нативное скачивание без file-saver
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
-      link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      const zipBlob = await zip.generateAsync({ type: "blob" });
 
-    } catch (err) {
-      console.error("Save all failed:", err);
-      alert(language === 'ru' ? 'Ошибка скачивания. Попробуйте еще раз.' : language === 'en' ? 'Download error. Please try again.' : 'Erreur de téléchargement. Veuillez réessayer.');
-    } finally {
-      setIsSaving(false);
-      setSaveProgress('');
-    }
-  };
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+    } catch (err) {
+      console.error("Save all failed:", err);
+      alert(language === 'ru' ? 'Ошибка скачивания. Попробуйте еще раз.' : language === 'en' ? 'Download error. Please try again.' : 'Erreur de téléchargement. Veuillez réessayer.');
+    } finally {
+      setIsSaving(false);
+      setSaveProgress('');
+    }
+  };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
   const openLightbox = (index: number) => {
@@ -360,20 +376,33 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
           <button
             onClick={handleSaveAll}
             disabled={isSaving}
-            className="w-full max-w-sm py-4 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm shadow-gold-glow flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-50"
+            className={`w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center gap-3 transition-all duration-300 active:scale-95 disabled:opacity-50 ${
+              readyFiles 
+                ? 'bg-[#F0F0F0] text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]' // Белая премиальная кнопка (2 шаг)
+                : 'bg-lux-gold text-black shadow-gold-glow' // Золотая кнопка (1 шаг)
+            }`}
           >
             {isSaving ? (
               <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+            ) : readyFiles ? (
+              /* Иконка галочки/успеха для 2 шага */
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
             ) : (
+              /* Стандартная иконка скачивания для 1 шага */
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
             )}
-            {/* Если сохраняем и есть прогресс — показываем цифры, иначе стандартный текст */}
+
+            {/* Логика текста */}
             {isSaving && saveProgress ? (
-              <span className="font-mono">{saveProgress}</span>
+              <span className="font-mono tracking-widest">{saveProgress}</span>
+            ) : readyFiles ? (
+              t.saveToGallery // "Сохранить в фотопленку"
             ) : (
-              t.saveAll
+              t.saveAll // "Сохранить мои фото"
             )}
           </button>
         </motion.div>
