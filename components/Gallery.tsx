@@ -236,15 +236,16 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
     if (readyFiles) {
       let shareSuccess = false;
       try {
-        // Передаем СТРОГО только файлы, без title (это спасает от багов iOS)
         await navigator.share({
           files: readyFiles,
         });
         shareSuccess = true;
       } catch (shareErr) {
         if ((shareErr as Error).name === 'AbortError') {
-          shareSuccess = true; // Юзер сам смахнул шторку вниз (отмена), всё ок
+          shareSuccess = true; 
         } else {
+          // Выводим точную ошибку на экран, чтобы понять, на что ругается iOS/Android
+          alert(`Ошибка шторки: ${(shareErr as Error).name}\n${(shareErr as Error).message}\n\nПопробуйте открыть сайт в Safari/Chrome.`);
           console.warn("Браузер заблокировал шторку:", shareErr);
         }
       }
