@@ -23,12 +23,12 @@ export default function StudioAdminPage() {
   
   const [stats, setStats] = useState<any>(null);
   
-  // === НОВЫЕ СТЕЙТЫ ДЛЯ УПРАВЛЕНИЯ ПРОЕКТОМ ===
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [projectPhotos, setProjectPhotos] = useState<StudioPhoto[]>([]);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Хранит filename удаляемого фото
+  const [projectExpiry, setProjectExpiry] = useState<string | null>(null); 
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); 
+  const [vipPassword, setVipPassword] = useState<string>('');
 
-  // Проверка сессии при старте
   useEffect(() => {
     const savedPassword = sessionStorage.getItem('super_admin_pwd');
     if (savedPassword) {
@@ -81,6 +81,7 @@ export default function StudioAdminPage() {
   const openProject = async (slug: string) => {
     setSelectedProject(slug);
     setProjectPhotos([]);
+    setProjectExpiry(null);
     const pwd = sessionStorage.getItem('super_admin_pwd');
     if (!pwd) return;
 
@@ -94,19 +95,28 @@ export default function StudioAdminPage() {
       if (res.ok) {
         const data = await res.json();
         setProjectPhotos(data.data);
+        
+        // Форматируем дату, если она есть
+        if (data.expires_at) {
+          const dateObj = new Date(data.expires_at);
+          setProjectExpiry(dateObj.toLocaleDateString('ru-RU'));
+        } else {
+          setProjectExpiry("Не задано");
+        }
+        
+        // Подхватываем пароль
+        setVipPassword(data.vip_password || "Скрыт (Старый формат)");
       }
     } catch (err) {
       console.error("Ошибка загрузки фото", err);
     }
   };
 
-  // === УДАЛЕНИЕ ФОТОГРАФИИ ===
+  // === УДАЛЕНИЕ ОДНОЙ ФОТОГРАФИИ ===
   const deletePhoto = async (filename: string) => {
-    if (!confirm(`Вы уверены, что хотите НАВСЕГДА удалить фото ${filename}? Оно будет стерто из облака.`)) return;
+    if (!confirm(`Удалить фото ${filename}? Оно будет стерто из облака навсегда.`)) return;
     
     const pwd = sessionStorage.getItem('super_admin_pwd');
-    if (!pwd) return;
-
     setIsDeleting(filename);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -115,22 +125,104 @@ export default function StudioAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: pwd, filename }),
       });
-
       if (res.ok) {
-        // Убираем удаленное фото из интерфейса мгновенно
         setProjectPhotos((prev) => prev.filter((p) => p.filename !== filename));
       } else {
-        alert("Ошибка при удалении. Проверьте логи сервера.");
+        alert("Ошибка при удалении.");
       }
     } catch (err) {
-      console.error(err);
-      alert("Ошибка сети при удалении.");
+      alert("Ошибка сети.");
     } finally {
       setIsDeleting(null);
     }
   };
 
-  // === ЭКРАН ВХОДА ===
+  // === СМЕНА VIP ПАРОЛЯ ===
+  const changeVipPassword = async () => {
+    const current = vipPassword !== "Скрыт (старый формат)" ? vipPassword : "";
+    const newPwd = prompt("Введите новый VIP-пароль (только латинские буквы и цифры):", current);
+    if (!newPwd || newPwd.trim() === "") return;
+    
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/weddings/${selectedProject}/update-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd, new_vip_password: newPwd }),
+      });
+      if (res.ok) {
+        alert(`Пароль успешно изменен на: ${newPwd.toUpperCase()}`);
+        setVipPassword(newPwd.toUpperCase());
+      } else {
+        alert("Ошибка при смене пароля. Проверьте логи.");
+      }
+    } catch (e) {
+      alert("Ошибка сети при смене пароля");
+    }
+  };
+
+
+  // === ПРОДЛЕНИЕ ПРОЕКТА ===
+  const extendProject = async () => {
+    const monthsStr = prompt("На сколько МЕСЯЦЕВ вы хотите продлить (или задать) срок хранения этого проекта?", "6");
+    if (!monthsStr) return;
+    
+    const months = parseInt(monthsStr.trim());
+    if (isNaN(months) || months <= 0) {
+      alert("Пожалуйста, введите корректное число.");
+      return;
+    }
+
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/weddings/${selectedProject}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd, months }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(data.message);
+        setProjectExpiry(data.new_date);
+      }
+    } catch (e) {
+      alert("Ошибка при продлении проекта");
+    }
+  };
+
+  // === ПОЛНОЕ УДАЛЕНИЕ ПРОЕКТА ===
+  const deleteEntireProject = async () => {
+    const confirm1 = confirm(`ВНИМАНИЕ! Вы собираетесь ПОЛНОСТЬЮ удалить проект ${selectedProject}. Это сотрет базу и ВСЕ фотографии из Cloudflare R2.\n\nПродолжить?`);
+    if (!confirm1) return;
+    
+    const confirm2 = prompt(`Для подтверждения напишите слово DELETE заглавными буквами:`);
+    if (confirm2 !== "DELETE") {
+      alert("Удаление отменено.");
+      return;
+    }
+
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/weddings/${selectedProject}/delete-project`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd }),
+      });
+      if (res.ok) {
+        alert("Проект успешно удален.");
+        setSelectedProject(null);
+        fetchDashboardData(pwd!); // Обновляем дашборд
+      } else {
+        alert("Ошибка при удалении проекта.");
+      }
+    } catch (e) {
+      alert("Ошибка сети при удалении проекта.");
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center p-6 text-white font-montserrat select-none">
@@ -139,14 +231,7 @@ export default function StudioAdminPage() {
           <p className="text-gray-500 text-center text-xs tracking-widest mb-10 uppercase">Secure Access</p>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Master Password"
-                className="w-full bg-transparent border-b border-white/20 focus:border-lux-gold text-center text-xl p-3 outline-none transition-colors placeholder:text-gray-700 tracking-widest"
-                autoFocus
-              />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Master Password" className="w-full bg-transparent border-b border-white/20 focus:border-lux-gold text-center text-xl p-3 outline-none transition-colors placeholder:text-gray-700 tracking-widest" autoFocus />
             </div>
             {error && <p className="text-red-500 text-center text-sm">{error}</p>}
             <button type="submit" disabled={isLoading || !password} className="w-full py-4 bg-white/5 hover:bg-lux-gold text-gray-300 hover:text-black transition-all text-xs font-bold uppercase tracking-widest disabled:opacity-50 border border-white/10 hover:border-lux-gold">
@@ -158,28 +243,20 @@ export default function StudioAdminPage() {
     );
   }
 
-  // === ИНТЕРФЕЙС ===
   return (
     <div className="min-h-screen bg-[#050505] text-white font-montserrat pb-20">
-      {/* HEADER */}
       <header className="border-b border-white/10 bg-[#0a0a0a] sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4 cursor-pointer" onClick={() => setSelectedProject(null)}>
             <span className="font-cinzel text-xl text-lux-gold tracking-widest uppercase hover:text-white transition-colors">Kurginian Studio</span>
             <span className="hidden md:inline-block px-2 py-1 bg-white/10 rounded text-[10px] uppercase tracking-widest text-gray-400">Super Admin</span>
           </div>
-          <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest">
-            Logout
-          </button>
+          <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-red-400 transition-colors uppercase tracking-widest">Logout</button>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 pt-12">
         <AnimatePresence mode="wait">
-          
-          {/* ==================================================== */}
-          {/* ВЬЮ 1: ГЛОБАЛЬНЫЙ ДАШБОРД (СПИСОК ПРОЕКТОВ И ЦИФРЫ) */}
-          {/* ==================================================== */}
           {!selectedProject ? (
             <motion.div key="dashboard" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <h2 className="font-cinzel text-2xl text-white mb-8 tracking-wider">Global Statistics</h2>
@@ -212,39 +289,54 @@ export default function StudioAdminPage() {
                       <div key={slug} className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => openProject(slug)}>
                         <div className="font-mono text-sm text-gray-300 group-hover:text-lux-gold transition-colors">{slug}</div>
                         <div className="flex items-center gap-3">
-                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">
-                            Guest
-                          </button>
-                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}/admin`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">
-                            VIP
-                          </button>
-                          <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">
-                            Manage
-                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">Guest</button>
+                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}/admin`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">VIP</button>
+                          <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">Manage</div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="p-10 text-center text-gray-600 font-mono text-sm">
-                    No active projects found.
-                  </div>
+                  <div className="p-10 text-center text-gray-600 font-mono text-sm">No active projects found.</div>
                 )}
               </div>
             </motion.div>
           ) : (
-            
-          /* ==================================================== */
-          /* ВЬЮ 2: УПРАВЛЕНИЕ КОНКРЕТНЫМ ПРОЕКТОМ (РЕДАКТОР)   */
-          /* ==================================================== */
             <motion.div key="project-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              <div className="flex items-center justify-between mb-8">
+              <button onClick={() => setSelectedProject(null)} className="text-gray-500 hover:text-white uppercase tracking-widest text-xs mb-6 flex items-center gap-2 transition-colors">← Back to Dashboard</button>
+              
+              {/* === ПАНЕЛЬ УПРАВЛЕНИЯ ПРОЕКТОМ === */}
+              <div className="bg-[#0a0a0a] border border-white/10 p-6 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                  <button onClick={() => setSelectedProject(null)} className="text-gray-500 hover:text-white uppercase tracking-widest text-xs mb-2 flex items-center gap-2 transition-colors">
-                    ← Back to Dashboard
+                  <h2 className="font-cinzel text-3xl text-lux-gold tracking-wider mb-2">{selectedProject}</h2>
+                  <div className="flex flex-col gap-2 text-xs font-mono text-gray-400">
+                    <div className="flex items-center gap-4">
+                      <span>{projectPhotos.length} Photos</span>
+                      <span>|</span>
+                      <span>
+                        Доступен до: <strong className="text-white">{projectExpiry || "Загрузка..."}</strong>
+                      </span>
+                    </div>
+                    {/* СТРОКА С ПАРОЛЕМ */}
+                    <div className="flex items-center gap-3">
+                      <span>VIP Пароль: <strong className="text-lux-gold tracking-widest">{vipPassword || "Загрузка..."}</strong></span>
+                      <button 
+                        onClick={changeVipPassword} 
+                        className="px-2 py-0.5 bg-white/10 hover:bg-white/20 rounded text-[10px] uppercase transition-colors"
+                      >
+                        Изменить
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-center gap-3">
+                  <button onClick={extendProject} className="w-full sm:w-auto px-5 py-3 border border-lux-gold/50 text-lux-gold hover:bg-lux-gold hover:text-black transition-colors text-xs font-bold tracking-widest uppercase">
+                    Продлить проект
                   </button>
-                  <h2 className="font-cinzel text-3xl text-lux-gold tracking-wider">{selectedProject}</h2>
-                  <p className="text-gray-400 font-mono text-sm mt-1">{projectPhotos.length} photos loaded</p>
+                  <button onClick={deleteEntireProject} className="w-full sm:w-auto px-5 py-3 bg-red-900/40 border border-red-500 text-red-400 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold tracking-widest uppercase">
+                    Удалить проект
+                  </button>
                 </div>
               </div>
 
@@ -254,35 +346,9 @@ export default function StudioAdminPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {projectPhotos.map((photo) => (
                     <div key={photo.filename} className="relative group aspect-square bg-[#111] border border-white/10 rounded-sm overflow-hidden">
-                      <Image 
-                        src={photo.urls.thumb} 
-                        alt={photo.filename} 
-                        fill 
-                        className={`object-cover transition-opacity ${isDeleting === photo.filename ? 'opacity-20' : 'group-hover:opacity-60'}`}
-                        sizes="20vw"
-                      />
-                      
-                      {/* Оверлей при наведении */}
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2 pointer-events-none">
-                        <div className="text-[9px] bg-black/60 text-white/70 px-1 py-0.5 rounded backdrop-blur-md self-start font-mono">
-                          {photo.filename}
-                        </div>
-                      </div>
-
-                      {/* Кнопка удаления (Появляется при ховере) */}
-                      <button 
-                        onClick={() => deletePhoto(photo.filename)}
-                        disabled={isDeleting === photo.filename}
-                        className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-100 scale-75 shadow-lg z-10 disabled:bg-gray-500"
-                        title="Delete photo permanently"
-                      >
-                        {isDeleting === photo.filename ? (
-                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        )}
+                      <Image src={photo.urls.thumb} alt={photo.filename} fill className={`object-cover transition-opacity ${isDeleting === photo.filename ? 'opacity-20' : 'group-hover:opacity-60'}`} sizes="20vw"/>
+                      <button onClick={() => deletePhoto(photo.filename)} disabled={isDeleting === photo.filename} className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-100 scale-75 shadow-lg z-10 disabled:bg-gray-500">
+                        {isDeleting === photo.filename ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>✕</span>}
                       </button>
                     </div>
                   ))}
@@ -290,7 +356,6 @@ export default function StudioAdminPage() {
               )}
             </motion.div>
           )}
-
         </AnimatePresence>
       </main>
     </div>

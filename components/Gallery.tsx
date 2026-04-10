@@ -19,20 +19,25 @@ interface MatchedPhoto {
 interface GalleryProps {
   photos: MatchedPhoto[];
   slug: string;
+  expiresAt?: string | null;
+  isVip?: boolean;
 }
 
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
 const translations = {
   fr: { 
     download: "Télécharger", share: "Partager", saveAll: "Enregistrer mes photos", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨",
+    expiresText: "L'accès à la galerie premium sera clôturé le",
     feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
+    expiresText: "Access to the premium gallery will close on",
     feedbackTitle: "Thank you!", feedbackText: "Your emotions are priceless. Share your experience on Instagram.", instagramBtn: "Message on Instagram"
   },
   ru: { 
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
+    expiresText: "Доступ к премиальной галерее будет закрыт",
     feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Буду искренне рад вашему отзыву в Instagram.", instagramBtn: "Написать в Instagram"
   }
 } as const;
@@ -102,7 +107,7 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 }
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
-export default function Gallery({ photos, slug }: GalleryProps) {
+export default function Gallery({ photos, slug, expiresAt, isVip = false }: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   
@@ -222,25 +227,31 @@ export default function Gallery({ photos, slug }: GalleryProps) {
       
       // Берем все фото из текущей выборки
       for (const photo of photos) {
-        // Добавляем заголовки CORS и обход кэша, как в одиночном скачивании
         const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
         const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
         const blob = await response.blob();
-        const file = new File([blob], photo.filename, { type: "image/jpeg" });
-        filesToShare.push(file);
+        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
       }
 
-      if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
-        await navigator.share({
-          files: filesToShare,
-          title: 'Mes photos KURGINIAN',
-        });
-      } else {
-        // Fallback: если браузер не тянет Multi-Share, просто качаем по одному
+      // Пытаемся открыть шторку, но с перехватом ошибки безопасности
+      try {
+        if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
+          await navigator.share({
+            files: filesToShare,
+            title: 'Mes photos KURGINIAN',
+          });
+        } else {
+          throw new Error("Share not supported"); // Искусственно переходим к Fallback
+        }
+      } catch (shareErr) {
+        console.warn("Share API timeout/blocked, falling back to individual downloads:", shareErr);
+        // FALLBACK: Качаем файлы по одному с паузой, чтобы браузер не счел это спамом
         for (const photo of photos) {
-          handleDownload(photo.filename, photo.urls.web);
+          await handleDownload(photo.filename, photo.urls.web);
+          await new Promise(r => setTimeout(r, 600)); // Пауза 0.6 сек
         }
       }
+
     } catch (err) {
       console.error("Save all failed:", err);
     } finally {
@@ -344,6 +355,20 @@ export default function Gallery({ photos, slug }: GalleryProps) {
             />
           ))}
         </motion.div>
+
+        {/* === ПРЕМИАЛЬНАЯ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
+        {!isVip && expiresAt && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center pb-12 px-4"
+          >
+            <p className="font-cinzel text-xs md:text-sm text-lux-gold/60 uppercase tracking-[0.2em]">
+              {t.expiresText} <span className="text-lux-gold font-bold">{new Date(expiresAt).toLocaleDateString(language === 'ru' ? 'ru-RU' : language === 'fr' ? 'fr-FR' : 'en-US')}</span>
+            </p>
+            <div className="w-12 h-[1px] bg-lux-gold/30 mx-auto mt-4" />
+          </motion.div>
+        )}
       </Suspense>
 
       {/* ПРЕМИАЛЬНЫЙ LIGHTBOX (Всплывающее окно) */}
