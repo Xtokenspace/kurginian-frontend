@@ -27,7 +27,7 @@ interface GalleryProps {
 const translations = {
   fr: { 
     download: "Télécharger", share: "Partager", saveAll: "Enregistrer mes photos", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨",
-    expiresText: "L'accès à la galerie premium sera clôturé le",
+    expiresText: "Votre abonnement premium est actif jusqu'au",
     feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram",
     noPhotos: "Aucune photo trouvée.",
     copyPrompt: "Copiez ce lien :",
@@ -35,7 +35,7 @@ const translations = {
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
-    expiresText: "Access to the premium gallery will close on",
+    expiresText: "Your premium subscription is active until",
     feedbackTitle: "Thank you!", feedbackText: "Your emotions are precious. Share your review on Instagram.", instagramBtn: "Write on Instagram",
     noPhotos: "No photos found.",
     copyPrompt: "Copy this link:",
@@ -43,7 +43,7 @@ const translations = {
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
-    expiresText: "Доступ к премиум-галерее будет закрыт",
+    expiresText: "Ваша премиум-подписка активна до",
     feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Поделитесь отзывом в Instagram.", instagramBtn: "Написать в Instagram",
     noPhotos: "Фотографии не найдены.",
     copyPrompt: "Скопируйте ссылку:",
