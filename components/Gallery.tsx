@@ -241,16 +241,17 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
         });
         shareSuccess = true;
       } catch (shareErr) {
+        // Если юзер сам смахнул шторку вниз (отмена) - всё ок, ничего не делаем
         if ((shareErr as Error).name === 'AbortError') {
           shareSuccess = true; 
         } else {
-          // Выводим точную ошибку на экран, чтобы понять, на что ругается iOS/Android
-          alert(`Ошибка шторки: ${(shareErr as Error).name}\n${(shareErr as Error).message}\n\nПопробуйте открыть сайт в Safari/Chrome.`);
-          console.warn("Браузер заблокировал шторку:", shareErr);
+          // Если PWA или браузер заблокировали шторку (NotAllowedError)
+          // Мы просто молча переходим к генерации ZIP
+          console.warn("Браузер заблокировал шторку, переход к ZIP:", shareErr);
         }
       }
 
-      // 🔥 СПАСАТЕЛЬНЫЙ КРУГ: Если телефон отказался открывать шторку -> Мгновенно отдаем ZIP!
+      // 🔥 СПАСАТЕЛЬНЫЙ КРУГ: Мгновенно отдаем ZIP!
       if (!shareSuccess) {
         try {
           setSaveProgress('ZIP...');
@@ -270,7 +271,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
         }
       }
 
-      setReadyFiles(null); // Возвращаем кнопку в исходное "золотое" состояние
+      setReadyFiles(null); // Возвращаем кнопку в исходное состояние
       setSaveProgress('');
       return;
     }
@@ -286,7 +287,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const filesToShare: File[] = [];
 
-      // 1. Выкачиваем фото с анимацией прогресса на кнопке
+      // Выкачиваем фото с анимацией прогресса на кнопке
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
         setSaveProgress(`${i + 1} / ${photos.length}`);
@@ -297,14 +298,14 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
         filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
       }
 
-      // 2. Поведение для МОБИЛЬНЫХ -> Готовим второй шаг
+      // Поведение для МОБИЛЬНЫХ -> Готовим второй шаг
       if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
-        triggerVibration([30, 50]); // Вибрация "Готово"
-        setReadyFiles(filesToShare); // Переключаем UI кнопки
-        return; // Выходим из функции, ждем второго клика!
+        triggerVibration([30, 50]); 
+        setReadyFiles(filesToShare); 
+        return; 
       }
 
-      // 3. Поведение для ПК -> Сразу генерируем и отдаем ZIP (без второго клика)
+      // Поведение для ПК -> Сразу генерируем и отдаем ZIP (без второго клика)
       setSaveProgress('ZIP...');
       const zip = new JSZip();
 
