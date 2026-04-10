@@ -20,16 +20,31 @@ const translations = {
     downloadAll: "Télécharger toutes les photos",
     contactPhotographer: "Suivre sur Instagram",
     discoverServices: "Découvrir mon univers",
+    statsTitle: "Statistiques de l'événement",
+    statScans: "Visages scannés",
+    statDownloads: "Photos téléchargées",
+    statShares: "Partages effectués",
+    statSaves: "Enregistrements complets",
   },
   en: {
     downloadAll: "Download all photos",
     contactPhotographer: "Follow on Instagram",
     discoverServices: "Discover my work",
+    statsTitle: "Event Statistics",
+    statScans: "Faces scanned",
+    statDownloads: "Photos downloaded",
+    statShares: "Shares made",
+    statSaves: "Total saves",
   },
   ru: {
     downloadAll: "Скачать все фото",
     contactPhotographer: "Подписаться в Instagram",
     discoverServices: "Узнать о моих услугах",
+    statsTitle: "Статистика мероприятия",
+    statScans: "Лиц распознано",
+    statDownloads: "Фото скачано",
+    statShares: "Поделились",
+    statSaves: "Общих сохранений",
   }
 } as const;
 
@@ -40,6 +55,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
 
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const [showLangMenu, setShowLangMenu] = useState(false);
   
@@ -66,6 +82,8 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
     const fetchAllPhotos = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        
+        // 1. Запрос фотографий
         const response = await fetch(`${apiUrl}/api/weddings/${slug}/verify-vip`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -74,13 +92,22 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
 
         if (response.ok) {
           const data = await response.json();
-          // Сортируем все фотографии по имени файла (хронологический порядок)
           const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
             a.filename.localeCompare(b.filename)
           );
           setPhotos(sortedPhotos);
+
+          // 2. ЗАПРОС АНАЛИТИКИ (Запускаем сразу после успеха авторизации)
+          const statsRes = await fetch(`${apiUrl}/api/weddings/${slug}/analytics-data`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: vipCode }),
+          });
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setStats(statsData.data);
+          }
         } else {
-          // Если пароль сменили или он устарел - выкидываем обратно
           localStorage.removeItem(`vip_code_${slug}`);
           router.replace(`/weddings/${slug}`);
         }
@@ -195,6 +222,37 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
             {photos.length} {language === 'ru' ? 'снимков' : 'photos'}
           </p>
         </div>
+
+        {/* === PREMIUM ANALYTICS DASHBOARD (Скрыто для клиентов, логика оставлена для Super Admin) === */}
+        {/* <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-16"
+        >
+          <h2 className="font-cinzel text-xs tracking-[0.3em] text-lux-gold/50 uppercase mb-6 text-center md:text-left">
+            {t.statsTitle}
+          </h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: t.statScans, value: stats.scans, icon: "👤" },
+              { label: t.statDownloads, value: stats.downloads, icon: "↓" },
+              { label: t.statShares, value: stats.shares, icon: "↗" },
+              { label: t.statSaves, value: stats.save_all, icon: "✨" }
+            ].map((item, idx) => (
+              <div key={idx} className="bg-lux-card/40 border border-lux-gold/10 p-6 rounded-sm shadow-lg hover:border-lux-gold/30 transition-colors group">
+                <div className="text-2xl mb-2 opacity-50 group-hover:opacity-100 transition-opacity">{item.icon}</div>
+                <div className="text-2xl md:text-3xl font-cinzel text-lux-gold mb-1 leading-none">
+                  {item.value}
+                </div>
+                <div className="text-[10px] uppercase tracking-widest text-gray-500 font-medium">
+                  {item.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+        */}
 
         {/* Галерея */}
         <Gallery photos={photos} slug={slug} />

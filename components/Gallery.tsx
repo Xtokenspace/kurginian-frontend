@@ -128,9 +128,25 @@ export default function Gallery({ photos, slug }: GalleryProps) {
     }
   };
 
+  // === ТИХАЯ АНАЛИТИКА (B2B Dashboard) ===
+  const trackAction = (action: 'download' | 'share' | 'save_all', filename?: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      fetch(`${apiUrl}/api/weddings/${slug}/track`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, filename }),
+        keepalive: true, // Гарантирует отправку, даже если юзер закрыл вкладку
+      }).catch(() => {}); // Абсолютно тихий перехват, чтобы не спамить в консоль
+    } catch (e) {
+      // Игнорируем ошибки (главное - не сломать UX гостя)
+    }
+  };
+
   // Функция скачивания
   const handleDownload = async (filename: string, url: string) => {
     triggerVibration(50);
+    trackAction('download', filename); // СИГНАЛ АНАЛИТИКИ
     try {
       const fetchUrl = `${url}?download=${Date.now()}`;
       const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
@@ -161,6 +177,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
   // Функция "Поделиться" (Native Web Share + Fallback)
   const handleShare = async (filename: string) => {
     triggerVibration(50);
+    trackAction('share', filename); // СИГНАЛ АНАЛИТИКИ
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
     
     // Проверяем поддержку Native Web Share API (мобильные ОС и современные браузеры)
@@ -198,6 +215,7 @@ export default function Gallery({ photos, slug }: GalleryProps) {
     if (isSaving) return;
     setIsSaving(true);
     triggerVibration([50, 30, 50]);
+    trackAction('save_all'); // СИГНАЛ АНАЛИТИКИ
 
     try {
       const filesToShare: File[] = [];

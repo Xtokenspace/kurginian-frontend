@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
 import imageCompression from 'browser-image-compression';
 import { useRouter } from 'next/navigation';
+import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 
 // === ТИПИЗАЦИЯ API ===
 export interface MatchedPhoto {
@@ -138,6 +139,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   const [isCameraActive, setIsCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const faceDetectorRef = useRef<FaceDetector | null>(null); // Хранилище для MediaPipe
 
   // ДОБАВЛЯЕМ НОВЫЕ СТЕЙТЫ (Счетчик попыток, Замороженное фото, Фото для проверки):
   const [attemptCount, setAttemptCount] = useState(1);
@@ -301,11 +303,89 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   };
 
   
+  // === ИИ-КРОППИНГ НА КЛИЕНТЕ (MediaPipe WebAssembly) ===
+  const cropFaceFromImage = async (file: File): Promise<File> => {
+    try {
+      // 1. Инициализируем детектор (скачиваем WASM только 1 раз)
+      if (!faceDetectorRef.current) {
+        const vision = await FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        );
+        faceDetectorRef.current = await FaceDetector.createFromOptions(vision, {
+          baseOptions: {
+            // Легковесная модель для поиска лиц вблизи (селфи)
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite",
+            delegate: "CPU" // На мобильных браузерах CPU надежнее для одиночных кадров
+          },
+          runningMode: "IMAGE"
+        });
+      }
+
+      // 2. Превращаем File в картинку для анализа
+      const img = document.createElement("img");
+      const objectUrl = URL.createObjectURL(file);
+      img.src = objectUrl;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      // 3. Ищем лицо
+      const detections = faceDetectorRef.current.detect(img);
+      URL.revokeObjectURL(objectUrl); // Очищаем память
+
+      // Если лицо не найдено фронтендом — отдаем оригинал (Пусть мощный бэкенд перепроверит)
+      if (detections.detections.length === 0) return file; 
+
+      // 4. Вычисляем координаты самого уверенного лица
+      const face = detections.detections[0].boundingBox;
+      if (!face) return file;
+
+      // Делаем отступы (margin), чтобы захватить прическу, шею и подбородок полностью
+      const marginX = face.width * 0.4; 
+      const marginY = face.height * 0.5;
+
+      const startX = Math.max(0, face.originX - marginX);
+      const startY = Math.max(0, face.originY - marginY);
+      const cropWidth = Math.min(img.width - startX, face.width + marginX * 2);
+      const cropHeight = Math.min(img.height - startY, face.height + marginY * 2);
+
+      // 5. Вырезаем этот кусок на невидимый холст (Canvas)
+      const canvas = document.createElement("canvas");
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+
+      ctx.drawImage(
+        img,
+        startX, startY, cropWidth, cropHeight, // Откуда берем
+        0, 0, cropWidth, cropHeight          // Куда кладем
+      );
+
+      // 6. Упаковываем вырезанное лицо обратно в File
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(new File([blob], "cropped_selfie.jpg", { type: "image/jpeg" }));
+          else resolve(file);
+        }, "image/jpeg", 0.95);
+      });
+
+    } catch (error) {
+      console.error("MediaPipe Cropping Error:", error);
+      return file; // При любой ошибке браузера безопасно отдаем оригинальное фото
+    }
+  };
+
   // === ИНТЕГРАЦИЯ API: Сжатие и отправка селфи ===
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');
     try {
-      const compressedFile = await imageCompression(file, {
+      // 1. Сначала вырезаем идеальный квадрат с лицом (MediaPipe)
+      const croppedFile = await cropFaceFromImage(file);
+
+      // 2. Затем сжимаем результат (Страховка на случай старых телефонов или фолбэка)
+      const compressedFile = await imageCompression(croppedFile, {
         maxSizeMB: 1,
         maxWidthOrHeight: 800,
         useWebWorker: true,
