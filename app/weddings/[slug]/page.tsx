@@ -21,6 +21,7 @@ export interface AuthResponse {
   message: string;
   matches_count: number;
   data: MatchedPhoto[];
+  expires_at?: string | null;
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -131,6 +132,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error' | 'verify'>('idle');
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +216,9 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   // Загружаем фото из памяти только для этой свадьбы
   useEffect(() => {
     const saved = localStorage.getItem(`photos_${slug}`);
+    const savedExpiry = localStorage.getItem(`expires_${slug}`);
+    if (savedExpiry) setExpiresAt(savedExpiry);
+
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -426,8 +431,12 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
           // Обычный успех
           triggerVibration(50); // Успех!
           setPhotos(sortedPhotos);
+          setExpiresAt(data.expires_at || null); // <-- Записываем в стейт
           setStatus('success');
           localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
+          if (data.expires_at) {
+            localStorage.setItem(`expires_${slug}`, data.expires_at);
+          }
         }
       } else {
         triggerVibration([50, 100, 50]); // Ошибка распознавания
@@ -725,7 +734,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               </p>
             </div>
             
-            <Gallery photos={photos} slug={slug} />
+            {/* ПЕРЕДАЕМ ДАТУ В КОМПОНЕНТ */}
+            <Gallery photos={photos} slug={slug} expiresAt={expiresAt} />
 
             {/* ПРЕМИУМ БЛОК КОНВЕРСИИ */}
             <motion.div 
