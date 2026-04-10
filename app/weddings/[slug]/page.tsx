@@ -56,7 +56,12 @@ const translations = {
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Confidentiel. Votre photo ne sera ni partagée ni conservée.",
     cameraAction: "Prendre un selfie",
-    yourSelfie: "Votre selfie"
+    yourSelfie: "Votre selfie",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
+    analyzing: "Analyse biométrique...",
+    networkError: "Erreur de connexion au serveur.",
+    backBtn: "Retour",
+    enterVipCode: "Entrer le code VIP"
   },
   en: {
     welcome: "Welcome",
@@ -88,7 +93,12 @@ const translations = {
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Confidential. Your photo will not be shared or stored.",
     cameraAction: "Take a selfie",
-    yourSelfie: "Your selfie"
+    yourSelfie: "Your selfie",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
+    analyzing: "Biometric analysis...",
+    networkError: "Connection error to the server.",
+    backBtn: "Back",
+    enterVipCode: "Enter VIP code"
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -120,7 +130,12 @@ const translations = {
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Конфиденциально. Ваше фото не будет сохранено или передано.",
     cameraAction: "Сделать селфи",
-    yourSelfie: "Ваше селфи"
+    yourSelfie: "Ваше селфи",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
+    analyzing: "Анализ биометрии...",
+    networkError: "Ошибка соединения с сервером.",
+    backBtn: "Назад",
+    enterVipCode: "Ввести VIP-код"
   }
 } as const;
 
@@ -611,9 +626,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                 className="bg-black/50 border border-lux-gold/20 px-8 py-3 rounded-full backdrop-blur-md shadow-[0_0_20px_rgba(212,175,55,0.1)]"
               >
                 <p className="font-cinzel text-xs md:text-sm text-lux-gold tracking-[0.3em] uppercase">
-                  {language === 'ru' ? 'Анализ биометрии...' : 
-                   language === 'en' ? 'Biometric analysis...' : 
-                   'Analyse biométrique...'}
+                  {t.analyzing}
                 </p>
               </motion.div>
             </div>
@@ -701,15 +714,13 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             className="text-center max-w-md bg-red-900/20 border border-red-500/50 p-8 rounded-sm"
           >
             <p className="font-cormorant text-2xl text-red-400 mb-6">
-              {language === 'ru' ? 'Ошибка соединения с сервером.' : 
-               language === 'en' ? 'Connection error to the server.' : 
-               'Erreur de connexion au serveur.'}
+              {t.networkError}
             </p>
             <button 
               onClick={() => setStatus('idle')}
               className="px-6 py-3 border border-lux-gold text-lux-gold uppercase tracking-wider rounded-sm hover:shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all duration-300"
             >
-              {language === 'ru' ? 'Назад' : language === 'en' ? 'Back' : 'Retour'}
+              {t.backBtn}
             </button>
           </motion.div>
         )}
@@ -838,7 +849,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
                           <svg className="w-5 h-5 text-lux-gold group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
                           </svg>
-                          <span className="text-lux-gold group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{language === 'ru' ? 'Ввести VIP-код' : language === 'en' ? 'Enter VIP code' : 'Entrer le code VIP'}</span>
+                          <span className="text-lux-gold group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.enterVipCode}</span>
                         </button>
 
                         <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>

@@ -18,7 +18,8 @@ const translations = {
     discover: "Découvrir mon univers",
     thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
     toast: "Lien copié dans le presse-papiers",
-    shareText: "Regardez cette magnifique photo dans la KURGINIAN Premium Gallery ✨"
+    shareText: "Regardez cette magnifique photo dans la KURGINIAN Premium Gallery ✨",
+    copyPrompt: "Copiez ce lien :"
   },
   en: {
     title: "Memory • 1 photo",
@@ -30,10 +31,11 @@ const translations = {
     discover: "Discover my work",
     thanks: "Thank you for using KURGINIAN Premium Gallery",
     toast: "Link copied to clipboard",
-    shareText: "Take a look at this wonderful photo in the KURGINIAN Premium Gallery ✨"
+    shareText: "Take a look at this wonderful photo in the KURGINIAN Premium Gallery ✨",
+    copyPrompt: "Copy this link:"
   },
   ru: {
-    title: "Воспоминание • 1 photo",
+    title: "Воспоминание • 1 фото",
     download: "Скачать",
     share: "Поделиться",
     backToGallery: "Назад в галерею",
@@ -42,7 +44,8 @@ const translations = {
     discover: "Узнать о моих услугах",
     thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
     toast: "Ссылка скопирована",
-    shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨"
+    shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
+    copyPrompt: "Скопируйте ссылку:"
   }
 } as const;
 
@@ -115,7 +118,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2800);
     } catch {
-      prompt('Copiez ce lien :', shareLink);
+      prompt(t.copyPrompt, shareLink);
     }
   };
 
@@ -245,15 +248,22 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           <div className="flex flex-col md:flex-row gap-4 justify-center">
             <button
               onClick={() => window.open("https://www.instagram.com/hdart26/", "_blank")}
-              className="flex-1 px-8 py-4 border border-white/10 text-gray-400 hover:border-lux-gold hover:text-lux-gold transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest"
+              className="flex-1 px-8 py-4 border border-white/10 text-gray-400 hover:border-lux-gold hover:text-lux-gold transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
             >
-              📸 {t.instagram}
+              <svg className="w-4 h-4 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+              </svg>
+              {t.instagram}
             </button>
             <button
               onClick={() => window.open("https://kurginian.pro", "_blank")}
-              className="flex-1 px-8 py-4 bg-[#0a0a0a] border border-white/10 text-white hover:border-lux-gold hover:bg-[#111] transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest"
+              className="flex-1 px-8 py-4 bg-[#0a0a0a] border border-white/10 text-white hover:border-lux-gold hover:bg-[#111] transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
             >
-              🌐 {t.discover}
+              <svg className="w-4 h-4 text-white group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+              {t.discover}
             </button>
           </div>
         </motion.div>

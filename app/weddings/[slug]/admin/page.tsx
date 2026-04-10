@@ -25,6 +25,22 @@ const translations = {
     statDownloads: "Photos téléchargées",
     statShares: "Partages effectués",
     statSaves: "Enregistrements complets",
+    loadingArchive: "Chargement de l'archive...",
+    home: "Accueil",
+    allPhotos: "Toutes les photos",
+    photosPlural: "photos",
+    archiveUntil: "Archive disponible jusqu'au:",
+    extendArchive: "Prolonger l'archive",
+    paymentTitle: "Extension de l'accès",
+    selectPeriod: "Sélectionnez la période de prolongation :",
+    plan6m: "6 mois",
+    plan1y: "1 an",
+    plan5y: "5 ans (Premium)",
+    backToPlans: "Retour aux tarifs",
+    bankDetails: "Coordonnées bancaires :",
+    paymentInstruction: "Veuillez effectuer le virement. Ensuite, cliquez sur le bouton ci-dessous pour envoyer le reçu sur WhatsApp afin d'activer.",
+    sendReceipt: "Envoyer le reçu sur WhatsApp",
+    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe."
   },
   en: {
     downloadAll: "Download all photos",
@@ -35,6 +51,22 @@ const translations = {
     statDownloads: "Photos downloaded",
     statShares: "Shares made",
     statSaves: "Total saves",
+    loadingArchive: "Loading archive...",
+    home: "Home",
+    allPhotos: "All Photos",
+    photosPlural: "photos",
+    archiveUntil: "Archive available until:",
+    extendArchive: "Extend archive",
+    paymentTitle: "Extend Access",
+    selectPeriod: "Select extension period:",
+    plan6m: "6 months",
+    plan1y: "1 year",
+    plan5y: "5 years (Premium)",
+    backToPlans: "Back to plans",
+    bankDetails: "Bank details:",
+    paymentInstruction: "Please make the transfer. Then click the button below to send the receipt via WhatsApp for activation.",
+    sendReceipt: "Send receipt via WhatsApp",
+    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached."
   },
   ru: {
     downloadAll: "Скачать все фото",
@@ -45,6 +77,22 @@ const translations = {
     statDownloads: "Фото скачано",
     statShares: "Поделились",
     statSaves: "Общих сохранений",
+    loadingArchive: "Загрузка архива...",
+    home: "Домой",
+    allPhotos: "Все фотографии",
+    photosPlural: "снимков",
+    archiveUntil: "Архив доступен до:",
+    extendArchive: "Продлить архив",
+    paymentTitle: "Продление доступа",
+    selectPeriod: "Выберите период продления:",
+    plan6m: "6 месяцев",
+    plan1y: "1 год",
+    plan5y: "5 лет (Премиум)",
+    backToPlans: "Назад к тарифам",
+    bankDetails: "Банковские реквизиты:",
+    paymentInstruction: "Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.",
+    sendReceipt: "Отправить чек в WhatsApp",
+    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении."
   }
 } as const;
 
@@ -139,7 +187,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
           transition={{ repeat: Infinity, duration: 2 }}
           className="font-cinzel text-xl text-lux-gold tracking-widest uppercase"
         >
-          {language === 'ru' ? 'Загрузка архива...' : language === 'en' ? 'Loading archive...' : 'Chargement de l\'archive...'}
+          {t.loadingArchive}
         </motion.p>
       </div>
     );
@@ -208,7 +256,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         >
           <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
           <span className="hidden md:inline uppercase tracking-widest">
-            {language === 'ru' ? 'Домой' : language === 'en' ? 'Home' : 'Accueil'}
+            {t.home}
           </span>
         </button>
         
@@ -221,10 +269,10 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         <div className="mb-12 text-center md:text-left flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <h1 className="font-cinzel text-3xl md:text-5xl text-lux-gold mb-4 uppercase tracking-widest">
-              {language === 'ru' ? 'Все фотографии' : language === 'en' ? 'All Photos' : 'Toutes les photos'}
+              {t.allPhotos}
             </h1>
             <p className="font-cormorant text-xl text-gray-400 italic">
-              {photos.length} {language === 'ru' ? 'снимков' : 'photos'}
+              {photos.length} {t.photosPlural}
             </p>
           </div>
           
@@ -232,14 +280,14 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
           {expiresAt && (
             <div className="bg-lux-card/50 border border-lux-gold/20 p-4 md:p-5 rounded-sm flex flex-col items-center md:items-start gap-3 backdrop-blur-sm">
               <p className="text-xs text-gray-400 uppercase tracking-widest font-mono">
-                {language === 'ru' ? 'Архив доступен до:' : language === 'fr' ? 'Archive disponible jusqu\'au:' : 'Archive available until:'} <br/>
+                {t.archiveUntil} <br/>
                 <span className="text-lux-gold text-lg">{new Date(expiresAt).toLocaleDateString()}</span>
               </p>
               <button 
                 onClick={() => setShowPaymentModal(true)}
                 className="w-full px-6 py-2.5 bg-lux-gold/10 hover:bg-lux-gold text-lux-gold hover:text-black border border-lux-gold transition-all text-[10px] md:text-xs font-bold uppercase tracking-widest"
               >
-                {language === 'ru' ? 'Продлить архив' : language === 'fr' ? 'Prolonger l\'archive' : 'Extend archive'}
+                {t.extendArchive}
               </button>
             </div>
           )}
@@ -362,7 +410,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
             >
               <div className="flex justify-between items-start mb-8">
                 <h2 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest">
-                  {language === 'ru' ? 'Продление доступа' : 'Extension de l\'accès'}
+                  {t.paymentTitle}
                 </h2>
                 <button onClick={() => { setShowPaymentModal(false); setSelectedPlan(null); }} className="text-gray-500 hover:text-white text-2xl">✕</button>
               </div>
@@ -371,12 +419,12 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                 // ВЫБОР ТАРИФА
                 <div className="space-y-4">
                   <p className="text-gray-400 text-sm mb-6 uppercase tracking-wider font-mono">
-                    {language === 'ru' ? 'Выберите период продления:' : 'Sélectionnez la période de prolongation :'}
+                    {t.selectPeriod}
                   </p>
                   {[
-                    { months: 6, price: 50, label: language === 'ru' ? '6 месяцев' : '6 mois' },
-                    { months: 12, price: 90, label: language === 'ru' ? '1 год' : '1 an' },
-                    { months: 60, price: 350, label: language === 'ru' ? '5 лет (Премиум)' : '5 ans (Premium)' }
+                    { months: 6, price: 50, label: t.plan6m },
+                    { months: 12, price: 90, label: t.plan1y },
+                    { months: 60, price: 350, label: t.plan5y }
                   ].map((plan, idx) => (
                     <div 
                       key={idx} 
@@ -392,12 +440,12 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                 // РЕКВИЗИТЫ И КНОПКА WHATSAPP
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                   <button onClick={() => setSelectedPlan(null)} className="text-lux-gold text-xs uppercase tracking-widest flex items-center gap-2 mb-4">
-                    ← {language === 'ru' ? 'Назад к тарифам' : 'Retour aux tarifs'}
+                    ← {t.backToPlans}
                   </button>
                   
                   <div className="bg-[#111] border border-lux-gold/20 p-6 font-mono text-sm text-gray-300 space-y-4 select-all">
                     <p className="text-lux-gold text-xs uppercase tracking-widest mb-2">
-                      {language === 'ru' ? 'Банковские реквизиты:' : 'Coordonnées bancaires :'}
+                      {t.bankDetails}
                     </p>
                     <p><strong>Name:</strong> Zokhrab Kurginian</p>
                     <p><strong>IBAN:</strong> FR76 2823 3000 0193 7860 8937 114</p>
@@ -407,19 +455,17 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                   </div>
 
                   <p className="text-xs text-gray-400 italic text-center my-6">
-                    {language === 'ru' 
-                      ? 'Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.' 
-                      : 'Veuillez effectuer le virement. Ensuite, cliquez sur le bouton ci-dessous pour envoyer le reçu sur WhatsApp afin d\'activer.'}
+                    {t.paymentInstruction}
                   </p>
 
                   <a 
-                    href={`https://wa.me/33743300000?text=${encodeURIComponent(`Здравствуйте! Я хочу продлить проект ${slug} на ${selectedPlan.label}. Квитанция об оплате на ${selectedPlan.price}€ в приложении.`)}`}
+                    href={`https://wa.me/33743300000?text=${encodeURIComponent(t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', String(selectedPlan.price)))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center justify-center gap-3 w-full py-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold uppercase tracking-widest transition-colors shadow-lg"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
-                    {language === 'ru' ? 'Отправить чек в WhatsApp' : 'Envoyer le reçu sur WhatsApp'}
+                    {t.sendReceipt}
                   </a>
                 </motion.div>
               )}

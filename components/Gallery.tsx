@@ -28,17 +28,26 @@ const translations = {
   fr: { 
     download: "Télécharger", share: "Partager", saveAll: "Enregistrer mes photos", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨",
     expiresText: "L'accès à la galerie premium sera clôturé le",
-    feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram"
+    feedbackTitle: "Merci !", feedbackText: "Vos émotions sont précieuses. Partagez votre avis sur Instagram.", instagramBtn: "Écrire sur Instagram",
+    noPhotos: "Aucune photo trouvée.",
+    copyPrompt: "Copiez ce lien :",
+    shareTitle: "Mes photos KURGINIAN"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
     expiresText: "Access to the premium gallery will close on",
-    feedbackTitle: "Thank you!", feedbackText: "Your emotions are priceless. Share your experience on Instagram.", instagramBtn: "Message on Instagram"
+    feedbackTitle: "Thank you!", feedbackText: "Your emotions are precious. Share your review on Instagram.", instagramBtn: "Write on Instagram",
+    noPhotos: "No photos found.",
+    copyPrompt: "Copy this link:",
+    shareTitle: "My KURGINIAN photos"
   },
-  ru: { 
-    download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
-    expiresText: "Доступ к премиальной галерее будет закрыт",
-    feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Буду искренне рад вашему отзыву в Instagram.", instagramBtn: "Написать в Instagram"
+  ru: {
+    download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
+    expiresText: "Доступ к премиум-галерее будет закрыт",
+    feedbackTitle: "Спасибо!", feedbackText: "Ваши эмоции бесценны. Поделитесь отзывом в Instagram.", instagramBtn: "Написать в Instagram",
+    noPhotos: "Фотографии не найдены.",
+    copyPrompt: "Скопируйте ссылку:",
+    shareTitle: "Мои фото KURGINIAN"
   }
 } as const;
 
@@ -209,7 +218,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2000);
     } catch {
-      prompt(language === 'ru' ? 'Скопируйте ссылку:' : 'Copiez ce lien :', shareLink);
+      prompt(t.copyPrompt, shareLink);
     }
   };
 
@@ -238,7 +247,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
         if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
           await navigator.share({
             files: filesToShare,
-            title: 'Mes photos KURGINIAN',
+            title: t.shareTitle,
           });
         } else {
           throw new Error("Share not supported"); // Искусственно переходим к Fallback
@@ -308,7 +317,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
     return (
       <div className="text-center py-20 bg-lux-card border border-lux-gold/20 rounded-sm">
         <p className="font-cinzel text-lux-gold/60 uppercase tracking-widest">
-          No photos found.
+          {t.noPhotos}
         </p>
       </div>
     );

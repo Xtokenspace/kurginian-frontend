@@ -21,7 +21,10 @@ const translations = {
     enterCodeTitle: "Accès à la galerie",
     codePlaceholder: "Code (ex: david-maria-2026)",
     requestCode: "Demander le code au photographe",
-    cancel: "Annuler"
+    cancel: "Annuler",
+    deleteConfirm: "Supprimer cet accès ?",
+    vipAccess: "★ Accès VIP complet",
+    deleteLabel: "Supprimer"
   },
   en: {
     title: "KURGINIAN",
@@ -38,7 +41,10 @@ const translations = {
     enterCodeTitle: "Gallery Access",
     codePlaceholder: "Code (ex: david-maria-2026)",
     requestCode: "Request code from photographer",
-    cancel: "Cancel"
+    cancel: "Cancel",
+    deleteConfirm: "Delete this access?",
+    vipAccess: "★ Full VIP access",
+    deleteLabel: "Delete"
   },
   ru: {
     title: "KURGINIAN",
@@ -55,7 +61,10 @@ const translations = {
     enterCodeTitle: "Доступ к галерее",
     codePlaceholder: "Код (например: david-maria-2026)",
     requestCode: "Запросить код у фотографа",
-    cancel: "Отмена"
+    cancel: "Отмена",
+    deleteConfirm: "Удалить этот доступ?",
+    vipAccess: "★ Полный VIP доступ",
+    deleteLabel: "Удалить"
   }
 } as const;
 
@@ -147,9 +156,8 @@ export default function PWAHome() {
   const handleDeleteSession = (e: React.MouseEvent, rawKey: string) => {
     e.stopPropagation();
     triggerVibration(10);
-    const confirmMsg = language === 'ru' ? 'Удалить этот доступ?' : language === 'en' ? 'Delete this access?' : 'Supprimer cet accès ?';
     
-    if (window.confirm(confirmMsg)) {
+    if (window.confirm(t.deleteConfirm)) {
       triggerVibration([50, 50, 50]); // Вибрация удаления
       localStorage.removeItem(rawKey);
       window.dispatchEvent(new Event('storage'));
@@ -302,7 +310,7 @@ export default function PWAHome() {
                           </h3>
                           <span className={`text-xs font-medium ${session.type === 'vip' ? 'text-lux-gold' : 'text-green-400'}`}>
                             {session.type === 'vip' 
-                              ? (language === 'ru' ? '★ Полный VIP доступ' : language === 'en' ? '★ Full VIP access' : '★ Accès VIP complet')
+                              ? t.vipAccess
                               : `✓ ${session.count} ${t.photosFound}`}
                           </span>
                         </div>
@@ -319,7 +327,7 @@ export default function PWAHome() {
                             onClick={(e) => handleDeleteSession(e, session.rawKey)}
                             // На телефоне видна всегда (opacity-100), на ПК появляется при наведении (md:opacity-0 group-hover:opacity-100)
                             className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
-                            title={language === 'ru' ? 'Удалить' : 'Delete'}
+                            title={t.deleteLabel}
                           >
                             ✕
                           </button>
