@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import JSZip from 'jszip';
 
 // --- ИНТЕРФЕЙСЫ ---
 interface MatchedPhoto {
@@ -222,51 +223,74 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
     }
   };
 
-  // === НОВАЯ ФУНКЦИЯ: МАССОВОЕ СОХРАНЕНИЕ ФОТО ===
-  const [isSaving, setIsSaving] = useState(false);
+  // === УМНАЯ ФУНКЦИЯ: МАССОВОЕ СОХРАНЕНИЕ ФОТО (SMART ZIP) ===
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(''); // 🔥 НОВОЕ: стейт прогресса
 
-  const handleSaveAll = async () => {
-    if (isSaving) return;
-    setIsSaving(true);
-    triggerVibration([50, 30, 50]);
-    trackAction('save_all'); // СИГНАЛ АНАЛИТИКИ
+  const handleSaveAll = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveProgress(''); // Очищаем перед стартом
+    triggerVibration([50, 30, 50]);
+    trackAction('save_all');
 
-    try {
-      const filesToShare: File[] = [];
-      
-      // Берем все фото из текущей выборки
-      for (const photo of photos) {
-        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        const blob = await response.blob();
-        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
-      }
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const filesToShare: File[] = [];
 
-      // Пытаемся открыть шторку, но с перехватом ошибки безопасности
-      try {
-        if (navigator.canShare && navigator.canShare({ files: filesToShare })) {
-          await navigator.share({
-            files: filesToShare,
-            title: t.shareTitle,
-          });
-        } else {
-          throw new Error("Share not supported"); // Искусственно переходим к Fallback
-        }
-      } catch (shareErr) {
-        console.warn("Share API timeout/blocked, falling back to individual downloads:", shareErr);
-        // FALLBACK: Качаем файлы по одному с паузой, чтобы браузер не счел это спамом
-        for (const photo of photos) {
-          await handleDownload(photo.filename, photo.urls.web);
-          await new Promise(r => setTimeout(r, 600)); // Пауза 0.6 сек
-        }
-      }
+      // 1. Выкачиваем фото с анимацией прогресса на кнопке
+      for (let i = 0; i < photos.length; i++) {
+        const photo = photos[i];
+        setSaveProgress(`${i + 1} / ${photos.length}`); // Обновляем UI
+        
+        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
+        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+        const blob = await response.blob();
+        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
+      }
 
-    } catch (err) {
-      console.error("Save all failed:", err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+      // 2. Поведение для МОБИЛЬНЫХ
+      if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
+        try {
+          setSaveProgress(''); // Убираем цифры перед открытием шторки
+          await navigator.share({
+            files: filesToShare,
+            title: t.shareTitle,
+          });
+          return; 
+        } catch (shareErr) {
+          if ((shareErr as Error).name === 'AbortError') return;
+          console.warn("Шторка не сработала:", shareErr);
+        }
+      }
+
+      // 3. Поведение для ПК -> ГЕНЕРАЦИЯ ZIP
+      setSaveProgress('ZIP...'); // Показываем, что идет запаковка
+      const zip = new JSZip();
+
+      filesToShare.forEach(file => {
+        zip.file(file.name, file);
+      });
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+
+      // 🔥 ИСПРАВЛЕНИЕ ОШИБКИ: Нативное скачивание без file-saver
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+    } catch (err) {
+      console.error("Save all failed:", err);
+      alert(language === 'ru' ? 'Ошибка скачивания. Попробуйте еще раз.' : language === 'en' ? 'Download error. Please try again.' : 'Erreur de téléchargement. Veuillez réessayer.');
+    } finally {
+      setIsSaving(false);
+      setSaveProgress('');
+    }
+  };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
   const openLightbox = (index: number) => {
@@ -345,7 +369,12 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
             )}
-            {t.saveAll}
+            {/* Если сохраняем и есть прогресс — показываем цифры, иначе стандартный текст */}
+            {isSaving && saveProgress ? (
+              <span className="font-mono">{saveProgress}</span>
+            ) : (
+              t.saveAll
+            )}
           </button>
         </motion.div>
 
