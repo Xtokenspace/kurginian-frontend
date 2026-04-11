@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import JSZip from 'jszip';
 
 // --- ИНТЕРФЕЙСЫ ---
 interface MatchedPhoto {
@@ -106,9 +105,10 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
         src={photo.urls.thumb}
         alt={photo.filename}
         fill
+        unoptimized
         priority={index < 6}
         sizes="(max-width: 768px) 100vw, 50vw"
-        onLoad={() => setIsLoaded(true)} // <-- Запускаем появление, когда сеть реально отдала файл
+        onLoad={() => setIsLoaded(true)}
         className={`object-cover group-hover:scale-105 transition-all duration-[800ms] ease-out ${
           isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-105'
         }`}
@@ -232,57 +232,25 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     }
   };
 
-  // === ПРЕМИАЛЬНАЯ ДВУХШАГОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ ===
+  // === ПРЕМИАЛЬНАЯ ДВУХШАГОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ (Zero-RAM iOS Safe) ===
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState('');
   const [readyFiles, setReadyFiles] = useState<File[] | null>(null);
 
   const handleSaveAll = async () => {
-    // ШАГ 2: ВТОРОЙ КЛИК (Мгновенное открытие шторки или ZIP-спасатель)
+    // ШАГ 2: ВТОРОЙ КЛИК (Только если открываем нативную шторку iOS для маленьких пачек)
     if (readyFiles) {
-      let shareSuccess = false;
       try {
-        await navigator.share({
-          files: readyFiles,
-        });
-        shareSuccess = true;
+        await navigator.share({ files: readyFiles });
       } catch (shareErr) {
-        // Если юзер сам смахнул шторку вниз (отмена) - всё ок, ничего не делаем
-        if ((shareErr as Error).name === 'AbortError') {
-          shareSuccess = true; 
-        } else {
-          // Если PWA или браузер заблокировали шторку (NotAllowedError)
-          // Мы просто молча переходим к генерации ZIP
-          console.warn("Браузер заблокировал шторку, переход к ZIP:", shareErr);
-        }
+        console.warn("Share sheet closed or blocked");
       }
-
-      // 🔥 СПАСАТЕЛЬНЫЙ КРУГ: Мгновенно отдаем ZIP!
-      if (!shareSuccess) {
-        try {
-          setSaveProgress('ZIP...');
-          const zip = new JSZip();
-          readyFiles.forEach(file => zip.file(file.name, file));
-          const zipBlob = await zip.generateAsync({ type: "blob" });
-
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(zipBlob);
-          link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(link.href);
-        } catch (zipErr) {
-          console.error("ZIP fallback failed:", zipErr);
-        }
-      }
-
-      setReadyFiles(null); // Возвращаем кнопку в исходное состояние
+      setReadyFiles(null);
       setSaveProgress('');
       return;
     }
 
-    // ШАГ 1: ПЕРВЫЙ КЛИК -> Выкачиваем файлы
+    // ШАГ 1: ПЕРВЫЙ КЛИК
     if (isSaving) return;
     setIsSaving(true);
     setSaveProgress('');
@@ -291,47 +259,53 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
     try {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const filesToShare: File[] = [];
 
-      // Выкачиваем фото с анимацией прогресса на кнопке
-      for (let i = 0; i < photos.length; i++) {
-        const photo = photos[i];
-        setSaveProgress(`${i + 1} / ${photos.length}`);
+      // СЦЕНАРИЙ А: Мало фото + Телефон (Мгновенно качаем и отдаем в шторку Instagram/Файлы)
+      if (isMobile && photos.length <= 15 && navigator.canShare) {
+        const filesToShare: File[] = [];
+        for (let i = 0; i < photos.length; i++) {
+          const photo = photos[i];
+          setSaveProgress(`${i + 1} / ${photos.length}`);
+          const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
+          const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+          const blob = await response.blob();
+          filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
+        }
         
-        const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-        const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-        const blob = await response.blob();
-        filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
+        if (navigator.canShare({ files: filesToShare })) {
+          triggerVibration([30, 50]); 
+          setReadyFiles(filesToShare); 
+          return; 
+        }
       }
 
-      // Поведение для МОБИЛЬНЫХ -> Готовим второй шаг
-      if (isMobile && navigator.canShare && navigator.canShare({ files: filesToShare })) {
-        triggerVibration([30, 50]); 
-        setReadyFiles(filesToShare); 
-        return; 
-      }
-
-      // Поведение для ПК -> Сразу генерируем и отдаем ZIP (без второго клика)
+      // СЦЕНАРИЙ Б: Enterprise ZIP (Много фото или ПК - скачиваем без нагрузки на RAM)
       setSaveProgress('ZIP...');
-      const zip = new JSZip();
-
-      filesToShare.forEach(file => {
-        zip.file(file.name, file);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      
+      const response = await fetch(`${apiUrl}/api/weddings/${slug}/generate-zip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filenames: photos.map(p => p.filename) })
       });
 
-      const zipBlob = await zip.generateAsync({ type: "blob" });
-
+      if (!response.ok) throw new Error("ZIP generation failed");
+      
+      const data = await response.json();
+      
+      // Вызываем системный загрузчик браузера. RAM телефона вообще не используется!
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(zipBlob);
+      link.href = data.url;
       link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
 
     } catch (err) {
       console.error("Save all failed:", err);
-      alert(language === 'ru' ? 'Ошибка скачивания. Попробуйте еще раз.' : language === 'en' ? 'Download error. Please try again.' : 'Erreur de téléchargement. Veuillez réessayer.');
+      alert(language === 'ru' ? 'Ошибка скачивания архива. Попробуйте поштучно.' : 
+            language === 'en' ? 'Archive download error. Please try individually.' : 
+            'Erreur de téléchargement de l\'archive. Veuillez réessayer.');
     } finally {
       setIsSaving(false);
       setSaveProgress('');
@@ -520,8 +494,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                   src={photos[selectedIndex].urls.web}
                   alt="Full view"
                   fill
+                  unoptimized
                   className="object-contain pointer-events-none"
-                  quality={95}
                   priority
                   draggable={false}
                   placeholder="blur" // 🔥 Временная подложка размытия
