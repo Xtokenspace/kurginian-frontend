@@ -244,7 +244,10 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
     const fetchMeta = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-        const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
+        // Обход кэша браузера и Cloudflare для получения всегда свежих имен
+        const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta?t=${Date.now()}`, {
+          cache: 'no-store'
+        });
         if (res.ok) {
           const json = await res.json();
           if (json.status === 'success') {
@@ -853,8 +856,8 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
               </p>
             </div>
             
-            {/* ПЕРЕДАЕМ ДАТУ В КОМПОНЕНТ */}
-            <Gallery photos={photos} slug={slug} expiresAt={expiresAt} />
+            {/* ПЕРЕДАЕМ ДАТУ И ЯЗЫК В КОМПОНЕНТ */}
+            <Gallery photos={photos} slug={slug} expiresAt={expiresAt} currentLanguage={language} />
 
             {/* ПРЕМИУМ БЛОК КОНВЕРСИИ */}
             <motion.div 

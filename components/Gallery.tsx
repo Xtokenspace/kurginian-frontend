@@ -22,8 +22,8 @@ interface GalleryProps {
   slug: string;
   expiresAt?: string | null;
   isVip?: boolean;
+  currentLanguage?: 'fr' | 'en' | 'ru';
 }
-
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
 const translations = {
   fr: { 
@@ -120,7 +120,7 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 }
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
-export default function Gallery({ photos, slug, expiresAt, isVip = false }: GalleryProps) {
+export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage }: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   
@@ -129,13 +129,19 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false }: Gall
   const [showToast, setShowToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Синхронизация языка
+  // Синхронизация языка (с поддержкой прямого проброса из родителя)
   useEffect(() => {
+    // Если родитель передал язык напрямую - мгновенно применяем его
+    if (currentLanguage) {
+      setLanguage(currentLanguage);
+      return;
+    }
+    // Фолбэк на память (для одиночных фото и независимых рендеров)
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
     const localLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
     else if (localLang) setLanguage(localLang);
-  }, [slug]);
+  }, [slug, currentLanguage]);
 
   const t = translations[language];
 

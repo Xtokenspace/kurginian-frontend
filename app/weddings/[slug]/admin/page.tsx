@@ -325,7 +325,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
         */}
 
         {/* Галерея */}
-        <Gallery photos={photos} slug={slug} expiresAt={expiresAt} isVip={true} />
+        <Gallery photos={photos} slug={slug} expiresAt={expiresAt} isVip={true} currentLanguage={language} />
       </div>
 
       {/* МОДАЛЬНОЕ МЕНЮ (PREMIUM BOTTOM SHEET) */}
