@@ -28,7 +28,7 @@ export interface AuthResponse {
 const translations = {
   fr: {
     welcome: "Bienvenue",
-    subtitle: "Vos souvenirs, instantanément. Pour retrouver vos photos, la magie commence par un selfie.",
+    subtitle: "Dévoilez vos souvenirs. Une collection privée, créée pour vous.",
     findPhotos: "Trouver mes photos",
     takePhoto: "Prendre une photo",
     chooseGallery: "Choisir depuis la galerie",
@@ -65,7 +65,7 @@ const translations = {
   },
   en: {
     welcome: "Welcome",
-    subtitle: "Your memories, instantly. To find your photos, the magic begins with a selfie.",
+    subtitle: "Unveil your memories. A private collection, curated for you.",
     findPhotos: "Find my photos",
     takePhoto: "Take a photo",
     chooseGallery: "Choose from gallery",
@@ -102,7 +102,7 @@ const translations = {
   },
   ru: {
     welcome: "Добро пожаловать",
-    subtitle: "Ваши воспоминания — мгновенно. Чтобы найти свои фото, магия начинается с селфи.",
+    subtitle: "Откройте свои воспоминания. Приватная коллекция, созданная для вас.",
     findPhotos: "Найти мои фото",
     takePhoto: "Сделать фото",
     chooseGallery: "Выбрать из галереи",
@@ -139,6 +139,45 @@ const translations = {
   }
 } as const;
 
+// === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
+function PhotoFan({ covers }: { covers: string[] }) {
+  // Настройки для 3-х карточек: Левая, Центральная, Правая
+  const rotations = [-12, 0, 12];
+  const xOffsets = [-45, 0, 45]; // Сдвиг по горизонтали
+  const yOffsets = [15, 0, 15];  // Боковые чуть опущены вниз
+
+  return (
+    <div className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8">
+      {covers.map((src, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 50, rotate: 0 }}
+          animate={{ 
+            opacity: 1, 
+            y: yOffsets[i], 
+            x: xOffsets[i], 
+            rotate: rotations[i] 
+          }}
+          transition={{ 
+            duration: 0.8, 
+            delay: i * 0.15, 
+            type: "spring", 
+            stiffness: 100 
+          }}
+          whileHover={{ scale: 1.1, y: -20, rotate: 0, zIndex: 50 }}
+          whileTap={{ scale: 1.05, y: -10, rotate: 0, zIndex: 50 }}
+          className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
+          style={{ zIndex: i === 1 ? 30 : 10 }} // Центральная (индекс 1) всегда поверх остальных
+        >
+          {/* Используем img, чтобы не было ошибок next.config.js с внешними ссылками на этапе тестов */}
+          <img src={src} alt="cover" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
+          <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 export default function WeddingGuestPage({ params }: { params: Promise<{ slug: string }> }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const resolvedParams = use(params);
@@ -171,6 +210,27 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
   // === ЯЗЫКОВОЕ СОСТОЯНИЕ ===
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const t = translations[language];
+
+  // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (API) ===
+  const [metaInfo, setMetaInfo] = useState<{title: string, subtitle: string, covers: string[]} | null>(null);
+
+  useEffect(() => {
+    const fetchMeta = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.status === 'success') {
+            setMetaInfo(json.data);
+          }
+        }
+      } catch (e) {
+        console.error("Meta fetch error:", e);
+      }
+    };
+    if (slug) fetchMeta();
+  }, [slug]);
 
   // === ОФФЛАЙН И ТАКТИЛЬНОСТЬ ===
 
@@ -554,7 +614,7 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
 
       <AnimatePresence mode="wait">
         
-        {/* ЭКРАН ПРИВЕТСТВИЯ */}
+        {/* ЭКРАН ПРИВЕТСТВИЯ (DIGITAL INVITATION) */}
         {status === 'idle' && photos.length === 0 && (
           <motion.div 
             key="idle"
@@ -562,20 +622,42 @@ export default function WeddingGuestPage({ params }: { params: Promise<{ slug: s
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20, filter: "blur(5px)" }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="text-center max-w-2xl w-full px-4 flex flex-col items-center"
+            className="text-center max-w-2xl w-full px-4 flex flex-col items-center justify-center min-h-[75vh]"
           >
-            <h1 className="font-cinzel text-4xl md:text-5xl text-lux-gold mb-8 uppercase tracking-[0.3em] pl-[0.3em]">
-              {t.welcome}
-            </h1>
-            <p className="font-cormorant text-xl md:text-2xl mb-14 text-gray-300 leading-relaxed font-light max-w-lg">
+            {/* Тонкий микро-хедер */}
+            <p className="font-cinzel text-[9px] md:text-[10px] text-lux-gold/50 tracking-[0.4em] uppercase mb-6">
+              Kurginian Premium Collection
+            </p>
+
+            {/* ВЕЕР ФОТОГРАФИЙ (Берем из API, если интернет слабый - показываем элегантные заглушки) */}
+            <PhotoFan covers={metaInfo?.covers?.length ? metaInfo.covers : [
+              "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+              "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop"
+            ]} />
+
+            {/* ИДЕНТИФИКАЦИЯ МЕРОПРИЯТИЯ (Динамические данные из базы) */}
+            <div className="mt-8 mb-6 relative">
+              <h1 className="font-cinzel text-4xl md:text-5xl text-lux-gold tracking-widest drop-shadow-lg">
+                {metaInfo?.title || "Kurginian Premium"}
+              </h1>
+              <p className="font-cormorant text-gray-400 italic text-lg md:text-xl mt-3 tracking-wide">
+                {metaInfo?.subtitle || "Exclusive Event"}
+              </p>
+            </div>
+
+            {/* ЭЛЕГАНТНЫЙ ТЕКСТ-ХУК */}
+            <p className="font-montserrat text-xs md:text-sm text-gray-300/80 max-w-xs md:max-w-sm leading-relaxed mb-10">
               {t.subtitle}
             </p>
+
+            {/* КНОПКА (Осталась прежней по функционалу, но лучше вписана в дизайн) */}
             <button 
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 setShowChoiceModal(true);
               }}
-              className="px-12 py-5 bg-transparent border border-lux-gold/50 text-lux-gold font-montserrat uppercase tracking-[0.2em] rounded-sm hover:bg-lux-gold hover:text-black hover:shadow-gold-glow-hover transition-all duration-500 text-xs md:text-sm shadow-gold-glow"
+              className="px-10 py-4 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] rounded-sm hover:bg-white transition-all duration-500 text-[10px] md:text-xs shadow-gold-glow active:scale-95"
             >
               {t.findPhotos}
             </button>

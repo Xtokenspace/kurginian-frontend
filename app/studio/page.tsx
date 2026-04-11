@@ -29,6 +29,13 @@ export default function StudioAdminPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null); 
   const [vipPassword, setVipPassword] = useState<string>('');
 
+  // === СТЕЙТЫ ДЛЯ WELCOME-ЗОНЫ (РЕДАКТОР) ===
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventSubtitle, setEventSubtitle] = useState('');
+  const [selectedCovers, setSelectedCovers] = useState<string[]>([]);
+  const [isSelectingCovers, setIsSelectingCovers] = useState(false);
+  const [isSavingMeta, setIsSavingMeta] = useState(false);
+
   useEffect(() => {
     const savedPassword = sessionStorage.getItem('super_admin_pwd');
     if (savedPassword) {
@@ -94,9 +101,10 @@ export default function StudioAdminPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setProjectPhotos(data.data);
+        const fetchedPhotos = data.data;
+        setProjectPhotos(fetchedPhotos);
         
-        // Форматируем дату, если она есть
+        // Форматируем дату
         if (data.expires_at) {
           const dateObj = new Date(data.expires_at);
           setProjectExpiry(dateObj.toLocaleDateString('ru-RU'));
@@ -106,6 +114,27 @@ export default function StudioAdminPage() {
         
         // Подхватываем пароль
         setVipPassword(data.vip_password || "Скрыт (Старый формат)");
+
+        // ЗАГРУЖАЕМ ТЕКУЩИЕ ДАННЫЕ ВЕЕРА
+        try {
+          const metaRes = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
+          if (metaRes.ok) {
+            const metaJson = await metaRes.json();
+            if (metaJson.status === 'success') {
+              setEventTitle(metaJson.data.title || '');
+              setEventSubtitle(metaJson.data.subtitle || '');
+              
+              // Находим оригинальные имена файлов для 3-х обложек
+              const cUrls = metaJson.data.covers || [];
+              const exactFilenames = fetchedPhotos
+                .filter((p: StudioPhoto) => cUrls.some((url: string) => url.includes(p.filename.split('.')[0])))
+                .map((p: StudioPhoto) => p.filename);
+              setSelectedCovers(exactFilenames);
+            }
+          }
+        } catch (e) {
+          console.error("Ошибка загрузки Welcome-зоны", e);
+        }
       }
     } catch (err) {
       console.error("Ошибка загрузки фото", err);
@@ -221,6 +250,48 @@ export default function StudioAdminPage() {
     } catch (e) {
       alert("Ошибка сети при удалении проекта.");
     }
+  };
+
+  // === СОХРАНЕНИЕ И ВЫБОР ОБЛОЖЕК (WELCOME ZONE) ===
+  const saveMetaInfo = async () => {
+    setIsSavingMeta(true);
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/weddings/${selectedProject}/update-meta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: pwd,
+          title: eventTitle,
+          subtitle: eventSubtitle,
+          covers: selectedCovers
+        }),
+      });
+      if (res.ok) {
+        alert("Welcome-зона успешно обновлена!");
+        setIsSelectingCovers(false);
+      } else {
+        alert("Ошибка при сохранении.");
+      }
+    } catch (e) {
+      alert("Ошибка сети при сохранении.");
+    } finally {
+      setIsSavingMeta(false);
+    }
+  };
+
+  const toggleCover = (filename: string) => {
+    if (!isSelectingCovers) return; // Кликаем только в режиме редактирования
+    
+    setSelectedCovers(prev => {
+      if (prev.includes(filename)) return prev.filter(f => f !== filename);
+      if (prev.length >= 3) {
+        alert("Можно выбрать максимум 3 обложки!");
+        return prev;
+      }
+      return [...prev, filename];
+    });
   };
 
   if (!isAuthenticated) {
@@ -340,18 +411,97 @@ export default function StudioAdminPage() {
                 </div>
               </div>
 
+              {/* === РЕДАКТОР WELCOME-ЗОНЫ === */}
+              <div className="bg-[#111] border border-lux-gold/30 p-6 mb-8 rounded-sm shadow-gold-glow">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <div>
+                    <h3 className="font-cinzel text-xl text-lux-gold tracking-widest uppercase">Редактор Welcome-зоны</h3>
+                    <p className="text-xs text-gray-400 mt-1 font-mono">Настройте обложку и текст, которые увидят гости</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setIsSelectingCovers(!isSelectingCovers)} 
+                      className={`px-4 py-2 text-[10px] md:text-xs font-bold tracking-widest uppercase border transition-all ${isSelectingCovers ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'bg-transparent text-white border-white/30 hover:border-white'}`}
+                    >
+                      {isSelectingCovers ? "Отменить выбор" : "Выбрать обложки (3)"}
+                    </button>
+                    <button 
+                      onClick={saveMetaInfo} 
+                      disabled={isSavingMeta}
+                      className="px-6 py-2 bg-lux-gold text-black text-[10px] md:text-xs font-bold tracking-widest uppercase hover:bg-white transition-all shadow-gold-glow disabled:opacity-50"
+                    >
+                      {isSavingMeta ? "..." : "Сохранить"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Имена молодоженов</label>
+                    <input 
+                      type="text" 
+                      value={eventTitle} 
+                      onChange={(e) => setEventTitle(e.target.value)} 
+                      placeholder="David & Edita" 
+                      className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-cinzel text-lg tracking-wider" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Дата и локация</label>
+                    <input 
+                      type="text" 
+                      value={eventSubtitle} 
+                      onChange={(e) => setEventSubtitle(e.target.value)} 
+                      placeholder="6 Décembre 2026 • Paris, France" 
+                      className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-cormorant italic text-lg tracking-wide" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* === СЕТКА ФОТОГРАФИЙ === */}
               {projectPhotos.length === 0 ? (
                 <div className="text-center py-20 text-gray-500">Loading images...</div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {projectPhotos.map((photo) => (
-                    <div key={photo.filename} className="relative group aspect-square bg-[#111] border border-white/10 rounded-sm overflow-hidden">
-                      <Image src={photo.urls.thumb} alt={photo.filename} fill className={`object-cover transition-opacity ${isDeleting === photo.filename ? 'opacity-20' : 'group-hover:opacity-60'}`} sizes="20vw"/>
-                      <button onClick={() => deletePhoto(photo.filename)} disabled={isDeleting === photo.filename} className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-100 scale-75 shadow-lg z-10 disabled:bg-gray-500">
-                        {isDeleting === photo.filename ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>✕</span>}
-                      </button>
-                    </div>
-                  ))}
+                  {projectPhotos.map((photo) => {
+                    const isCover = selectedCovers.includes(photo.filename);
+                    return (
+                      <div 
+                        key={photo.filename} 
+                        onClick={() => toggleCover(photo.filename)}
+                        className={`relative group aspect-square bg-[#111] rounded-sm overflow-hidden transition-all ${
+                          isCover ? 'border-2 border-lux-gold shadow-gold-glow scale-[0.98]' : 'border border-white/10'
+                        } ${isSelectingCovers ? 'cursor-pointer hover:border-lux-gold/50' : ''}`}
+                      >
+                        <Image 
+                          src={photo.urls.thumb} 
+                          alt={photo.filename} 
+                          fill 
+                          className={`object-cover transition-opacity ${isDeleting === photo.filename ? 'opacity-20' : 'group-hover:opacity-80'} ${isSelectingCovers && !isCover ? 'opacity-50' : ''}`} 
+                          sizes="20vw"
+                        />
+                        
+                        {/* Золотой бейдж "COVER" */}
+                        {isCover && (
+                          <div className="absolute top-2 left-2 bg-lux-gold text-black text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-sm shadow-lg z-10">
+                            Cover
+                          </div>
+                        )}
+
+                        {/* Кнопка удаления (Скрывается во время режима выбора обложек) */}
+                        {!isSelectingCovers && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); deletePhoto(photo.filename); }} 
+                            disabled={isDeleting === photo.filename} 
+                            className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-100 scale-75 shadow-lg z-10 disabled:bg-gray-500"
+                          >
+                            {isDeleting === photo.filename ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>✕</span>}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
