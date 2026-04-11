@@ -141,39 +141,65 @@ const translations = {
 
 // === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
 function PhotoFan({ covers }: { covers: string[] }) {
-  // Настройки для 3-х карточек: Левая, Центральная, Правая
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
+  // Функция для тапа: выводим вперед на 2 секунды
+  const handleTap = (index: number) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    setActiveIndex(index);
+    
+    // Автоматически возвращаем карту обратно через 2 секунды
+    setTimeout(() => {
+      setActiveIndex((prev) => (prev === index ? null : prev));
+    }, 2000);
+  };
+
   const rotations = [-12, 0, 12];
-  const xOffsets = [-45, 0, 45]; // Сдвиг по горизонтали
-  const yOffsets = [15, 0, 15];  // Боковые чуть опущены вниз
+  const xOffsets = [-45, 0, 45];
+  const yOffsets = [15, 0, 15];
 
   return (
-    <div className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8">
-      {covers.map((src, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 50, rotate: 0 }}
-          animate={{ 
-            opacity: 1, 
-            y: yOffsets[i], 
-            x: xOffsets[i], 
-            rotate: rotations[i] 
-          }}
-          transition={{ 
-            duration: 0.8, 
-            delay: i * 0.15, 
-            type: "spring", 
-            stiffness: 100 
-          }}
-          whileHover={{ scale: 1.1, y: -20, rotate: 0, zIndex: 50 }}
-          whileTap={{ scale: 1.05, y: -10, rotate: 0, zIndex: 50 }}
-          className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
-          style={{ zIndex: i === 1 ? 30 : 10 }} // Центральная (индекс 1) всегда поверх остальных
-        >
-          {/* Используем img, чтобы не было ошибок next.config.js с внешними ссылками на этапе тестов */}
-          <img src={src} alt="cover" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
-          <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
-        </motion.div>
-      ))}
+    <div 
+      className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" 
+      style={{ WebkitTouchCallout: 'none' }} // Блокирует меню iOS на контейнере
+    >
+      {covers.map((src, i) => {
+        const isActive = activeIndex === i;
+        
+        return (
+          <motion.div
+            key={i}
+            onClick={() => handleTap(i)}
+            initial={{ opacity: 0, y: 50, rotate: 0 }}
+            animate={{ 
+              opacity: 1, 
+              y: isActive ? -20 : yOffsets[i], 
+              x: isActive ? 0 : xOffsets[i], 
+              rotate: isActive ? 0 : rotations[i],
+              scale: isActive ? 1.08 : 1,
+              zIndex: isActive ? 50 : (i === 1 ? 30 : 10)
+            }}
+            transition={{ 
+              duration: 0.6, 
+              delay: activeIndex === null ? i * 0.15 : 0, // Задержка только при первом появлении страницы
+              type: "spring", 
+              stiffness: isActive ? 200 : 100,
+              damping: 15
+            }}
+            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
+            style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+          >
+            {/* pointer-events-none и draggable={false} убивают системные меню скачивания */}
+            <img 
+              src={src} 
+              alt="cover" 
+              draggable={false}
+              className="w-full h-full object-cover opacity-90 transition-opacity pointer-events-none" 
+            />
+            <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

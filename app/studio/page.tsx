@@ -124,10 +124,10 @@ export default function StudioAdminPage() {
               setEventTitle(metaJson.data.title || '');
               setEventSubtitle(metaJson.data.subtitle || '');
               
-              // Находим оригинальные имена файлов для 3-х обложек
+              // Находим оригинальные имена файлов для 3-х обложек (с декодированием URL)
               const cUrls = metaJson.data.covers || [];
               const exactFilenames = fetchedPhotos
-                .filter((p: StudioPhoto) => cUrls.some((url: string) => url.includes(p.filename.split('.')[0])))
+                .filter((p: StudioPhoto) => cUrls.some((url: string) => decodeURIComponent(url).includes(p.filename.split('.')[0])))
                 .map((p: StudioPhoto) => p.filename);
               setSelectedCovers(exactFilenames);
             }
