@@ -226,7 +226,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     }
   };
 
-  // === СТАНДАРТНАЯ ФУНКЦИЯ СОХРАНЕНИЯ АРХИВА (Google Drive Style) ===
+  // === УЛУЧШЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ (работает на телефонах!) ===
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSaveAll = async () => {
@@ -238,30 +238,45 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       
-      // Сразу запрашиваем генерацию ZIP на сервере
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/generate-zip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filenames: photos.map(p => p.filename) })
       });
 
-      if (!response.ok) throw new Error("ZIP generation failed");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Server error:", response.status, errorText);
+        throw new Error(`HTTP ${response.status}`);
+      }
       
       const data = await response.json();
-      
-      // Системный загрузчик скачивает архив без нагрузки на RAM телефона
-      const link = document.createElement('a');
-      link.href = data.url;
-      link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (!data.url) throw new Error("No URL in response");
+
+      // === ГЛАВНЫЙ ФИКС ДЛЯ ТЕЛЕФОНОВ ===
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // На телефонах самый надёжный способ
+        window.location.href = data.url;
+      } else {
+        // На ноутбуках/ПК оставляем привычный способ
+        const link = document.createElement('a');
+        link.href = data.url;
+        link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
 
     } catch (err) {
       console.error("Save all failed:", err);
-      alert(language === 'ru' ? 'Ошибка скачивания архива. Попробуйте поштучно.' : 
-            language === 'en' ? 'Archive download error. Please try individually.' : 
-            'Erreur de téléchargement de l\'archive. Veuillez réessayer.');
+      const msg = language === 'ru' 
+        ? 'Ошибка скачивания архива. Попробуйте позже или скачайте фото по одному.' 
+        : language === 'en' 
+        ? 'Archive download error. Please try again or download photos individually.' 
+        : 'Erreur de téléchargement. Veuillez réessayer ou télécharger les photos une par une.';
+      alert(msg);
     } finally {
       setIsSaving(false);
     }
