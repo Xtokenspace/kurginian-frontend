@@ -23,6 +23,7 @@ interface GalleryProps {
   isVip?: boolean;
   currentLanguage?: 'fr' | 'en' | 'ru';
 }
+
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
 const translations = {
   fr: { 
@@ -79,7 +80,7 @@ const brickVariants: Variants = {
 function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: number; onOpen: () => void }) {
   const flexGrow = photo.width / photo.height;
   const flexBasis = flexGrow * 250; 
-  const [isLoaded, setIsLoaded] = useState(false); // <-- Умный статус загрузки
+  const [isLoaded, setIsLoaded] = useState(false);
 
   return (
     <motion.div
@@ -131,12 +132,10 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
   // Синхронизация языка (с поддержкой прямого проброса из родителя)
   useEffect(() => {
-    // Если родитель передал язык напрямую - мгновенно применяем его
     if (currentLanguage) {
       setLanguage(currentLanguage);
       return;
     }
-    // Фолбэк на память (для одиночных фото и независимых рендеров)
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
     const localLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
@@ -160,17 +159,15 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action, filename }),
-        keepalive: true, // Гарантирует отправку, даже если юзер закрыл вкладку
-      }).catch(() => {}); // Абсолютно тихий перехват, чтобы не спамить в консоль
-    } catch (e) {
-      // Игнорируем ошибки (главное - не сломать UX гостя)
-    }
+        keepalive: true, 
+      }).catch(() => {}); 
+    } catch (e) {}
   };
 
   // Функция скачивания
   const handleDownload = async (filename: string, url: string) => {
     triggerVibration(50);
-    trackAction('download', filename); // СИГНАЛ АНАЛИТИКИ
+    trackAction('download', filename); 
     try {
       const fetchUrl = `${url}?download=${Date.now()}`;
       const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
@@ -185,13 +182,13 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
       setTimeout(() => {
         const lastShown = localStorage.getItem('kurginian_feedback_shown');
         const now = Date.now();
-        const oneDay = 24 * 60 * 60 * 1000; // 24 часа в миллисекундах
+        const oneDay = 24 * 60 * 60 * 1000; 
 
         if (!lastShown || now - parseInt(lastShown) > oneDay) {
           setShowFeedbackModal(true);
           localStorage.setItem('kurginian_feedback_shown', now.toString());
         }
-      }, 1500); // Задержка 1.5 сек, чтобы не перебивать само скачивание
+      }, 1500); 
 
     } catch (err) {
       console.error(err);
@@ -201,20 +198,18 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   // Функция "Поделиться" (Native Web Share + Fallback)
   const handleShare = async (filename: string) => {
     triggerVibration(50);
-    trackAction('share', filename); // СИГНАЛ АНАЛИТИКИ
+    trackAction('share', filename); 
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
     
-    // Проверяем поддержку Native Web Share API (мобильные ОС и современные браузеры)
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'KURGINIAN Premium',
-          text: t.shareText, // Используем премиальный текст вместо просто слова "Поделиться"
+          text: t.shareText, 
           url: shareLink,
         });
-        return; // Успешно поделились через нативную шторку
+        return; 
       } catch (err) {
-        // Если юзер сам закрыл шторку (AbortError) - просто игнорируем
         if ((err as Error).name !== 'AbortError') {
           console.error('Share failed:', err);
         }
@@ -222,7 +217,6 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
       }
     }
     
-    // Fallback: Если Web Share API недоступен, копируем в буфер (старое поведение)
     try {
       await navigator.clipboard.writeText(shareLink);
       setShowToast(true);
@@ -232,57 +226,19 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     }
   };
 
-  // === ПРЕМИАЛЬНАЯ ДВУХШАГОВАЯ ФУНКЦИЯ СОХРАНЕНИЯ (Zero-RAM iOS Safe) ===
+  // === СТАНДАРТНАЯ ФУНКЦИЯ СОХРАНЕНИЯ АРХИВА (Google Drive Style) ===
   const [isSaving, setIsSaving] = useState(false);
-  const [saveProgress, setSaveProgress] = useState('');
-  const [readyFiles, setReadyFiles] = useState<File[] | null>(null);
 
   const handleSaveAll = async () => {
-    // ШАГ 2: ВТОРОЙ КЛИК (Только если открываем нативную шторку iOS для маленьких пачек)
-    if (readyFiles) {
-      try {
-        await navigator.share({ files: readyFiles });
-      } catch (shareErr) {
-        console.warn("Share sheet closed or blocked");
-      }
-      setReadyFiles(null);
-      setSaveProgress('');
-      return;
-    }
-
-    // ШАГ 1: ПЕРВЫЙ КЛИК
     if (isSaving) return;
     setIsSaving(true);
-    setSaveProgress('');
     triggerVibration([50, 30, 50]);
     trackAction('save_all');
 
     try {
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      // СЦЕНАРИЙ А: Мало фото + Телефон (Мгновенно качаем и отдаем в шторку Instagram/Файлы)
-      if (isMobile && photos.length <= 15 && navigator.canShare) {
-        const filesToShare: File[] = [];
-        for (let i = 0; i < photos.length; i++) {
-          const photo = photos[i];
-          setSaveProgress(`${i + 1} / ${photos.length}`);
-          const fetchUrl = `${photo.urls.web}?download=${Date.now()}`;
-          const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-          const blob = await response.blob();
-          filesToShare.push(new File([blob], photo.filename, { type: "image/jpeg" }));
-        }
-        
-        if (navigator.canShare({ files: filesToShare })) {
-          triggerVibration([30, 50]); 
-          setReadyFiles(filesToShare); 
-          return; 
-        }
-      }
-
-      // СЦЕНАРИЙ Б: Enterprise ZIP (Много фото или ПК - скачиваем без нагрузки на RAM)
-      setSaveProgress('ZIP...');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       
+      // Сразу запрашиваем генерацию ZIP на сервере
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/generate-zip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,7 +249,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
       
       const data = await response.json();
       
-      // Вызываем системный загрузчик браузера. RAM телефона вообще не используется!
+      // Системный загрузчик скачивает архив без нагрузки на RAM телефона
       const link = document.createElement('a');
       link.href = data.url;
       link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
@@ -308,13 +264,12 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
             'Erreur de téléchargement de l\'archive. Veuillez réessayer.');
     } finally {
       setIsSaving(false);
-      setSaveProgress('');
     }
   };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
   const openLightbox = (index: number) => {
-    triggerVibration(10); // Легкий "тык" при открытии фото
+    triggerVibration(10); 
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
   };
@@ -348,12 +303,12 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   }, [selectedIndex, photos.length]);
 
   const goToNext = () => {
-    triggerVibration(10); // Легкий "тык" при свайпе
+    triggerVibration(10); 
     setSelectedIndex((prev) => (prev! + 1) % photos.length);
   };
   
   const goToPrev = () => {
-    triggerVibration(10); // Легкий "тык" при свайпе
+    triggerVibration(10); 
     setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
   };
 
@@ -380,33 +335,20 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
           <button
             onClick={handleSaveAll}
             disabled={isSaving}
-            className={`w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center gap-3 transition-all duration-300 active:scale-95 disabled:opacity-50 ${
-              readyFiles 
-                ? 'bg-[#F0F0F0] text-black shadow-[0_0_20px_rgba(255,255,255,0.4)]' // Белая премиальная кнопка (2 шаг)
-                : 'bg-lux-gold text-black shadow-gold-glow' // Золотая кнопка (1 шаг)
-            }`}
+            className="w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center gap-3 transition-all duration-300 active:scale-95 disabled:opacity-50 bg-lux-gold text-black shadow-gold-glow"
           >
             {isSaving ? (
               <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-            ) : readyFiles ? (
-              /* Иконка галочки/успеха для 2 шага */
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
             ) : (
-              /* Стандартная иконка скачивания для 1 шага */
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
             )}
 
-            {/* Логика текста */}
-            {isSaving && saveProgress ? (
-              <span className="font-mono tracking-widest">{saveProgress}</span>
-            ) : readyFiles ? (
-              t.saveToGallery // "Сохранить в фотопленку"
+            {isSaving ? (
+              <span className="font-mono tracking-widest">ZIP...</span>
             ) : (
-              t.saveAll // "Сохранить мои фото"
+              t.saveAll
             )}
           </button>
         </motion.div>
@@ -422,7 +364,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               key={photo.filename} 
               photo={photo} 
               index={index} 
-              onOpen={() => openLightbox(index)} // ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
+              onOpen={() => openLightbox(index)} 
             />
           ))}
         </motion.div>
@@ -498,8 +440,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                   className="object-contain pointer-events-none"
                   priority
                   draggable={false}
-                  placeholder="blur" // 🔥 Временная подложка размытия
-                  blurDataURL={photos[selectedIndex].urls.thumb} // Используем уже загруженный thumb
+                  placeholder="blur" 
+                  blurDataURL={photos[selectedIndex].urls.thumb} 
                 />
               </motion.div>
 
@@ -582,7 +524,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              onClick={(e) => e.stopPropagation()} // Чтобы клик по карточке не закрывал её
+              onClick={(e) => e.stopPropagation()} 
               className="w-full max-w-sm bg-[#0a0a0a] border border-lux-gold/30 rounded-xl p-8 text-center shadow-gold-glow relative"
             >
               {/* Кнопка закрытия крестиком */}
