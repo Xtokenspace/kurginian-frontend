@@ -192,24 +192,22 @@ export default function PWAHome() {
         transition={{ duration: 1, ease: "easeOut" }}
         className="max-w-md w-full pt-10 pb-20 relative z-10"
       >
-        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА: "Дыхание роскоши" */}
-        <h1 className="font-cinzel text-4xl md:text-[2.75rem] text-lux-gold mb-6 max-w-sm mx-auto w-full flex justify-between uppercase">
+        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА: "Легкое золотое свечение" */}
+        <motion.h1 
+          animate={{ 
+            textShadow: [
+              "0px 0px 4px rgba(212,175,55,0.05)", 
+              "0px 0px 24px rgba(212,175,55,0.5)", 
+              "0px 0px 4px rgba(212,175,55,0.05)"
+            ]
+          }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className="font-cinzel text-4xl md:text-[2.75rem] text-lux-gold mb-6 max-w-sm mx-auto w-full flex justify-between uppercase will-change-[filter]"
+        >
           {t.title.split('').map((letter, index) => (
-            <motion.span
-              key={index}
-              initial={{ opacity: 0, scale: 0.9, filter: "blur(12px)" }}
-              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-              transition={{
-                duration: 1.5,
-                delay: 0.12 * index,
-                ease: [0.25, 1, 0.5, 1]
-              }}
-              className="inline-block will-change-[transform,opacity,filter]"
-            >
-              {letter === ' ' ? '\u00A0' : letter}
-            </motion.span>
+            <span key={index}>{letter === ' ' ? '\u00A0' : letter}</span>
           ))}
-        </h1>
+        </motion.h1>
         
         {/* Обновленный строгий подзаголовок */}
         <p className="font-cormorant text-xl md:text-2xl text-gray-400 mb-14 font-light leading-relaxed px-4">
@@ -233,63 +231,70 @@ export default function PWAHome() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: idx * 0.1 }}
                     onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
-                    className="relative h-28 w-full rounded-xl overflow-hidden border border-white/10 cursor-pointer shadow-2xl active:scale-[0.98] transition-transform group"
+                    className="relative h-28 w-full rounded-xl overflow-hidden border border-white/5 bg-[#0a0a0a] cursor-pointer shadow-xl active:scale-[0.98] transition-all group flex items-center justify-between px-5 md:px-6"
                   >
-                    {/* Фоновое изображение (Обложка) с умным масштабированием */}
-                    {session.cover ? (
-                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+                    {/* Фотография строго между текстом и кнопками */}
+                    {session.cover && (
+                      <div className="absolute top-[-7.5%] bottom-[-7.5%] left-[40%] right-[15%] md:left-[35%] md:right-[12%] z-0 overflow-hidden pointer-events-none">
                         <img 
                           src={session.cover} 
-                          // h-[130%] делает фото больше на 15% сверху и снизу, object-[center_25%] спасает головы
-                          className="w-full h-[130%] object-cover object-[center_25%] group-hover:scale-105 transition-transform duration-700 opacity-50" 
+                          className="w-full h-full object-cover object-center opacity-60 group-hover:scale-105 group-hover:opacity-80 transition-all duration-700" 
                           alt="" 
                         />
+                        {/* Плавное растворение краев фотографии в фон карточки */}
+                        <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
+                        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
+                        <div className="absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-[#0a0a0a] to-transparent" />
+                        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
                       </div>
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#111] to-[#050505]" />
                     )}
                     
-                    {/* Двойное градиентное затемнение (СЛЕВА и СПРАВА для красивого растворения) */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black opacity-90 z-10" />
-                    {/* Усиление слева для идеальной читаемости белого текста */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/90 to-transparent w-2/3 z-10" />
-
-                    {/* Контент карточки */}
-                    <div className="relative z-20 h-full flex items-center justify-between px-6">
-                      <div className="flex flex-col gap-1 pr-4 overflow-hidden">
-                        <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
-                          {session.title}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
-                            session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold'
-                          }`}>
-                            {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
-                          </span>
-                          {session.type !== 'vip' && session.count && (
-                            <span className="text-[10px] text-gray-400 font-mono tracking-tighter">
-                              {session.count} pics
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                        {/* СТРЕЛКА (Восстановлена, с приятной анимацией движения) */}
-                        <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-all transform group-hover:translate-x-1">
-                          →
+                    {/* Левый блок (Текст) */}
+                    <div className="relative z-10 flex flex-col gap-1 max-w-[55%]">
+                      <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
+                        {session.title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
+                          session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold'
+                        }`}>
+                          {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
                         </span>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(e, session.rawKey, session.slug);
-                          }}
-                          className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90"
-                        >
-                          ✕
-                        </button>
+                        {session.type !== 'vip' && session.count && (
+                          <span className="text-[10px] text-gray-400 font-mono tracking-tighter">
+                            {session.count} pics
+                          </span>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Правый блок (Кнопки действий) */}
+                    <div className="relative z-10 flex items-center gap-1 md:gap-2 flex-shrink-0">
+                      
+                      {/* Кнопка удаления (Крестик) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSession(e, session.rawKey, session.slug);
+                        }}
+                        className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-red-500/80 transition-all active:scale-90 group/btn"
+                        title={t.deleteLabel}
+                      >
+                        <svg className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover/btn:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      {/* Деликатный разделитель */}
+                      <div className="w-[1px] h-6 bg-white/10 mx-1" />
+
+                      {/* Стрелка перехода */}
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-lux-gold/70 group-hover:text-lux-gold transition-colors">
+                        <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                        </svg>
+                      </div>
+                      
                     </div>
                   </motion.div>
                 ))}
