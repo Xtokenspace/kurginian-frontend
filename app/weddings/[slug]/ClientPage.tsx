@@ -39,7 +39,7 @@ const translations = {
     findPhotos: "Trouver mes photos",
     takePhoto: "Prendre une photo",
     chooseGallery: "Choisir depuis la galerie",
-    foundPhotos: "Vous y étiez ! ✨",
+    foundPhotos: "Vos moments inoubliables",
     downloadAll: "Télécharger toutes les photos",
     findMore: "Trouver encore des photos",
     contactPhotographer: "Suivre sur Instagram",
@@ -76,7 +76,7 @@ const translations = {
     findPhotos: "Find my photos",
     takePhoto: "Take a photo",
     chooseGallery: "Choose from gallery",
-    foundPhotos: "You were there! ✨",
+    foundPhotos: "Your unforgettable moments",
     downloadAll: "Download all photos",
     findMore: "Find more photos",
     contactPhotographer: "Follow on Instagram",
@@ -113,7 +113,7 @@ const translations = {
     findPhotos: "Найти мои фото",
     takePhoto: "Сделать фото",
     chooseGallery: "Выбрать из галереи",
-    foundPhotos: "Вы были там! ✨",
+    foundPhotos: "Ваши незабываемые моменты",
     downloadAll: "Скачать все фото",
     findMore: "Найти ещё фото",
     contactPhotographer: "Подписаться в Instagram",
@@ -548,19 +548,21 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             <div className="relative">
               <button
                 onClick={() => setShowLangMenu(!showLangMenu)}
-                className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
+                className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
               >
-                <span className="text-sm md:text-base">{language.toUpperCase()}</span>
-                <span className="text-lg md:text-xl">🌐</span>
+                <span className="uppercase tracking-widest">{language}</span>
+                <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                </svg>
               </button>
 
               <AnimatePresence>
                 {showLangMenu && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -5 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute top-12 right-0 bg-lux-card border border-lux-gold/30 rounded-3xl p-1 shadow-2xl flex flex-col w-28 z-50"
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
                   >
                     {(['fr', 'en', 'ru'] as const).map((lang) => (
                       <button
@@ -569,11 +571,11 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                           setLanguage(lang);
                           setShowLangMenu(false);
                         }}
-                        className={`px-6 py-3 text-left rounded-3xl transition-all ${
-                          language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-300 hover:bg-white/10'
+                        className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
+                          language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
                         }`}
                       >
-                        {lang.toUpperCase()}
+                        {lang}
                       </button>
                     ))}
                   </motion.div>
@@ -752,15 +754,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               {/* @ts-ignore - игнорируем ошибку TS, так как мы добавили ключи */}
               {t.verifyTitle}
             </h2>
-            <p className="font-montserrat text-sm text-gray-300 mb-8 max-w-sm">
+            <p className="font-montserrat text-sm text-gray-300 mb-10 max-w-sm">
                {/* @ts-ignore */}
               {t.verifyDesc}
             </p>
-            
-            {/* Показываем кружочек с найденным лицом */}
-            <div className="w-32 h-32 rounded-full overflow-hidden border-2 border-lux-gold mb-8 shadow-gold-glow relative">
-               <img src={pendingPhotos[0].urls.thumb} alt="Match" className="w-full h-full object-cover" />
-            </div>
 
             <div className="flex gap-4 w-full max-w-sm">
               <button 
@@ -1077,6 +1074,15 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                  setShowChoiceModal(false);
+                }
+              }}
               className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
             >
               <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">

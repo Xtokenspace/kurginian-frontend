@@ -196,19 +196,21 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         <div className="relative">
           <button
             onClick={() => setShowLangMenu(!showLangMenu)}
-            className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-4 py-2 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300"
+            className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
           >
-            <span className="text-sm md:text-base">{language.toUpperCase()}</span>
-            <span className="text-lg md:text-xl">🌐</span>
+            <span className="uppercase tracking-widest">{language}</span>
+            <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+            </svg>
           </button>
 
           <AnimatePresence>
             {showLangMenu && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -5 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-12 right-0 bg-lux-card border border-lux-gold/30 rounded-3xl p-1 shadow-2xl flex flex-col w-28 z-50"
+                exit={{ opacity: 0, y: -5 }}
+                className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
               >
                 {(['fr', 'en', 'ru'] as const).map((lang) => (
                   <button
@@ -217,11 +219,11 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                       setLanguage(lang);
                       setShowLangMenu(false);
                     }}
-                    className={`px-6 py-3 text-left rounded-3xl transition-all ${
-                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-300 hover:bg-white/10'
+                    className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
+                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {lang.toUpperCase()}
+                    {lang}
                   </button>
                 ))}
               </motion.div>
