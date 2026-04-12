@@ -192,17 +192,17 @@ export default function PWAHome() {
         transition={{ duration: 1, ease: "easeOut" }}
         className="max-w-md w-full pt-10 pb-20 relative z-10"
       >
-        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА (Идеальное выравнивание по ширине кнопок) */}
+        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА: "Дыхание роскоши" */}
         <h1 className="font-cinzel text-4xl md:text-[2.75rem] text-lux-gold mb-6 max-w-sm mx-auto w-full flex justify-between uppercase">
           {t.title.split('').map((letter, index) => (
             <motion.span
               key={index}
-              initial={{ opacity: 0, y: 15, filter: "blur(5px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              initial={{ opacity: 0, scale: 0.9, filter: "blur(12px)" }}
+              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               transition={{
-                duration: 0.8,
-                delay: 0.1 * index,
-                ease: [0.2, 0.9, 0.3, 1]
+                duration: 1.5,
+                delay: 0.12 * index,
+                ease: [0.25, 1, 0.5, 1]
               }}
               className="inline-block will-change-[transform,opacity,filter]"
             >
@@ -235,19 +235,24 @@ export default function PWAHome() {
                     onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
                     className="relative h-28 w-full rounded-xl overflow-hidden border border-white/10 cursor-pointer shadow-2xl active:scale-[0.98] transition-transform group"
                   >
-                    {/* Фоновое изображение (Обложка) */}
+                    {/* Фоновое изображение (Обложка) с умным масштабированием */}
                     {session.cover ? (
-                      <img 
-                        src={session.cover} 
-                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40" 
-                        alt="" 
-                      />
+                      <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
+                        <img 
+                          src={session.cover} 
+                          // h-[130%] делает фото больше на 15% сверху и снизу, object-[center_25%] спасает головы
+                          className="w-full h-[130%] object-cover object-[center_25%] group-hover:scale-105 transition-transform duration-700 opacity-50" 
+                          alt="" 
+                        />
+                      </div>
                     ) : (
                       <div className="absolute inset-0 bg-gradient-to-br from-[#111] to-[#050505]" />
                     )}
                     
-                    {/* Градиентное затемнение */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent z-10" />
+                    {/* Двойное градиентное затемнение (СЛЕВА и СПРАВА для красивого растворения) */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-black via-transparent to-black opacity-90 z-10" />
+                    {/* Усиление слева для идеальной читаемости белого текста */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a]/90 to-transparent w-2/3 z-10" />
 
                     {/* Контент карточки */}
                     <div className="relative z-20 h-full flex items-center justify-between px-6">
@@ -269,9 +274,17 @@ export default function PWAHome() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                        {/* СТРЕЛКА (Восстановлена, с приятной анимацией движения) */}
+                        <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-all transform group-hover:translate-x-1">
+                          →
+                        </span>
+                        
                         <button
-                          onClick={(e) => handleDeleteSession(e, session.rawKey, session.slug)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSession(e, session.rawKey, session.slug);
+                          }}
                           className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90"
                         >
                           ✕
