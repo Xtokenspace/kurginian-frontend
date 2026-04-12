@@ -85,8 +85,6 @@ export default function PWAHome() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   // galleries теперь приходят из контекста автоматически
   
-  // === НОВЫЕ СТЕЙТЫ (Оффлайн и Гармошка) ===
-  const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
   
   // === НОВЫЕ СТЕЙТЫ ДЛЯ ПРЕМИУМ МОДАЛКИ ===
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -263,7 +261,7 @@ export default function PWAHome() {
                           }`}>
                             {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
                           </span>
-                          {!isVip && session.count && (
+                          {session.type !== 'vip' && session.count && (
                             <span className="text-[10px] text-gray-400 font-mono tracking-tighter">
                               {session.count} pics
                             </span>
@@ -273,10 +271,7 @@ export default function PWAHome() {
 
                       <div className="flex items-center gap-4 flex-shrink-0">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(e, session.rawKey, session.slug);
-                          }}
+                          onClick={(e) => handleDeleteSession(e, session.rawKey, session.slug)}
                           className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90"
                         >
                           ✕
