@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { useAppContext } from '@/context/AppContext'; // <-- ДОБАВЛЕНО
 
 // --- ИНТЕРФЕЙСЫ ---
 interface MatchedPhoto {
@@ -125,24 +126,15 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   
-  // Новые стейты для локализации и уведомлений прямо в галерее
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  // Стейты уведомлений
   const [showToast, setShowToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Синхронизация языка (Единый источник истины)
-  useEffect(() => {
-    if (currentLanguage) {
-      setLanguage(currentLanguage);
-      return;
-    }
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
-    
-    // Тихая очистка старого мусора
-    localStorage.removeItem(`lang_${slug}`);
-  }, [slug, currentLanguage]);
-
+  // Получаем язык из глобального контекста
+  const { language: contextLanguage } = useAppContext();
+  
+  // Если язык пришел сверху (prop), используем его, иначе — глобальный
+  const language = currentLanguage || contextLanguage;
   const t = translations[language];
 
   // === HAPTIC FEEDBACK (Тактильность) ===

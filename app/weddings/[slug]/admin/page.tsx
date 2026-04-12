@@ -6,6 +6,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
+import { useAppContext } from '@/context/AppContext';
 
 interface MatchedPhoto {
   filename: string;
@@ -103,8 +104,8 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
 
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
+  const { language, setLanguage } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -116,12 +117,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const t = translations[language];
 
   useEffect(() => {
-    // 1. Подхватываем язык (Единый источник истины)
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
-    localStorage.removeItem(`lang_${slug}`); // Очищаем мусор
-
-    // 2. Ищем VIP-пароль
+    // 1. Ищем VIP-пароль
     const vipCode = localStorage.getItem(`vip_code_${slug}`);
     if (!vipCode) {
       router.replace(`/weddings/${slug}`);
@@ -219,7 +215,6 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                     key={lang}
                     onClick={() => {
                       setLanguage(lang);
-                      localStorage.setItem('kurginian_global_lang', lang);
                       setShowLangMenu(false);
                     }}
                     className={`px-6 py-3 text-left rounded-3xl transition-all ${

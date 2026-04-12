@@ -1,12 +1,13 @@
 // === ФАЙЛ: app/weddings/[slug]/page.tsx (ГОСТЕВАЯ КАМЕРА) ===
 'use client';
 
-import { useState, useRef, use, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Gallery from '@/components/Gallery';
 import imageCompression from 'browser-image-compression';
 import { useRouter } from 'next/navigation';
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
+import { useAppContext } from '@/context/AppContext'; // <-- ДОБАВЛЕНО
 
 // === ТИПИЗАЦИЯ API ===
 export interface MatchedPhoto {
@@ -22,6 +23,12 @@ export interface AuthResponse {
   matches_count: number;
   data: MatchedPhoto[];
   expires_at?: string | null;
+}
+
+export interface WeddingMeta {
+  title: string;
+  subtitle: string;
+  covers: string[];
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -204,7 +211,7 @@ function PhotoFan({ covers }: { covers: string[] }) {
   );
 }
 
-export default function ClientPage({ slug, initialMeta }: { slug: string, initialMeta: any }) {
+export default function ClientPage({ slug, initialMeta }: { slug: string, initialMeta: WeddingMeta | null }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const router = useRouter();
 
@@ -231,12 +238,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
 
-  // === ЯЗЫКОВОЕ СОСТОЯНИЕ ===
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
-  const t = translations[language];
 
   // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (ПРИШЛИ С СЕРВЕРА БЕЗ МЕРЦАНИЯ) ===
-  const [metaInfo, setMetaInfo] = useState<{title: string, subtitle: string, covers: string[]} | null>(initialMeta);
+  const [metaInfo, setMetaInfo] = useState<WeddingMeta | null>(initialMeta);
 
   // === ОФФЛАЙН И ТАКТИЛЬНОСТЬ ===
 
@@ -260,6 +264,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       if (response.ok) {
         // СОХРАНЯЕМ ПАРОЛЬ КАК VIP-КЛЮЧ
         localStorage.setItem(`vip_code_${slug}`, passwordInput);
+        refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
         setShowPasswordModal(false);
         triggerVibration(50);
         router.push(`/weddings/${slug}/admin`);
@@ -275,19 +280,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }
   };
 
-  // === УМНАЯ СИНХРОНИЗАЦИЯ (Единый источник истины) ===
-  useEffect(() => {
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
-    
-    // Тихая зачистка старого мусора
-    localStorage.removeItem(`lang_${slug}`);
-  }, [slug]);
-
-  // Сохраняем выбор языка ГЛОБАЛЬНО при изменении
-  useEffect(() => {
-    localStorage.setItem('kurginian_global_lang', language);
-  }, [language]);
+  const { language, setLanguage, refreshSessions } = useAppContext(); // <-- ДОБАВЛЕНО
+  const t = translations[language];
 
   // Загружаем фото из памяти только для этой свадьбы
   useEffect(() => {
@@ -513,6 +507,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           if (data.expires_at) {
             localStorage.setItem(`expires_${slug}`, data.expires_at);
           }
+          refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
         }
       } else {
         triggerVibration([50, 100, 50]); // Ошибка распознавания
@@ -776,6 +771,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   setPhotos(pendingPhotos);
                   setStatus('success');
                   localStorage.setItem(`photos_${slug}`, JSON.stringify(pendingPhotos));
+                  refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
                 }}
                 className="flex-1 px-4 py-4 bg-lux-gold text-black rounded-sm uppercase tracking-wider text-xs font-bold shadow-gold-glow hover:bg-white transition-all"
               >

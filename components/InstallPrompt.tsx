@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppContext } from '@/context/AppContext';
 
 // --- ПЕРЕВОДЫ ---
 const translations = {
@@ -32,17 +33,13 @@ export default function InstallPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  const { language } = useAppContext(); // Получаем глобальный язык
 
   useEffect(() => {
     // 0. ТИХАЯ РЕГИСТРАЦИЯ SERVICE WORKER (Для чистой иконки на Android)
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW ref:', err));
     }
-    
-    // 1. Устанавливаем язык
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
 
     // 2. Проверяем, не закрывал ли юзер баннер недавно
     const dismissed = localStorage.getItem('pwa_prompt_dismissed');

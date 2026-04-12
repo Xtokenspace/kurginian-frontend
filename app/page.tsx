@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppContext } from '@/context/AppContext'; // Подключаем наш контекст
 
 const translations = {
   fr: {
@@ -80,10 +81,9 @@ interface GallerySession {
 
 export default function PWAHome() {
   const router = useRouter();
-  const [galleries, setGalleries] = useState<GallerySession[]>([]);
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  const { language, setLanguage, sessions: galleries, refreshSessions } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  // galleries теперь приходят из контекста автоматически
   
   // === НОВЫЕ СТЕЙТЫ (Оффлайн и Гармошка) ===
   const [isGalleriesOpen, setIsGalleriesOpen] = useState(false); 
@@ -102,72 +102,21 @@ export default function PWAHome() {
   };
 
 
-  // Умный сканер сессий
-  useEffect(() => {
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
-
-    const scanGalleries = () => {
-      const sessions: GallerySession[] = [];
-      
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-
-        // Ищем VIP-сессии
-        if (key.startsWith('vip_code_')) {
-          const slug = key.replace('vip_code_', '');
-          sessions.push({
-            id: `vip_${slug}`,
-            slug,
-            title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-            type: 'vip',
-            rawKey: key
-          });
-        } 
-        // Ищем Гостевые сессии (Селфи)
-        else if (key.startsWith('photos_')) {
-          const slug = key.replace('photos_', '');
-          try {
-            const data = JSON.parse(localStorage.getItem(key) || '[]');
-            if (data.length > 0) {
-              sessions.push({
-                id: `guest_${slug}`,
-                slug,
-                title: slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-                type: 'guest',
-                count: data.length,
-                rawKey: key
-              });
-            }
-          } catch (e) {}
-        }
-      }
-      setGalleries(sessions);
-      setIsLoaded(true);
-    };
-
-    scanGalleries();
-    window.addEventListener('storage', scanGalleries);
-    return () => window.removeEventListener('storage', scanGalleries);
-  }, []);
-
   // ФУНКЦИЯ УДАЛЕНИЯ КАРТОЧКИ
   const handleDeleteSession = (e: React.MouseEvent, rawKey: string) => {
     e.stopPropagation();
     triggerVibration(10);
     
     if (window.confirm(t.deleteConfirm)) {
-      triggerVibration([50, 50, 50]); // Вибрация удаления
+      triggerVibration([50, 50, 50]); 
       localStorage.removeItem(rawKey);
-      window.dispatchEvent(new Event('storage'));
+      refreshSessions(); // Вызываем обновление в контексте
     }
   };
 
   const handleLangChange = (lang: 'fr' | 'en' | 'ru') => {
     triggerVibration(10);
-    setLanguage(lang);
-    localStorage.setItem('kurginian_global_lang', lang);
+    setLanguage(lang); // Контекст сам обновит localStorage
     setShowLangMenu(false);
   };
 
@@ -193,9 +142,6 @@ export default function PWAHome() {
       router.push(`/weddings/${cleanSlug.toLowerCase()}`);
     }
   };
-
-  // Не показываем ничего, пока не отсканировали память (чтобы не было мерцаний)
-  if (!isLoaded) return <div className="min-h-screen bg-lux-bg" />;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lux-gold/10 via-lux-bg to-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">

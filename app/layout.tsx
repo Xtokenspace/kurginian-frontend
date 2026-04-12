@@ -54,6 +54,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { AppProvider } from "@/context/AppContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -62,8 +64,10 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${cinzel.variable} ${cormorant.variable} ${montserrat.variable}`}>
       <body className="antialiased bg-lux-bg text-lux-text overscroll-none">
-        {children}
-        <InstallPrompt /> {/* <-- ДОБАВИТЬ ЭТО СЮДА */}
+        <AppProvider>
+          {children}
+          <InstallPrompt />
+        </AppProvider>
       </body>
     </html>
   );

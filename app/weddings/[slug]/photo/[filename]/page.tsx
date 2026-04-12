@@ -2,10 +2,11 @@
 
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { use, useState, } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useAppContext } from '@/context/AppContext';
 
 const translations = {
   fr: {
@@ -60,21 +61,13 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
 
-  // === ЯЗЫК ===
-  const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
+  // === ЯЗЫК (Берем из Контекста) ===
+  const { language, setLanguage, refreshSessions } = useAppContext();
   const t = translations[language];
-
-  // Умная синхронизация языка (Единый источник истины)
-  useEffect(() => {
-    const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    if (globalLang) setLanguage(globalLang);
-    localStorage.removeItem(`lang_${slug}`); // Очищаем мусор
-  }, [slug]);
 
   const handleLanguageChange = (lang: 'fr' | 'en' | 'ru') => {
     setLanguage(lang);
-    localStorage.setItem('kurginian_global_lang', lang);
-    setShowLangMenu(false); // Закрываем глобус
+    setShowLangMenu(false);
   };
 
   const handleDownload = async () => {
@@ -281,6 +274,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           <button
             onClick={() => {
               localStorage.removeItem(`photos_${slug}`);
+              refreshSessions(); // <-- Обновляем дашборд!
               router.push(`/weddings/${slug}`);
             }}
             className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-[0.2em] underline underline-offset-4 decoration-transparent hover:decoration-red-400/50"
