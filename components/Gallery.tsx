@@ -143,8 +143,12 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage }: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [zoomScale, setZoomScale] = useState(1); // <-- НОВЫЙ СТЕЙТ ДЛЯ ЗУМА
-  const lastTapRef = useRef<number>(0); // <-- ДОБАВЛЕНО ДЛЯ ДВОЙНОГО КЛИКА
+  const [zoomScale, setZoomScale] = useState(1);
+  const lastTapRef = useRef<number>(0);
+  
+  // === РЕФЫ ДЛЯ МУЛЬТИТАЧА (PINCH-TO-ZOOM) ===
+  const initialTouchDistance = useRef<number | null>(null);
+  const currentScale = useRef<number>(1);
   
   // Стейты уведомлений
   const [showToast, setShowToast] = useState(false);
@@ -372,7 +376,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   // Функция переключения зума (Double Tap)
   const toggleZoom = () => {
     triggerVibration(15);
-    setZoomScale(prev => prev === 1 ? 2.5 : 1);
+    setZoomScale(prev => (prev > 1 ? 1 : 2.5));
   };
 
   if (!photos || photos.length === 0) {
@@ -495,45 +499,72 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               Kurginian Premium
             </motion.a>
 
-            {/* Основное фото с поддержкой СВАЙПА И ЗУМА */}
-            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+            {/* Основное фото с поддержкой СВАЙПА И ЗУМА (Multitouch Pinch-to-Zoom Edition) */}
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden touch-none">
               <motion.div
                 key={selectedIndex}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ 
                   opacity: 1, 
                   scale: zoomScale,
-                  x: 0,
-                  y: 0
+                  x: zoomScale === 1 ? 0 : undefined, // Умный возврат в центр
+                  y: zoomScale === 1 ? 0 : undefined  // Умный возврат в центр
                 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 350, damping: 35 }}
-                drag={true} // Всенаправленный драг
+                drag={true}
                 dragConstraints={zoomScale > 1 ? false : { left: 0, right: 0, top: 0, bottom: 0 }}
-                dragElastic={zoomScale > 1 ? 0.1 : 0.6}
+                dragElastic={zoomScale > 1 ? 0.2 : 0.6}
+                // --- ЛОГИКА PINCH-TO-ZOOM (Два пальца) ---
+                onTouchStart={(e) => {
+                  if (e.touches.length === 2) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    initialTouchDistance.current = Math.hypot(dx, dy);
+                    currentScale.current = zoomScale;
+                  }
+                }}
+                onTouchMove={(e) => {
+                  if (e.touches.length === 2 && initialTouchDistance.current !== null) {
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const distance = Math.hypot(dx, dy);
+                    const scaleFactor = distance / initialTouchDistance.current;
+                    // Ограничиваем зум от 1 до 4
+                    const newScale = Math.min(Math.max(1, currentScale.current * scaleFactor), 4);
+                    setZoomScale(newScale);
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  if (e.touches.length < 2) {
+                    initialTouchDistance.current = null;
+                    // Автоматический сброс в центр, если масштаб после щипка близок к 1
+                    if (zoomScale < 1.1) {
+                      setZoomScale(1);
+                    }
+                  }
+                }}
+                // --- ЛОГИКА ДВОЙНОГО ТАПА ---
                 onTap={() => {
                   const now = Date.now();
-                  // Если между кликами меньше 300мс - это двойной тап
                   if (now - lastTapRef.current < 300) {
                     toggleZoom();
                   }
                   lastTapRef.current = now;
                 }}
+                // --- ЛОГИКА СВАЙПОВ И ЗАКРЫТИЯ ---
                 onDragEnd={(_, info) => {
                   if (zoomScale === 1) {
-                    // Логика закрытия (Свайп вверх или вниз)
                     if (Math.abs(info.offset.y) > 150 || Math.abs(info.velocity.y) > 500) {
                       closeLightbox();
-                    } 
-                    // Логика перелистывания (Горизонтально)
-                    else if (info.offset.x > 100) {
+                    } else if (info.offset.x > 100) {
                       goToPrev();
                     } else if (info.offset.x < -100) {
                       goToNext();
                     }
                   }
                 }}
-                className="relative w-full h-full flex items-center justify-center z-[102] touch-none"
+                className="relative w-full h-full flex items-center justify-center z-[102]"
                 style={{ cursor: zoomScale > 1 ? 'move' : 'grab' }}
               >
                 <Image
