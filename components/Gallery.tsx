@@ -513,10 +513,24 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 350, damping: 35 }}
                 drag={true}
-                // Включаем премиальный лок оси: если свайп начался по горизонтали, вертикаль замораживается
+                // Замок оси только когда нет зума (для плавных свайпов)
                 dragDirectionLock={zoomScale === 1} 
-                dragConstraints={zoomScale > 1 ? false : { left: 0, right: 0, top: 0, bottom: 0 }}
-                dragElastic={zoomScale > 1 ? 0.2 : 0.6}
+                // Умные границы: если зум включен, разрешаем выходить за края, 
+                // но оставляем "якорь" в 25% размера экрана, чтобы фото не улетело в бесконечность.
+                dragConstraints={
+                  zoomScale > 1 
+                  ? { 
+                      left: -window.innerWidth * 0.75, 
+                      right: window.innerWidth * 0.75, 
+                      top: -window.innerHeight * 0.75, 
+                      bottom: window.innerHeight * 0.75 
+                    } 
+                  : { left: 0, right: 0, top: 0, bottom: 0 }
+                }
+                // Настройка инерции: чем выше zoom, тем послушнее фото (меньше скользит после отпускания)
+                dragMomentum={zoomScale > 1}
+                dragTransition={{ bounceStiffness: 200, bounceDamping: 25 }}
+                dragElastic={zoomScale > 1 ? 0.15 : 0.6}
                 // --- ЛОГИКА PINCH-TO-ZOOM (Два пальца) ---
                 onTouchStart={(e) => {
                   if (e.touches.length === 2) {
