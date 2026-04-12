@@ -654,12 +654,12 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             </p>
 
             {/* КНОПКА (Осталась прежней по функционалу, но лучше вписана в дизайн) */}
-            <button 
+            <button
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                setShowChoiceModal(true);
+                setShowChoiceModal(!showChoiceModal); // Работает как выключатель
               }}
-              className="px-10 py-4 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] rounded-sm hover:bg-white transition-all duration-500 text-[10px] md:text-xs shadow-gold-glow active:scale-95"
+              className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-[160]"
             >
               {t.findPhotos}
             </button>
@@ -857,9 +857,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             
             {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
             <motion.button
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.8, type: "spring", stiffness: 200 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 setShowMenu(!showMenu);
@@ -881,10 +881,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     onClick={() => {
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                       setShowMenu(false);
                     }}
-                    className="fixed inset-0 bg-black/70 md:backdrop-blur-sm z-[100] will-change-[opacity]"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] will-change-[opacity]"
                   />
 
                   {/* Выезжающая шторка */}
@@ -892,78 +892,97 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
-                    transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
-                    className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
+                    transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                    drag="y"
+                    dragConstraints={{ top: 0 }}
+                    dragElastic={0.15}
+                    onDragEnd={(e, info) => {
+                      if (info.offset.y > 100) {
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                        setShowMenu(false);
+                      }
+                    }}
+                    className="fixed bottom-0 left-0 right-0 z-[130] flex flex-col items-center touch-none will-change-transform"
                   >
-                    <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                    <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-[2.5rem] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] relative">
                       
                       {/* Индикатор свайпа (Pill) */}
                       <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
 
-                      <div className="space-y-3">
-
-                        {/* 2. Новый поиск */}
+                      {/* Единый блок меню (iOS Style List) */}
+                      <div className="bg-[#111] border border-white/10 rounded-2xl flex flex-col w-full shadow-lg">
+                        
+                        {/* 1. Новый поиск */}
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             setShowMenu(false); 
                             setShowChoiceModal(true); 
                           }}
-                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
                         >
-                          <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                          </svg>
-                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.findMore}</span>
+                          <div className="flex items-center gap-4">
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                            </svg>
+                            <span className="text-gray-300 group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.findMore}</span>
+                          </div>
+                          <span className="text-gray-600 group-hover:text-gray-400 transition-colors">→</span>
                         </button>
 
-                        {/* 3. Ввести VIP код */}
+                        {/* 2. Ввести VIP код */}
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             setShowMenu(false); 
                             setShowPasswordModal(true); 
                           }}
-                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-lux-gold/20"
                         >
-                          {/* Иконка ключа */}
-                          <svg className="w-5 h-5 text-lux-gold group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-                          </svg>
-                          <span className="text-lux-gold group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.enterVipCode}</span>
+                          <div className="flex items-center gap-4">
+                            <svg className="w-5 h-5 text-lux-gold group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                            </svg>
+                            <span className="text-lux-gold group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.enterVipCode}</span>
+                          </div>
+                          <span className="text-lux-gold/40 group-hover:text-lux-gold/80 transition-colors">→</span>
                         </button>
 
-                        <div className="h-px bg-gradient-to-r from-transparent via-lux-gold/20 to-transparent my-4"></div>
-
-                        {/* 4. Instagram */}
+                        {/* 3. Instagram */}
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             setShowMenu(false); 
                             window.open("https://www.instagram.com/hdart26/", "_blank"); 
                           }}
-                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
                         >
-                          <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                          </svg>
-                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.contactPhotographer}</span>
+                          <div className="flex items-center gap-4">
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                            </svg>
+                            <span className="text-gray-300 group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.contactPhotographer}</span>
+                          </div>
+                          <span className="text-gray-600 group-hover:text-gray-400 transition-colors">↗</span>
                         </button>
 
-                        {/* 5. Website */}
+                        {/* 4. Website */}
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             setShowMenu(false); 
                             window.open("https://kurginian.pro", "_blank"); 
                           }}
-                          className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                          className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group"
                         >
-                          <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-                          </svg>
-                          <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.discoverServices}</span>
+                          <div className="flex items-center gap-4">
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                            </svg>
+                            <span className="text-gray-300 group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.discoverServices}</span>
+                          </div>
+                          <span className="text-gray-600 group-hover:text-gray-400 transition-colors">↗</span>
                         </button>
                       </div>
                     </div>
@@ -1036,6 +1055,20 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   <div className="absolute top-0 left-1/2 w-[1px] h-full bg-lux-gold" />
                 </div>
               </motion.div>
+
+              {/* Умная подсказка консьержа */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1 }}
+                className="absolute top-[15%] left-0 right-0 flex justify-center z-20 pointer-events-none"
+              >
+                <div className="bg-black/30 backdrop-blur-md border border-white/10 px-5 py-2 rounded-full">
+                  <p className="font-montserrat text-[10px] md:text-xs text-gray-300 uppercase tracking-widest text-center">
+                    {language === 'ru' ? 'Поместите лицо в центр' : language === 'fr' ? 'Placez votre visage au centre' : 'Place your face in the center'}
+                  </p>
+                </div>
+              </motion.div>
             </div>
 
             {/* Кнопка съемки */}
@@ -1061,7 +1094,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] will-change-[opacity]"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[140] will-change-[opacity]"
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 setShowChoiceModal(false);
@@ -1073,19 +1106,19 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
+              transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={0.2}
+              dragElastic={0.15}
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                   setShowChoiceModal(false);
                 }
               }}
-              className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
+              className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center touch-none will-change-transform"
             >
-              <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] relative">
                 
                 {/* Индикатор свайпа (Pill) */}
                 <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />

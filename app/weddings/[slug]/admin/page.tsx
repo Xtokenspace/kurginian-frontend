@@ -233,7 +233,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
       </div>
 
       {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
-      <button 
+      <motion.button 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
         onClick={() => {
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
           setShowMenu(!showMenu);
@@ -243,7 +246,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         {/* Анимация превращения 2-х полосок бургера в крестик (Х) */}
         <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
         <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
-      </button>
+      </motion.button>
 
       {/* КНОПКА ДОМОЙ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
       <div className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4">
@@ -336,10 +339,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                 setShowMenu(false);
               }}
-              className="fixed inset-0 bg-black/70 md:backdrop-blur-sm z-[100] will-change-[opacity]"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] will-change-[opacity]"
             />
 
             {/* Сама шторка меню */}
@@ -347,46 +350,61 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              // Используем tween вместо spring для моментального старта, с iOS-подобным смягчением в конце
-              transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
-              className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
+              transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.15}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                  setShowMenu(false);
+                }
+              }}
+              className="fixed bottom-0 left-0 right-0 z-[130] flex flex-col items-center touch-none will-change-transform"
             >
-              <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+              <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-[2.5rem] p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] relative">
                 
                 {/* Индикатор свайпа (Pill) */}
-                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
+                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-10" />
 
-                <div className="space-y-3">
+                {/* Единый блок меню (iOS Style List) */}
+                <div className="bg-[#111] border border-white/10 rounded-2xl flex flex-col w-full shadow-lg">
                   
-                  {/* Кнопка Instagram */}
+                  {/* 1. Instagram */}
                   <button
                     onClick={() => { 
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                       setShowMenu(false); 
                       window.open("https://www.instagram.com/hdart26/", "_blank"); 
                     }}
-                    className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                    className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
                   >
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-                    </svg>
-                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.contactPhotographer}</span>
+                    <div className="flex items-center gap-4">
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                      </svg>
+                      <span className="text-gray-300 group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.contactPhotographer}</span>
+                    </div>
+                    <span className="text-gray-600 group-hover:text-gray-400 transition-colors">↗</span>
                   </button>
                   
-                  {/* Кнопка Сайта */}
+                  {/* 2. Website */}
                   <button
                     onClick={() => { 
-                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                       setShowMenu(false); 
                       window.open("https://kurginian.pro", "_blank"); 
                     }}
-                    className="w-full bg-transparent hover:bg-white/5 transition-colors rounded-2xl flex items-center gap-4 p-5 group"
+                    className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group"
                   >
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-                    </svg>
-                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm uppercase tracking-wider font-medium">{t.discoverServices}</span>
+                    <div className="flex items-center gap-4">
+                      <svg className="w-5 h-5 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                      </svg>
+                      <span className="text-gray-300 group-hover:text-white transition-colors text-xs uppercase tracking-widest font-medium">{t.discoverServices}</span>
+                    </div>
+                    <span className="text-gray-600 group-hover:text-gray-400 transition-colors">↗</span>
                   </button>
                 </div>
               </div>

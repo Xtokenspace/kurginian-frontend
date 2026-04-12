@@ -60,17 +60,23 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [showToast, setShowToast] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false); // <-- НОВЫЙ СТЕЙТ
 
   // === ЯЗЫК (Берем из Контекста) ===
   const { language, setLanguage, refreshSessions } = useAppContext();
   const t = translations[language];
 
   const handleLanguageChange = (lang: 'fr' | 'en' | 'ru') => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setLanguage(lang);
     setShowLangMenu(false);
   };
 
   const handleDownload = async () => {
+    if (isDownloading) return; // Защита от мульти-клика
+    setIsDownloading(true);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+    
     try {
       const fetchUrl = `${photoUrl}?download=${Date.now()}`;
       const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
@@ -82,10 +88,13 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       URL.revokeObjectURL(link.href);
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsDownloading(false); // Выключаем спиннер
     }
   };
 
   const handleShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
     
     // Пытаемся вызвать нативную шторку iOS/Android
@@ -121,7 +130,10 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         {/* Кнопка НАЗАД (Самая интуитивная кнопка в мире) */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="pointer-events-auto">
           <button
-            onClick={() => router.push(`/weddings/${slug}`)}
+            onClick={() => {
+              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+              router.push(`/weddings/${slug}`);
+            }}
             className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
           >
             <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
@@ -215,10 +227,19 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           {/* Золотая кнопка скачивания (Главный акцент) */}
           <button
             onClick={handleDownload}
-            className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
+            disabled={isDownloading}
+            className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold disabled:opacity-80"
           >
-            <span className="text-xl leading-none">↓</span>
-            <span className="uppercase tracking-widest text-xs md:text-sm">{t.download}</span>
+            {isDownloading ? (
+              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+            ) : (
+              <span className="text-xl leading-none">↓</span>
+            )}
+            <span className="uppercase tracking-widest text-xs md:text-sm">
+              {isDownloading 
+                ? (language === 'ru' ? 'ЗАГРУЗКА...' : language === 'fr' ? 'CHARGEMENT...' : 'DOWNLOADING...') 
+                : t.download}
+            </span>
           </button>
           
           {/* Темная кнопка "Поделиться" */}
@@ -240,7 +261,10 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         >
           <div className="flex flex-col md:flex-row gap-4 justify-center">
             <button
-              onClick={() => window.open("https://www.instagram.com/hdart26/", "_blank")}
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                window.open("https://www.instagram.com/hdart26/", "_blank");
+              }}
               className="flex-1 px-8 py-4 border border-white/10 text-gray-400 hover:border-lux-gold hover:text-lux-gold transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
             >
               <svg className="w-4 h-4 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -250,7 +274,10 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               {t.instagram}
             </button>
             <button
-              onClick={() => window.open("https://kurginian.pro", "_blank")}
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                window.open("https://kurginian.pro", "_blank");
+              }}
               className="flex-1 px-8 py-4 bg-[#0a0a0a] border border-white/10 text-white hover:border-lux-gold hover:bg-[#111] transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
             >
               <svg className="w-4 h-4 text-white group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -275,6 +302,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           {/* Деструктивное действие убрано вниз и сделано ссылкой */}
           <button
             onClick={() => {
+              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
               localStorage.removeItem(`photos_${slug}`);
               refreshSessions(); // <-- Обновляем дашборд!
               router.push(`/weddings/${slug}`);
