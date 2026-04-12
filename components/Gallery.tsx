@@ -226,14 +226,25 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     }
   };
 
-  // === УЛУЧШЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ (работает на телефонах!) ===
+  // === УЛУЧШЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ С PROGRESS BAR ===
   const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
 
   const handleSaveAll = async () => {
     if (isSaving) return;
     setIsSaving(true);
+    setSaveProgress(0);
     triggerVibration([50, 30, 50]);
     trackAction('save_all');
+
+    // 🔥 ИМИТАЦИЯ ПРОГРЕССА (Smart UX)
+    const progressInterval = setInterval(() => {
+      setSaveProgress((prev) => {
+        const step = Math.floor(Math.random() * 10) + 5; 
+        const next = prev + step;
+        return next > 90 ? 90 : next; 
+      });
+    }, 300);
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -244,32 +255,31 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
         body: JSON.stringify({ filenames: photos.map(p => p.filename) })
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Server error:", response.status, errorText);
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error("ZIP generation failed");
       const data = await response.json();
       if (!data.url) throw new Error("No URL in response");
 
-      // === ГЛАВНЫЙ ФИКС ДЛЯ ТЕЛЕФОНОВ ===
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      clearInterval(progressInterval);
+      setSaveProgress(100); // 100% успех
 
-      if (isMobile) {
-        // На телефонах самый надёжный способ
-        window.location.href = data.url;
-      } else {
-        // На ноутбуках/ПК оставляем привычный способ
-        const link = document.createElement('a');
-        link.href = data.url;
-        link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      setTimeout(() => {
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = data.url;
+        } else {
+          const link = document.createElement('a');
+          link.href = data.url;
+          link.download = `KURGINIAN_${slug.toUpperCase()}_PHOTOS.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+        setIsSaving(false);
+        setSaveProgress(0);
+      }, 500);
 
     } catch (err) {
+      clearInterval(progressInterval);
       console.error("Save all failed:", err);
       const msg = language === 'ru' 
         ? 'Ошибка скачивания архива. Попробуйте позже или скачайте фото по одному.' 
@@ -277,8 +287,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
         ? 'Archive download error. Please try again or download photos individually.' 
         : 'Erreur de téléchargement. Veuillez réessayer ou télécharger les photos une par une.';
       alert(msg);
-    } finally {
       setIsSaving(false);
+      setSaveProgress(0);
     }
   };
 
@@ -350,21 +360,36 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
           <button
             onClick={handleSaveAll}
             disabled={isSaving}
-            className="w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center gap-3 transition-all duration-300 active:scale-95 disabled:opacity-50 bg-lux-gold text-black shadow-gold-glow"
+            className={`w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center transition-all duration-300 active:scale-95 disabled:opacity-80 relative overflow-hidden ${
+              isSaving 
+                ? 'bg-[#111] text-lux-gold border border-lux-gold/30' 
+                : 'bg-lux-gold text-black shadow-gold-glow'
+            }`}
           >
-            {isSaving ? (
-              <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
+            {/* 🔥 ПОЛЗУНОК ПРОГРЕССА (Заполняет кнопку золотым фоном) */}
+            {isSaving && (
+              <div 
+                className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
+                style={{ width: `${saveProgress}%` }}
+              />
             )}
 
-            {isSaving ? (
-              <span className="font-mono tracking-widest">ZIP...</span>
-            ) : (
-              t.saveAll
-            )}
+            {/* КОНТЕНТ КНОПКИ */}
+            <div className="relative z-10 flex items-center gap-3">
+              {isSaving ? (
+                <div className="w-4 h-4 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              )}
+
+              <span>
+                {isSaving 
+                  ? `${language === 'ru' ? 'АРХИВАЦИЯ' : language === 'fr' ? 'ARCHIVAGE' : 'ARCHIVING'} ${saveProgress}%` 
+                  : t.saveAll}
+              </span>
+            </div>
           </button>
         </motion.div>
 
