@@ -218,80 +218,75 @@ export default function PWAHome() {
           {t.subtitle}
         </p>
 
-        {/* ГАРМОШКА: СПИСОК ГАЛЕРЕЙ */}
+        {/* ПРЕМИАЛЬНЫЕ КАРТЫ ДОСТУПА (Видимы сразу) */}
         {galleries.length > 0 && (
-          <div className="mb-10 text-left">
-            <button
-              onClick={() => { 
-                triggerVibration(10); 
-                setIsGalleriesOpen(!isGalleriesOpen); 
-              }}
-              className="w-full flex items-center justify-between bg-lux-card border border-lux-gold/30 p-5 rounded-sm hover:border-lux-gold transition-colors shadow-lg active:scale-[0.98]"
-            >
-              <span className="font-cinzel text-lux-gold tracking-widest uppercase text-sm md:text-base">
-                {t.myGalleries} ({galleries.length})
-              </span>
-              <motion.span
-                animate={{ rotate: isGalleriesOpen ? 180 : 0 }}
-                className="text-lux-gold text-xl"
-              >
-                ▼
-              </motion.span>
-            </button>
+          <div className="mb-14 text-left w-full">
+            <h2 className="font-cinzel text-[10px] text-lux-gold/50 tracking-[0.3em] uppercase mb-6 pl-1">
+              {t.myGalleries}
+            </h2>
+            
+            <div className="grid gap-4">
+              <AnimatePresence mode="popLayout">
+                {galleries.map((session, idx) => (
+                  <motion.div
+                    key={session.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: idx * 0.1 }}
+                    onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
+                    className="relative h-28 w-full rounded-xl overflow-hidden border border-white/10 cursor-pointer shadow-2xl active:scale-[0.98] transition-transform group"
+                  >
+                    {/* Фоновое изображение (Обложка) */}
+                    {session.cover ? (
+                      <img 
+                        src={session.cover} 
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40" 
+                        alt="" 
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#111] to-[#050505]" />
+                    )}
+                    
+                    {/* Градиентное затемнение */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent z-10" />
 
-            <AnimatePresence>
-              {isGalleriesOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="overflow-hidden"
-                >
-                  <div className="pt-4 space-y-3">
-                    {galleries.map((session) => (
-                      <motion.div
-                        key={session.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
-                        className="group flex items-center justify-between p-4 bg-[#111111] hover:bg-[#1a1a1a] rounded-sm border border-white/5 cursor-pointer transition-all hover:border-lux-gold/30 shadow-sm"
-                      >
-                        {/* Текстовая часть */}
-                        <div className="flex flex-col gap-1 pr-4 overflow-hidden">
-                          <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate">
-                            {session.title}
-                          </h3>
-                          <span className={`text-xs font-medium ${session.type === 'vip' ? 'text-lux-gold' : 'text-green-400'}`}>
-                            {session.type === 'vip' 
-                              ? t.vipAccess
-                              : `✓ ${session.count} ${t.photosFound}`}
+                    {/* Контент карточки */}
+                    <div className="relative z-20 h-full flex items-center justify-between px-6">
+                      <div className="flex flex-col gap-1 pr-4 overflow-hidden">
+                        <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
+                          {session.title}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
+                            session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold'
+                          }`}>
+                            {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
                           </span>
+                          {!isVip && session.count && (
+                            <span className="text-[10px] text-gray-400 font-mono tracking-tighter">
+                              {session.count} pics
+                            </span>
+                          )}
                         </div>
-                        
-                        {/* Блок с действиями (Стрелка + Крестик) */}
-                        <div className="flex items-center gap-1 md:gap-3 flex-shrink-0">
-                          {/* СТРЕЛКА (слегка сдвигается при наведении) */}
-                          <span className="text-xl text-gray-600 group-hover:text-lux-gold transition-all transform group-hover:-translate-x-1">
-                            →
-                          </span>
-                          
-                          {/* КНОПКА УДАЛЕНИЯ (Без absolute!) */}
-                          <button
-                            onClick={(e) => handleDeleteSession(e, session.rawKey, session.slug)}
-                            // На телефоне видна всегда (opacity-100), на ПК появляется при наведении (md:opacity-0 group-hover:opacity-100)
-                            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
-                            title={t.deleteLabel}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      </div>
+
+                      <div className="flex items-center gap-4 flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSession(e, session.rawKey, session.slug);
+                          }}
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all active:scale-90"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
           </div>
         )}
 

@@ -8,6 +8,7 @@ export interface GallerySession {
   id: string;
   slug: string;
   title: string;
+  cover?: string;
   type: 'vip' | 'guest';
   count?: number;
   rawKey: string;
@@ -16,8 +17,8 @@ export interface GallerySession {
 interface AppContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  refreshSessions: () => Promise<void>;   // ← исправлено
-  sessions: GallerySession[];             // ← исправлено (убран any)
+  refreshSessions: () => Promise<void>;
+  sessions: GallerySession[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -38,7 +39,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     return () => window.removeEventListener('storage', scanSessions);
   }, []);
 
-  // 2. Умный сканер сессий (Single Source of Truth)
   const scanSessions = async () => {
     const found: GallerySession[] = [];
     
@@ -50,40 +50,51 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         const isVip = key.startsWith('vip_code_');
         const slug = key.replace(isVip ? 'vip_code_' : 'photos_', '');
         
-        let finalTitle: string = localStorage.getItem(`title_${slug}`) || '';
+        let finalTitle = localStorage.getItem(`title_${slug}`) || '';
+        let finalCover = localStorage.getItem(`cover_${slug}`) || '';
 
-        // Если красивого названия ещё нет в localStorage — запрашиваем с сервера
-        if (!finalTitle) {
+        // Если данных нет — запрашиваем один раз
+        if (!finalTitle || !finalCover) {
           try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
             const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
             if (res.ok) {
               const json = await res.json();
-              if (json.status === 'success' && json.data?.title) {
-                finalTitle = json.data.title;
-                // Сохраняем навсегда, чтобы больше не запрашивать
-                localStorage.setItem(`title_${slug}`, finalTitle);
+              if (json.status === 'success') {
+                if (json.data.title) {
+                  finalTitle = json.data.title;
+                  localStorage.setItem(`title_${slug}`, finalTitle);
+                }
+                if (json.data.covers?.[0]) {
+                  finalCover = json.data.covers[0];
+                  localStorage.setItem(`cover_${slug}`, finalCover);
+                }
               }
             }
-          } catch (e) {
-            // Тихо падаем — используем fallback из слага
-          }
+          } catch (e) {}
         }
 
-        // Если и с сервера не получилось — fallback из слага
-        if (!finalTitle) {
-          finalTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        }
+        if (!finalTitle) finalTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-        if (isVip) {
-          found.push({ id: `vip_${slug}`, slug, title: finalTitle, type: 'vip', rawKey: key });
-        } else {
+        const sessionData: GallerySession = { 
+          id: `${isVip ? 'vip' : 'guest'}_${slug}`, 
+          slug, 
+          title: finalTitle, 
+          cover: finalCover || undefined,
+          type: isVip ? 'vip' : 'guest', 
+          rawKey: key 
+        };
+
+        if (!isVip) {
           try {
             const data = JSON.parse(localStorage.getItem(key) || '[]');
             if (data.length > 0) {
-              found.push({ id: `guest_${slug}`, slug, title: finalTitle, type: 'guest', count: data.length, rawKey: key });
+              sessionData.count = data.length;
+              found.push(sessionData);
             }
           } catch (e) {}
+        } else {
+          found.push(sessionData);
         }
       }
     }

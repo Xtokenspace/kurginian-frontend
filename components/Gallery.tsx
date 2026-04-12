@@ -4,13 +4,15 @@ import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { useAppContext } from '@/context/AppContext'; // <-- ДОБАВЛЕНО
+import { useAppContext } from '@/context/AppContext';
+import { Blurhash } from 'react-blurhash';
 
 // --- ИНТЕРФЕЙСЫ ---
 interface MatchedPhoto {
   filename: string;
   width: number;
   height: number;
+  blurhash?: string;
   urls: {
     web: string;
     thumb: string;
@@ -96,10 +98,25 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
-      {/* Премиальный лоадер (Скелетон), виден ТОЛЬКО пока фото грузится */}
+      {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН */}
       {!isLoaded && (
-        <div className="absolute inset-0 bg-[#070707] flex items-center justify-center animate-pulse z-10">
-          <span className="font-cinzel text-[10px] text-lux-gold/30 tracking-widest">KURGINIAN</span>
+        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
+          {photo.blurhash ? (
+            <Blurhash
+              hash={photo.blurhash}
+              width="100%"
+              height="100%"
+              resolutionX={32}
+              resolutionY={32}
+              punch={1}
+            />
+          ) : (
+            <motion.div 
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
+            />
+          )}
         </div>
       )}
 
