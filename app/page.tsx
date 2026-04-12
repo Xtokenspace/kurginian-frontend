@@ -258,14 +258,14 @@ export default function PWAHome() {
                         </>
                       )}
                       
-                      {/* Левый блок (Текст) */}
-                      <div className="relative z-10 flex flex-col gap-1 max-w-[58%] pl-8">
-                        <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
+                      {/* Левый блок (Текст) — УМНОЕ АДАПТИВНОЕ РАСПОЛОЖЕНИЕ */}
+                      <div className="relative z-10 flex flex-col gap-1 flex-1 min-w-0 pr-4">
+                        <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base 
+                                       line-clamp-2 leading-tight drop-shadow-md">
                           {session.title}
                         </h3>
                         
-                        {/* Центрируем "GUEST 3 pics" под названием */}
-                        <div className="flex items-center gap-2 justify-center w-full">
+                        <div className="flex items-center gap-2">
                           <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
                             session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold shadow-md'
                           }`}>
