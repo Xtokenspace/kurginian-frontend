@@ -116,11 +116,10 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const t = translations[language];
 
   useEffect(() => {
-    // 1. Подхватываем язык
+    // 1. Подхватываем язык (Единый источник истины)
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    const localLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
-    else if (localLang) setLanguage(localLang);
+    localStorage.removeItem(`lang_${slug}`); // Очищаем мусор
 
     // 2. Ищем VIP-пароль
     const vipCode = localStorage.getItem(`vip_code_${slug}`);
@@ -219,7 +218,8 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
                   <button
                     key={lang}
                     onClick={() => {
-                      // Тут вызывай свою функцию смены языка, например setLanguage(lang)
+                      setLanguage(lang);
+                      localStorage.setItem('kurginian_global_lang', lang);
                       setShowLangMenu(false);
                     }}
                     className={`px-6 py-3 text-left rounded-3xl transition-all ${

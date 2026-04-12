@@ -275,24 +275,19 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }
   };
 
-  // === УМНАЯ СИНХРОНИЗАЦИЯ (Язык + Память) ===
+  // === УМНАЯ СИНХРОНИЗАЦИЯ (Единый источник истины) ===
   useEffect(() => {
-    // 1. Сначала проверяем глобальный язык с главной страницы
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    // 2. Затем локальный язык этой конкретной свадьбы
-    const savedSlugLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
+    if (globalLang) setLanguage(globalLang);
     
-    if (globalLang) {
-      setLanguage(globalLang);
-    } else if (savedSlugLang) {
-      setLanguage(savedSlugLang);
-    }
+    // Тихая зачистка старого мусора
+    localStorage.removeItem(`lang_${slug}`);
   }, [slug]);
 
-  // Сохраняем выбор языка локально при изменении
+  // Сохраняем выбор языка ГЛОБАЛЬНО при изменении
   useEffect(() => {
-    localStorage.setItem(`lang_${slug}`, language);
-  }, [language, slug]);
+    localStorage.setItem('kurginian_global_lang', language);
+  }, [language]);
 
   // Загружаем фото из памяти только для этой свадьбы
   useEffect(() => {

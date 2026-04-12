@@ -64,19 +64,17 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [language, setLanguage] = useState<'fr' | 'en' | 'ru'>('fr');
   const t = translations[language];
 
-  // Умная синхронизация языка
+  // Умная синхронизация языка (Единый источник истины)
   useEffect(() => {
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    const localLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
-    else if (localLang) setLanguage(localLang);
+    localStorage.removeItem(`lang_${slug}`); // Очищаем мусор
   }, [slug]);
 
   const handleLanguageChange = (lang: 'fr' | 'en' | 'ru') => {
     setLanguage(lang);
-    localStorage.setItem(`lang_${slug}`, lang);
     localStorage.setItem('kurginian_global_lang', lang);
-    setShowLangMenu(false); // Закрываем глобус после выбора
+    setShowLangMenu(false); // Закрываем глобус
   };
 
   const handleDownload = async () => {

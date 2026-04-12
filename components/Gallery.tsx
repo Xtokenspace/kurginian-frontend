@@ -130,16 +130,17 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const [showToast, setShowToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Синхронизация языка (с поддержкой прямого проброса из родителя)
+  // Синхронизация языка (Единый источник истины)
   useEffect(() => {
     if (currentLanguage) {
       setLanguage(currentLanguage);
       return;
     }
     const globalLang = localStorage.getItem('kurginian_global_lang') as 'fr' | 'en' | 'ru';
-    const localLang = localStorage.getItem(`lang_${slug}`) as 'fr' | 'en' | 'ru';
     if (globalLang) setLanguage(globalLang);
-    else if (localLang) setLanguage(localLang);
+    
+    // Тихая очистка старого мусора
+    localStorage.removeItem(`lang_${slug}`);
   }, [slug, currentLanguage]);
 
   const t = translations[language];
