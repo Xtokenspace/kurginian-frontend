@@ -76,6 +76,7 @@ export default function InstallPrompt() {
   const t = translations[language];
 
   const handleInstallClick = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
@@ -87,6 +88,7 @@ export default function InstallPrompt() {
   };
 
   const handleDismiss = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setShowPrompt(false);
     localStorage.setItem('pwa_prompt_dismissed', Date.now().toString());
   };
@@ -99,37 +101,67 @@ export default function InstallPrompt() {
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 50 }}
-        className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 bg-lux-card/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-5 shadow-gold-glow z-[200]"
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 100 }}
+        dragElastic={0.2}
+        onDragEnd={(e, info) => {
+          if (info.offset.y > 50) handleDismiss();
+        }}
+        className="fixed bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-96 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-[2rem] p-5 shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[200] touch-none will-change-transform"
       >
+        {/* Индикатор свайпа для баннера */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/20 rounded-full md:hidden" />
+
         <button 
           onClick={handleDismiss}
-          className="absolute top-3 right-4 text-gray-400 hover:text-white text-xl"
+          className="absolute top-4 right-4 text-gray-500 hover:text-white p-2 transition-colors"
         >
-          ✕
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
         
-        <div className="flex gap-4 items-start">
-          <div className="w-12 h-12 rounded-xl bg-lux-gold/20 flex items-center justify-center flex-shrink-0 border border-lux-gold/50">
-            <span className="text-2xl">📱</span>
+        <div className="flex gap-4 items-start mt-2">
+          {/* Премиум иконка телефона */}
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-lux-gold/20 to-transparent flex items-center justify-center flex-shrink-0 border border-lux-gold/30 shadow-inner">
+            <svg className="w-6 h-6 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+            </svg>
           </div>
           
-          <div className="flex-1 pr-4">
-            <h3 className="text-white font-bold text-sm uppercase tracking-wider mb-1">
+          <div className="flex-1 pr-6">
+            <h3 className="text-lux-gold font-cinzel font-bold text-sm uppercase tracking-widest mb-1.5">
               {t.title}
             </h3>
-            <p className="text-gray-400 text-xs mb-4 leading-relaxed">
+            <p className="text-gray-400 text-xs mb-5 leading-relaxed font-medium">
               {t.desc}
             </p>
 
             {isIOS ? (
-              <div className="bg-white/5 rounded-lg p-3 text-xs text-gray-300">
-                {t.iosStep1} <span className="inline-block mx-1 bg-white/20 p-1 rounded">↗</span> (Share) <br className="mt-1"/>
-                {t.iosStep2} <strong>+</strong>
+              <div className="bg-[#111] border border-white/5 rounded-xl p-3.5 text-[11px] text-gray-300 shadow-inner leading-relaxed">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  {t.iosStep1} 
+                  <span className="inline-flex items-center justify-center bg-white/10 p-1 rounded-md text-lux-gold">
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                  </span> 
+                  (Share)
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-400">
+                  {t.iosStep2} 
+                  <span className="inline-flex items-center justify-center border border-gray-500 rounded p-0.5 text-white">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </span>
+                </div>
               </div>
             ) : (
               <button
                 onClick={handleInstallClick}
-                className="w-full bg-lux-gold text-black py-2.5 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-white transition-colors"
+                className="w-full bg-lux-gold text-black py-3 rounded-lg font-bold text-xs uppercase tracking-[0.2em] hover:bg-white shadow-gold-glow active:scale-95 transition-all"
               >
                 {t.installBtn}
               </button>

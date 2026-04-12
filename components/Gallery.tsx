@@ -446,9 +446,11 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
             {/* Кнопка закрытия (Справа) */}
             <button 
               onClick={closeLightbox}
-              className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] w-16 h-16 flex items-center justify-center text-white/70 hover:text-lux-gold text-3xl md:text-4xl transition-colors"
+              className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] p-4 flex items-center justify-center text-white/70 hover:text-lux-gold transition-colors"
             >
-              ✕
+              <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
 
             {/* === ПРЕМИУМ-БРЕНДИНГ (Слева сверху) === */}
@@ -510,8 +512,16 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               </div>
 
               {/* Стрелки по бокам (Только для ПК) */}
-              <button onClick={(e) => { e.stopPropagation(); goToPrev(); }} className="hidden md:block absolute left-8 text-6xl text-white/30 hover:text-lux-gold transition-all select-none z-[105]">‹</button>
-              <button onClick={(e) => { e.stopPropagation(); goToNext(); }} className="hidden md:block absolute right-8 text-6xl text-white/30 hover:text-lux-gold transition-all select-none z-[105]">›</button>
+              <button onClick={(e) => { e.stopPropagation(); goToPrev(); }} className="hidden md:block absolute left-8 p-4 text-white/30 hover:text-lux-gold transition-all select-none z-[105]">
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); goToNext(); }} className="hidden md:block absolute right-8 p-4 text-white/30 hover:text-lux-gold transition-all select-none z-[105]">
+                <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
             </div>
 
             {/* НИЖНЯЯ ПАНЕЛЬ ДЕЙСТВИЙ */}
@@ -524,9 +534,12 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="bg-lux-gold text-black px-4 py-2 rounded-sm font-bold shadow-gold-glow text-xs uppercase tracking-wider mb-2"
+                    className="bg-lux-gold text-black px-4 py-2 rounded-sm font-bold shadow-gold-glow text-[10px] md:text-xs uppercase tracking-wider mb-2 flex items-center gap-2"
                   >
-                    ✅ {t.copied}
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    {t.copied}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -535,18 +548,22 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               <div className="w-full max-w-md flex gap-3">
                 <button
                   onClick={() => handleDownload(photos[selectedIndex].filename, photos[selectedIndex].urls.web)}
-                  className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
+                  className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
                 >
-                  <span className="text-lg leading-none">↓</span>
-                  <span className="uppercase tracking-widest text-xs">{t.download}</span>
+                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  <span className="uppercase tracking-widest text-[10px] md:text-xs">{t.download}</span>
                 </button>
                 
                 <button
                   onClick={() => handleShare(photos[selectedIndex].filename)}
-                  className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-3 rounded-sm transition-all active:scale-[0.98] shadow-lg"
+                  className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-lg"
                 >
-                  <span className="text-lg leading-none">↗</span>
-                  <span className="font-medium uppercase tracking-widest text-xs">{t.share}</span>
+                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <span className="font-medium uppercase tracking-widest text-[10px] md:text-xs">{t.share}</span>
                 </button>
               </div>
 
