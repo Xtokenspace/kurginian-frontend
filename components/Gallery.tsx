@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -87,6 +87,7 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 
   return (
     <motion.div
+      id={`photo-card-${index}`} // <-- ДОБАВЛЕНО ДЛЯ SMART SCROLL
       variants={brickVariants}
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
@@ -142,6 +143,8 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage }: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [zoomScale, setZoomScale] = useState(1); // <-- НОВЫЙ СТЕЙТ ДЛЯ ЗУМА
+  const lastTapRef = useRef<number>(0); // <-- ДОБАВЛЕНО ДЛЯ ДВОЙНОГО КЛИКА
   
   // Стейты уведомлений
   const [showToast, setShowToast] = useState(false);
@@ -305,13 +308,27 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   // === HISTORY API: Умный перехват кнопки Назад ===
   const openLightbox = (index: number) => {
     triggerVibration(10); 
+    setZoomScale(1); // Сброс зума при открытии
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
   };
 
   const closeLightbox = () => {
-    triggerVibration(10);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    
+    // SMART SCROLL: Возвращаем фокус на фото в сетке
+    if (selectedIndex !== null) {
+      const currentIdx = selectedIndex;
+      setTimeout(() => {
+        const element = document.getElementById(`photo-card-${currentIdx}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    }
+
     setSelectedIndex(null);
+    setZoomScale(1);
     if (window.history.state && window.history.state.lightbox) {
       window.history.back();
     }
@@ -319,13 +336,16 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
   useEffect(() => {
     const handlePopState = () => {
-      if (selectedIndex !== null) setSelectedIndex(null);
+      if (selectedIndex !== null) {
+        setSelectedIndex(null);
+        setZoomScale(1);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [selectedIndex]);
 
-  // Обработка клавиатуры и свайпов (Стрелки и Escape)
+  // Обработка клавиатуры и свайпов
   useEffect(() => {
     if (selectedIndex === null) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -335,16 +355,24 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, photos.length]);
+  }, [selectedIndex, photos.length, zoomScale]);
 
   const goToNext = () => {
+    if (zoomScale > 1) setZoomScale(1); // Сброс зума при перелистывании
     triggerVibration(10); 
     setSelectedIndex((prev) => (prev! + 1) % photos.length);
   };
   
   const goToPrev = () => {
+    if (zoomScale > 1) setZoomScale(1);
     triggerVibration(10); 
     setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
+  };
+
+  // Функция переключения зума (Double Tap)
+  const toggleZoom = () => {
+    triggerVibration(15);
+    setZoomScale(prev => prev === 1 ? 2.5 : 1);
   };
 
   if (!photos || photos.length === 0) {
@@ -467,29 +495,53 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               Kurginian Premium
             </motion.a>
 
-            {/* Основное фото с поддержкой СВАЙПА */}
-            <div className="relative w-full h-full flex items-center justify-center p-4">
+            {/* Основное фото с поддержкой СВАЙПА И ЗУМА */}
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
               <motion.div
                 key={selectedIndex}
-                initial={{ opacity: 0, x: 50, scale: 0.9 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: -50, scale: 0.9 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                drag="x"
-                dragConstraints={{ left: 0, right: 0 }}
-                dragElastic={0.8}
-                onDragEnd={(_, info) => {
-                  if (info.offset.x > 80) goToPrev();
-                  else if (info.offset.x < -80) goToNext();
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ 
+                  opacity: 1, 
+                  scale: zoomScale,
+                  x: 0,
+                  y: 0
                 }}
-                className="relative w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing z-[102]"
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 350, damping: 35 }}
+                drag={true} // Всенаправленный драг
+                dragConstraints={zoomScale > 1 ? false : { left: 0, right: 0, top: 0, bottom: 0 }}
+                dragElastic={zoomScale > 1 ? 0.1 : 0.6}
+                onTap={() => {
+                  const now = Date.now();
+                  // Если между кликами меньше 300мс - это двойной тап
+                  if (now - lastTapRef.current < 300) {
+                    toggleZoom();
+                  }
+                  lastTapRef.current = now;
+                }}
+                onDragEnd={(_, info) => {
+                  if (zoomScale === 1) {
+                    // Логика закрытия (Свайп вверх или вниз)
+                    if (Math.abs(info.offset.y) > 150 || Math.abs(info.velocity.y) > 500) {
+                      closeLightbox();
+                    } 
+                    // Логика перелистывания (Горизонтально)
+                    else if (info.offset.x > 100) {
+                      goToPrev();
+                    } else if (info.offset.x < -100) {
+                      goToNext();
+                    }
+                  }
+                }}
+                className="relative w-full h-full flex items-center justify-center z-[102] touch-none"
+                style={{ cursor: zoomScale > 1 ? 'move' : 'grab' }}
               >
                 <Image
                   src={photos[selectedIndex].urls.web}
                   alt="Full view"
                   fill
                   unoptimized
-                  className="object-contain pointer-events-none"
+                  className="object-contain pointer-events-none select-none"
                   priority
                   draggable={false}
                   placeholder="blur" 
