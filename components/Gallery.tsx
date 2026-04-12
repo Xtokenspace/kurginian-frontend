@@ -513,6 +513,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 350, damping: 35 }}
                 drag={true}
+                // Включаем премиальный лок оси: если свайп начался по горизонтали, вертикаль замораживается
+                dragDirectionLock={zoomScale === 1} 
                 dragConstraints={zoomScale > 1 ? false : { left: 0, right: 0, top: 0, bottom: 0 }}
                 dragElastic={zoomScale > 1 ? 0.2 : 0.6}
                 // --- ЛОГИКА PINCH-TO-ZOOM (Два пальца) ---
@@ -552,15 +554,24 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                   }
                   lastTapRef.current = now;
                 }}
-                // --- ЛОГИКА СВАЙПОВ И ЗАКРЫТИЯ ---
+                // --- УМНАЯ ЛОГИКА СВАЙПОВ И ЗАКРЫТИЯ (Intent Detection) ---
                 onDragEnd={(_, info) => {
                   if (zoomScale === 1) {
-                    if (Math.abs(info.offset.y) > 150 || Math.abs(info.velocity.y) > 500) {
-                      closeLightbox();
-                    } else if (info.offset.x > 100) {
-                      goToPrev();
-                    } else if (info.offset.x < -100) {
-                      goToNext();
+                    // Вычисляем доминирующую ось (намерение пользователя)
+                    const isHorizontal = Math.abs(info.offset.x) > Math.abs(info.offset.y);
+
+                    if (isHorizontal) {
+                      // Строго горизонтальный свайп: игнорируем Y-инерцию
+                      if (info.offset.x > 80 || info.velocity.x > 500) {
+                        goToPrev();
+                      } else if (info.offset.x < -80 || info.velocity.x < -500) {
+                        goToNext();
+                      }
+                    } else {
+                      // Строго вертикальный свайп: логика закрытия
+                      if (Math.abs(info.offset.y) > 120 || Math.abs(info.velocity.y) > 500) {
+                        closeLightbox();
+                      }
                     }
                   }
                 }}
