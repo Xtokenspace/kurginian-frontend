@@ -373,8 +373,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
   const handleTryAgain = () => {
     setAttemptCount(prev => prev + 1); 
+    if (capturedImage) URL.revokeObjectURL(capturedImage); // <-- ОЧИЩАЕМ ПАМЯТЬ БРАУЗЕРА!
     setCapturedImage(null);
-    // НЕ сбрасываем status! Пусть экран ошибки висит на фоне, пока камера открыта.
     startCamera(); 
   };
 
