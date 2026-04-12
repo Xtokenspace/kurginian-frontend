@@ -262,8 +262,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       });
 
       if (response.ok) {
-        // СОХРАНЯЕМ ПАРОЛЬ КАК VIP-КЛЮЧ
+        // СОХРАНЯЕМ ПАРОЛЬ И КРАСИВОЕ ИМЯ
         localStorage.setItem(`vip_code_${slug}`, passwordInput);
+        if (metaInfo?.title) localStorage.setItem(`title_${slug}`, metaInfo.title);
         refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
         setShowPasswordModal(false);
         triggerVibration(50);
@@ -506,6 +507,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           localStorage.setItem(`photos_${slug}`, JSON.stringify(sortedPhotos));
           if (data.expires_at) {
             localStorage.setItem(`expires_${slug}`, data.expires_at);
+          }
+          if (metaInfo?.title) {
+            localStorage.setItem(`title_${slug}`, metaInfo.title);
           }
           refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
         }
@@ -771,6 +775,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   setPhotos(pendingPhotos);
                   setStatus('success');
                   localStorage.setItem(`photos_${slug}`, JSON.stringify(pendingPhotos));
+                  if (metaInfo?.title) localStorage.setItem(`title_${slug}`, metaInfo.title);
                   refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
                 }}
                 className="flex-1 px-4 py-4 bg-lux-gold text-black rounded-sm uppercase tracking-wider text-xs font-bold shadow-gold-glow hover:bg-white transition-all"

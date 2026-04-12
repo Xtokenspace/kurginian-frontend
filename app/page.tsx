@@ -92,6 +92,10 @@ export default function PWAHome() {
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [codeInput, setCodeInput] = useState('');
   
+  // Искусственный стейт загрузки для предотвращения мерцания (Hydration Fix)
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
+
   const t = translations[language];
 
   // === HAPTIC FEEDBACK ===
@@ -103,13 +107,15 @@ export default function PWAHome() {
 
 
   // ФУНКЦИЯ УДАЛЕНИЯ КАРТОЧКИ
-  const handleDeleteSession = (e: React.MouseEvent, rawKey: string) => {
+  const handleDeleteSession = (e: React.MouseEvent, rawKey: string, slug: string) => {
     e.stopPropagation();
     triggerVibration(10);
     
     if (window.confirm(t.deleteConfirm)) {
       triggerVibration([50, 50, 50]); 
       localStorage.removeItem(rawKey);
+      localStorage.removeItem(`title_${slug}`); // Удаляем красивое имя
+      localStorage.removeItem(`expires_${slug}`); // Удаляем дату сгорания
       refreshSessions(); // Вызываем обновление в контексте
     }
   };
@@ -142,6 +148,8 @@ export default function PWAHome() {
       router.push(`/weddings/${cleanSlug.toLowerCase()}`);
     }
   };
+
+  if (!isMounted) return <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lux-gold/10 via-lux-bg to-lux-bg" />;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lux-gold/10 via-lux-bg to-lux-bg flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
@@ -270,7 +278,7 @@ export default function PWAHome() {
                           
                           {/* КНОПКА УДАЛЕНИЯ (Без absolute!) */}
                           <button
-                            onClick={(e) => handleDeleteSession(e, session.rawKey)}
+                            onClick={(e) => handleDeleteSession(e, session.rawKey, session.slug)}
                             // На телефоне видна всегда (opacity-100), на ПК появляется при наведении (md:opacity-0 group-hover:opacity-100)
                             className="w-10 h-10 rounded-full flex items-center justify-center text-gray-600 hover:text-red-500 hover:bg-red-500/10 transition-all opacity-100 md:opacity-0 group-hover:opacity-100"
                             title={t.deleteLabel}

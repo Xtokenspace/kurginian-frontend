@@ -4,11 +4,20 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 type Language = 'fr' | 'en' | 'ru';
 
+export interface GallerySession {
+  id: string;
+  slug: string;
+  title: string;
+  type: 'vip' | 'guest';
+  count?: number;
+  rawKey: string;
+}
+
 interface AppContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   refreshSessions: () => void;
-  sessions: any[]; // Можно типизировать строже по аналогии с GallerySession
+  sessions: GallerySession[]; 
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,21 +39,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // 2. Умный сканер сессий (Single Source of Truth)
   const scanSessions = () => {
-    const found: any[] = [];
+    const found: GallerySession[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key) continue;
-      if (key.startsWith('vip_code_')) {
-        const slug = key.replace('vip_code_', '');
-        found.push({ id: `vip_${slug}`, slug, type: 'vip', rawKey: key });
-      } else if (key.startsWith('photos_')) {
-        const slug = key.replace('photos_', '');
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '[]');
-          if (data.length > 0) {
-            found.push({ id: `guest_${slug}`, slug, type: 'guest', count: data.length, rawKey: key });
-          }
-        } catch (e) {}
+      
+      if (key.startsWith('vip_code_') || key.startsWith('photos_')) {
+        const isVip = key.startsWith('vip_code_');
+        const slug = key.replace(isVip ? 'vip_code_' : 'photos_', '');
+        
+        // Пытаемся достать красивое имя, если нет - делаем из slug с заглавными буквами
+        const savedTitle = localStorage.getItem(`title_${slug}`);
+        const defaultTitle = slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const finalTitle = savedTitle || defaultTitle;
+        
+        if (isVip) {
+          found.push({ id: `vip_${slug}`, slug, title: finalTitle, type: 'vip', rawKey: key });
+        } else {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '[]');
+            if (data.length > 0) {
+              found.push({ id: `guest_${slug}`, slug, title: finalTitle, type: 'guest', count: data.length, rawKey: key });
+            }
+          } catch (e) {}
+        }
       }
     }
     setSessions(found);
