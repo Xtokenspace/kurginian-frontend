@@ -231,71 +231,78 @@ export default function PWAHome() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: idx * 0.1 }}
                     onClick={() => router.push(session.type === 'vip' ? `/weddings/${session.slug}/admin` : `/weddings/${session.slug}`)}
-                    className="relative h-28 w-full rounded-xl overflow-hidden border border-white/5 bg-[#0a0a0a] cursor-pointer shadow-xl active:scale-[0.98] transition-all group flex items-center justify-between px-5 md:px-6"
+                    className="relative h-28 w-full cursor-pointer active:scale-[0.98] transition-all group"
                   >
-                    {/* Фотография строго между текстом и кнопками */}
-                    {session.cover && (
-                      <div className="absolute top-[-7.5%] bottom-[-7.5%] left-[40%] right-[15%] md:left-[35%] md:right-[12%] z-0 overflow-hidden pointer-events-none">
-                        <img 
-                          src={session.cover} 
-                          className="w-full h-full object-cover object-center opacity-60 group-hover:scale-105 group-hover:opacity-80 transition-all duration-700" 
-                          alt="" 
-                        />
-                        {/* Плавное растворение краев фотографии в фон карточки */}
-                        <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
-                        <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
-                        <div className="absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-[#0a0a0a] to-transparent" />
-                        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-[#0a0a0a] to-transparent" />
-                      </div>
-                    )}
                     
-                    {/* Левый блок (Текст) */}
-                    <div className="relative z-10 flex flex-col gap-1 max-w-[55%]">
-                      <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
-                        {session.title}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
-                          session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold'
-                        }`}>
-                          {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
-                        </span>
-                        {session.type !== 'vip' && session.count && (
-                          <span className="text-[10px] text-gray-400 font-mono tracking-tighter">
-                            {session.count} pics
+                    {/* ОСНОВНОЙ КОНТЕЙНЕР КАРТОЧКИ */}
+                    <div className="absolute inset-0 rounded-xl overflow-hidden border border-white/5 bg-[#0a0a0a] shadow-xl flex items-center justify-between px-5 md:px-6">
+                      
+                      {/* ГЕНИАЛЬНОЕ РЕШЕНИЕ: FLOATING MEMORY + AMBIENT GLOW */}
+                      {session.cover && (
+                        <>
+                          {/* 1. Элегантно размытый фон (свечение цветами самой фотографии) */}
+                          <img 
+                            src={session.cover} 
+                            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl scale-125 pointer-events-none transition-opacity duration-700 group-hover:opacity-30" 
+                            alt="" 
+                          />
+                          
+                          {/* 2. Физическая миниатюра (Пропорция 4:5 идеально вмещает вертикальные портреты) */}
+                          <div className="absolute right-[18%] md:right-[15%] top-1/2 -translate-y-1/2 w-14 h-[4.5rem] md:w-[4.5rem] md:h-[5.5rem] rounded-md overflow-hidden border border-white/20 shadow-[0_10px_20px_rgba(0,0,0,0.8)] rotate-6 group-hover:rotate-0 group-hover:scale-110 transition-all duration-500 z-0">
+                            <img 
+                              src={session.cover} 
+                              className="w-full h-full object-cover" 
+                              alt="" 
+                            />
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Левый блок (Текст) */}
+                      <div className="relative z-10 flex flex-col gap-1 max-w-[58%] pl-8">
+                        <h3 className="font-cinzel font-bold text-white uppercase tracking-wider text-sm md:text-base truncate drop-shadow-md">
+                          {session.title}
+                        </h3>
+                        
+                        {/* Центрируем "GUEST 3 pics" под названием */}
+                        <div className="flex items-center gap-2 justify-center w-full">
+                          <span className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm ${
+                            session.type === 'vip' ? 'bg-lux-gold text-black' : 'bg-white/10 text-lux-gold shadow-md'
+                          }`}>
+                            {session.type === 'vip' ? 'VIP ACCESS' : 'GUEST'}
                           </span>
-                        )}
+                          {session.type !== 'vip' && session.count && (
+                            <span className="text-[10px] text-gray-300 font-mono tracking-tighter drop-shadow-md">
+                              {session.count} pics
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Правый блок (Стрелка) */}
+                      <div className="relative z-10 flex items-center flex-shrink-0">
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-lux-gold/70 group-hover:text-lux-gold transition-colors drop-shadow-md">
+                          <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                          </svg>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Правый блок (Кнопки действий) */}
-                    <div className="relative z-10 flex items-center gap-1 md:gap-2 flex-shrink-0">
-                      
-                      {/* Кнопка удаления (Крестик) */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteSession(e, session.rawKey, session.slug);
-                        }}
-                        className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-white hover:bg-red-500/80 transition-all active:scale-90 group/btn"
-                        title={t.deleteLabel}
-                      >
-                        <svg className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover/btn:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                    {/* ВНЕШНЯЯ КНОПКА УДАЛЕНИЯ (Всегда поверх, в правом верхнем углу) */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSession(e, session.rawKey, session.slug);
+                      }}
+                      className="absolute -top-2 -right-2 z-50 w-7 h-7 md:w-8 md:h-8 rounded-full bg-[#151515] border border-white/10 flex items-center justify-center text-gray-500 hover:text-white hover:bg-red-500 hover:border-red-500 transition-all active:scale-90 group/btn shadow-xl"
+                      title={t.deleteLabel}
+                    >
+                      <svg className="w-3 h-3 md:w-3.5 md:h-3.5 transition-transform group-hover/btn:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
 
-                      {/* Деликатный разделитель */}
-                      <div className="w-[1px] h-6 bg-white/10 mx-1" />
-
-                      {/* Стрелка перехода */}
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-lux-gold/70 group-hover:text-lux-gold transition-colors">
-                        <svg className="w-5 h-5 md:w-6 md:h-6 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                        </svg>
-                      </div>
-                      
-                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>
