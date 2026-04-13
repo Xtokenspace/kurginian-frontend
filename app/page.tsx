@@ -194,22 +194,43 @@ export default function PWAHome() {
         transition={{ duration: 1, ease: "easeOut" }}
         className="max-w-md w-full pt-10 pb-20 relative z-10"
       >
-        {/* ПРЕМИАЛЬНАЯ АНИМАЦИЯ БРЕНДА: "Легкое золотое свечение" */}
-        <motion.h1 
-          animate={{ 
-            textShadow: [
-              "0px 0px 4px rgba(212,175,55,0.05)", 
-              "0px 0px 24px rgba(212,175,55,0.5)", 
-              "0px 0px 4px rgba(212,175,55,0.05)"
-            ]
-          }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="font-cinzel text-4xl md:text-[2.75rem] text-lux-gold mb-6 max-w-sm mx-auto w-full flex justify-between uppercase will-change-[filter]"
-        >
-          {t.title.split('').map((letter, index) => (
-            <span key={index}>{letter === ' ' ? '\u00A0' : letter}</span>
-          ))}
-        </motion.h1>
+        {/* ПРЕМИАЛЬНЫЙ ЛОГОТИП: Золотой перелив (Shine) внутри букв */}
+        <div className="relative mb-12 flex flex-col items-center">
+          
+          {/* Первая строка: KURGINIAN (Магия bg-clip-text) */}
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0,
+              backgroundPosition: ["200% center", "-200% center"] // Блик едет слева направо
+            }}
+            transition={{ 
+              backgroundPosition: { duration: 5, repeat: Infinity, ease: "linear" }, // Плавный цикл
+              opacity: { duration: 0.8 },
+              y: { duration: 0.8 }
+            }}
+            className="font-cinzel text-4xl md:text-5xl tracking-[0.3em] uppercase relative z-10 pl-[0.3em] text-transparent bg-clip-text"
+            style={{
+              // Градиент: Золото -> Белый блик по центру -> Золото
+              backgroundImage: "linear-gradient(110deg, #D4AF37 35%, #FFFAEB 50%, #D4AF37 65%)",
+              backgroundSize: "200% auto"
+            }}
+          >
+            {t.title}
+          </motion.h1>
+
+          {/* Вторая строка: PREMIUM COLLECTION (статичная) */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="font-cinzel text-[10px] md:text-xs text-lux-gold/60 tracking-[0.5em] uppercase mt-2 pl-[0.5em] relative z-10"
+          >
+            Premium Collection
+          </motion.div>
+          
+        </div>
         
         {/* Обновленный строгий подзаголовок */}
         <p className="font-cormorant text-xl md:text-2xl text-gray-400 mb-14 font-light leading-relaxed px-4">
