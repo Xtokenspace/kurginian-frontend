@@ -62,16 +62,13 @@ const translations = {
     verifyDesc: "Nous avons trouvé ces photos avec une correspondance partielle. Confirmez-vous qu'il s'agit de vous ?",
     yesItsMe: "Oui, c'est moi",
     noTryAgain: "Non, réessayer",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Confidentiel. Votre photo ne sera ni partagée ni conservée.",
     cameraAction: "Prendre un selfie",
     yourSelfie: "Votre selfie",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
     analyzing: "Analyse biométrique...",
     networkError: "Erreur de connexion au serveur.",
     backBtn: "Retour",
     enterVipCode: "Entrer le code VIP",
-    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
     vipPromptTitle: "Accès Privilégié",
     vipPromptDesc: "Êtes-vous les mariés ou possédez-vous un code d'accès VIP ?",
     yesHaveCode: "Oui, j'ai un code",
@@ -86,8 +83,14 @@ const translations = {
     plan6m: "6 mois",
     plan1y: "1 an",
     plan5y: "5 ans (Premium)",
-    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe."
+    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe.",
+    // === НОВЫЕ КЛЮЧИ ДЛЯ ДВУХШАГОВОГО ПРОДЛЕНИЯ ===
+    backToPlans: "Retour aux tarifs",
+    bankDetails: "Coordonnées bancaires :",
+    paymentInstruction: "Veuillez effectuer le virement. Ensuite, cliquez sur le bouton ci-dessous pour envoyer le reçu sur WhatsApp afin d'activer.",
+    sendReceipt: "Envoyer le reçu sur WhatsApp"
   },
+
   en: {
     welcome: "Welcome",
     subtitle: "Unveil your memories. A private collection, curated for you.",
@@ -115,16 +118,13 @@ const translations = {
     verifyDesc: "We found these photos with a partial match. Can you confirm this is you?",
     yesItsMe: "Yes, it's me",
     noTryAgain: "No, try again",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Confidential. Your photo will not be shared or stored.",
     cameraAction: "Take a selfie",
     yourSelfie: "Your selfie",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
     analyzing: "Biometric analysis...",
     networkError: "Connection error to the server.",
     backBtn: "Back",
     enterVipCode: "Enter VIP code",
-    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
     vipPromptTitle: "Privileged Access",
     vipPromptDesc: "Are you the newlyweds or do you have a VIP access code?",
     yesHaveCode: "Yes, I have a code",
@@ -139,8 +139,14 @@ const translations = {
     plan6m: "6 months",
     plan1y: "1 year",
     plan5y: "5 years (Premium)",
-    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached."
+    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached.",
+    // === НОВЫЕ КЛЮЧИ ДЛЯ ДВУХШАГОВОГО ПРОДЛЕНИЯ ===
+    backToPlans: "Back to plans",
+    bankDetails: "Bank details:",
+    paymentInstruction: "Please make the transfer. Then click the button below to send the receipt via WhatsApp for activation.",
+    sendReceipt: "Send receipt via WhatsApp"
   },
+
   ru: {
     welcome: "Добро пожаловать",
     subtitle: "Откройте свои воспоминания. Приватная коллекция, созданная для вас.",
@@ -168,16 +174,13 @@ const translations = {
     verifyDesc: "Мы нашли эти фотографии с частичным совпадением. Подтверждаете, что это вы?",
     yesItsMe: "Да, это я",
     noTryAgain: "Нет, попробовать еще",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ PREMIUM BOTTOM SHEET ---
     privacyText: "Конфиденциально. Ваше фото не будет сохранено или передано.",
     cameraAction: "Сделать селфи",
     yourSelfie: "Ваше селфи",
-    // --- НОВЫЕ ТЕКСТЫ ДЛЯ UI ---
     analyzing: "Анализ биометрии...",
     networkError: "Ошибка соединения с сервером.",
     backBtn: "Назад",
     enterVipCode: "Ввести VIP-код",
-    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
     vipPromptTitle: "Привилегированный доступ",
     vipPromptDesc: "Вы виновники торжества или у вас есть код VIP-доступа?",
     yesHaveCode: "Да, у меня есть код",
@@ -192,7 +195,12 @@ const translations = {
     plan6m: "6 месяцев",
     plan1y: "1 год",
     plan5y: "5 лет (Премиум)",
-    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении."
+    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении.",
+    // === НОВЫЕ КЛЮЧИ ДЛЯ ДВУХШАГОВОГО ПРОДЛЕНИЯ ===
+    backToPlans: "Назад к тарифам",
+    bankDetails: "Банковские реквизиты:",
+    paymentInstruction: "Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.",
+    sendReceipt: "Отправить чек в WhatsApp"
   }
 } as const;
 
@@ -275,9 +283,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const { language, setLanguage, refreshSessions } = useAppContext();
   const t = translations[language];
 
-  // Стейты для модуля продления (Upsell)
+    // Стейты для модуля продления (Upsell) — ДВУХШАГОВЫЙ ФЛОУ
   const [showPayment, setShowPayment] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<{label: string, price: number} | null>(null);
+  const [paymentStep, setPaymentStep] = useState<'select' | 'details'>('select');
 
   const plans = [
     { label: t.plan6m, price: 50 },
@@ -393,6 +402,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   };
 
   // Загружаем фото из памяти ИЛИ перехватываем магическую ссылку-подборку
+  // ИСПРАВЛЕНИЕ: Приоритет — актуальному статусу expired с сервера (initialMeta)
   useEffect(() => {
     const loadGallery = async () => {
       // 1. Проверяем, не перешел ли гость по ссылке "Поделиться подборкой" (?guest=...)
@@ -428,7 +438,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         }
       }
 
-      // 2. Обычный флоу: ищем собственные фото гостя в памяти устройства
+      // 2. ПРИОРИТЕТНАЯ ПРОВЕРКА: Если сервер говорит, что проект expired — сразу показываем экран блокировки
+      if (initialMeta?.is_expired) {
+        setStatus('expired');
+        return;
+      }
+
+      // 3. Обычный флоу: ищем собственные фото гостя в памяти устройства
       const saved = localStorage.getItem(`photos_${slug}`);
       const savedExpiry = localStorage.getItem(`expires_${slug}`);
       if (savedExpiry) setExpiresAt(savedExpiry);
@@ -914,11 +930,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             className="fixed inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center z-[150] p-6 text-center"
           >
             <h2 className="font-cinzel text-2xl text-lux-gold uppercase tracking-widest mb-4">
-              {/* @ts-ignore - игнорируем ошибку TS, так как мы добавили ключи */}
               {t.verifyTitle}
             </h2>
             <p className="font-montserrat text-sm text-gray-300 mb-10 max-w-sm">
-               {/* @ts-ignore */}
               {t.verifyDesc}
             </p>
 
@@ -927,7 +941,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 onClick={handleTryAgain}
                 className="flex-1 px-4 py-4 border border-lux-gold/50 text-gray-300 hover:text-lux-gold rounded-sm uppercase tracking-wider text-xs font-bold transition-all"
               >
-                 {/* @ts-ignore */}
                 {t.noTryAgain}
               </button>
               <button 
@@ -940,7 +953,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 }}
                 className="flex-1 px-4 py-4 bg-lux-gold text-black rounded-sm uppercase tracking-wider text-xs font-bold shadow-gold-glow hover:bg-white transition-all"
               >
-                 {/* @ts-ignore */}
                 {t.yesItsMe}
               </button>
             </div>
@@ -969,7 +981,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           </motion.div>
         )}
 
-        {/* === ПРЕМИУМ ЭКРАН БЛОКИРОВКИ (THE REAPER LOCK SCREEN) === */}
+                {/* === ПРЕМИУМ ЭКРАН БЛОКИРОВКИ (THE REAPER LOCK SCREEN) === */}
         {status === 'expired' && (
           <motion.div 
             key="expired"
@@ -1004,17 +1016,14 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               </div>
 
               <h2 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest mb-4">
-                {/* @ts-ignore */}
                 {t.expiredTitle}
               </h2>
               
               <p className="font-montserrat text-xs md:text-sm text-gray-300 leading-relaxed mb-10">
-                {/* @ts-ignore - Динамически подставляем дни из API */}
                 {t.expiredDesc.replace('{days}', (metaInfo?.days_left ?? 7).toString())}
               </p>
 
               <div className="flex flex-col gap-4">
-                {/* Кнопка Продления (Открывает Bottom Sheet) */}
                 <button 
                   onClick={() => {
                     triggerVibration(10);
@@ -1022,11 +1031,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   }}
                   className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.15em] rounded-xl hover:bg-white transition-all duration-300 font-bold text-xs shadow-gold-glow"
                 >
-                  {/* @ts-ignore */}
                   {t.extendBtn}
                 </button>
                 
-                {/* Кнопка Связи с фотографом */}
                 <a 
                   href="https://wa.me/33743300000"
                   target="_blank"
@@ -1034,84 +1041,112 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   onClick={() => triggerVibration(10)}
                   className="w-full py-4 bg-transparent border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.15em] rounded-xl transition-all duration-300 text-xs flex items-center justify-center"
                 >
-                  {/* @ts-ignore */}
                   {t.contactSupportBtn}
                 </a>
               </div>
             </motion.div>
 
-            {/* ВЫЕЗЖАЮЩАЯ ШТОРКА ОПЛАТЫ (UPSELL) */}
+            {/* === НОВОЕ ДВУХШАГОВОЕ МОДАЛЬНОЕ ОКНО ПРОДЛЕНИЯ === */}
             <AnimatePresence>
               {showPayment && (
-                <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+                >
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setShowPayment(false)}
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[160]"
-                  />
-                  <motion.div
-                    initial={{ y: "100%" }}
-                    animate={{ y: 0 }}
-                    exit={{ y: "100%" }}
-                    transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
-                    className="fixed bottom-0 left-0 right-0 z-[170] flex flex-col items-center"
+                    initial={{ scale: 0.95, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 20 }}
+                    className="w-full max-w-2xl bg-[#0a0a0a] border border-lux-gold/30 p-6 md:p-10 shadow-gold-glow max-h-[90vh] overflow-y-auto rounded-3xl"
                   >
-                    <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-                      <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
-                      <h3 className="font-cinzel text-xl text-lux-gold mb-6 text-center tracking-widest uppercase">
-                        {/* @ts-ignore */}
+                    <div className="flex justify-between items-start mb-8">
+                      <h2 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest">
                         {t.paymentTitle}
-                      </h3>
-                      
-                      <div className="space-y-3 mb-6">
-                        {plans.map((plan, i) => (
-                          <button
-                            key={i}
-                            onClick={() => { triggerVibration(10); setSelectedPlan(plan); }}
-                            className={`w-full flex justify-between items-center p-4 rounded-xl border transition-all ${
-                              selectedPlan?.label === plan.label 
-                                ? 'border-lux-gold bg-lux-gold/10' 
-                                : 'border-white/10 bg-[#111] hover:border-white/30'
-                            }`}
+                      </h2>
+                      <button 
+                        onClick={() => { 
+                          setShowPayment(false); 
+                          setSelectedPlan(null); 
+                          setPaymentStep('select');
+                        }} 
+                        className="text-gray-500 hover:text-white text-2xl leading-none"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {paymentStep === 'select' && !selectedPlan ? (
+                      // ШАГ 1: Выбор тарифа
+                      <div className="space-y-4">
+                        <p className="text-gray-400 text-sm mb-6 uppercase tracking-wider font-mono">
+                          {t.selectPeriod}
+                        </p>
+                        {[
+                          { months: 6, price: 50, label: t.plan6m },
+                          { months: 12, price: 90, label: t.plan1y },
+                          { months: 60, price: 350, label: t.plan5y }
+                        ].map((plan, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => {
+                              setSelectedPlan(plan);
+                              setPaymentStep('details');
+                            }}
+                            className="border border-white/10 hover:border-lux-gold p-6 cursor-pointer group transition-all flex justify-between items-center bg-white/5 rounded-2xl"
                           >
-                            <span className={`text-sm uppercase tracking-wider ${selectedPlan?.label === plan.label ? 'text-lux-gold font-bold' : 'text-gray-300'}`}>
-                              {plan.label}
-                            </span>
-                            <span className={`text-lg font-cinzel ${selectedPlan?.label === plan.label ? 'text-lux-gold' : 'text-white'}`}>
-                              {plan.price}€
-                            </span>
-                          </button>
+                            <span className="font-cinzel text-lg group-hover:text-lux-gold transition-colors">{plan.label}</span>
+                            <span className="font-mono text-xl text-lux-gold">{plan.price} €</span>
+                          </div>
                         ))}
                       </div>
+                    ) : (
+                      // ШАГ 2: Реквизиты + WhatsApp
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                        <button 
+                          onClick={() => {
+                            setSelectedPlan(null);
+                            setPaymentStep('select');
+                          }} 
+                          className="text-lux-gold text-xs uppercase tracking-widest flex items-center gap-2 mb-4"
+                        >
+                          ← {t.backToPlans || 'Назад к тарифам'}
+                        </button>
+                        
+                        <div className="bg-[#111] border border-lux-gold/20 p-6 font-mono text-sm text-gray-300 space-y-4 select-all rounded-2xl">
+                          <p className="text-lux-gold text-xs uppercase tracking-widest mb-2">
+                            {t.bankDetails || 'Банковские реквизиты:'}
+                          </p>
+                          <p><strong>Name:</strong> Zokhrab Kurginian</p>
+                          <p><strong>IBAN:</strong> FR76 2823 3000 0193 7860 8937 114</p>
+                          <p><strong>BIC/SWIFT:</strong> REVOFRP2</p>
+                          <div className="w-full h-[1px] bg-white/10 my-4" />
+                          <p className="text-xs text-gray-500">Revolut Bank UAB<br/>10 avenue Kléber, 75116, Paris, France</p>
+                        </div>
 
-                      {selectedPlan ? (
+                        <p className="text-xs text-gray-400 italic text-center my-6">
+                          {t.paymentInstruction || 'Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.'}
+                        </p>
+
                         <a 
                           href={`https://wa.me/33743300000?text=${encodeURIComponent(
-                            // @ts-ignore
-                            t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', String(selectedPlan.price))
+                            t.whatsappMsg
+                              .replace('{slug}', slug)
+                              .replace('{plan}', selectedPlan?.label || '')
+                              .replace('{price}', String(selectedPlan?.price || ''))
                           )}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onClick={() => triggerVibration(50)}
-                          className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl hover:bg-[#1ebe5d] transition-all font-bold text-xs flex items-center justify-center gap-2 shadow-lg"
+                          className="flex items-center justify-center gap-3 w-full py-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold uppercase tracking-widest transition-colors shadow-lg rounded-2xl"
                         >
                           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
-                          WhatsApp
+                          {t.sendReceipt || 'Отправить чек в WhatsApp'}
                         </a>
-                      ) : (
-                        <button
-                          disabled
-                          className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl opacity-50 grayscale cursor-not-allowed font-bold text-xs flex items-center justify-center gap-2"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
-                          WhatsApp
-                        </button>
-                      )}
-                    </div>
+                      </motion.div>
+                    )}
                   </motion.div>
-                </>
+                </motion.div>
               )}
             </AnimatePresence>
           </motion.div>
