@@ -106,10 +106,11 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const [isLoading, setIsLoading] = useState(true);
 const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
   const { language, setLanguage } = useAppContext();
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [guestClusters, setGuestClusters] = useState<any>(null); // <-- НОВОЕ: Стейт для лиц гостей
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
   
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
@@ -137,14 +138,15 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         });
 
         if (response.ok) {
-          const data = await response.json();
-          const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
-            a.filename.localeCompare(b.filename)
-          );
-          setPhotos(sortedPhotos);
-          setExpiresAt(data.expires_at);
+          const data = await response.json();
+          const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
+            a.filename.localeCompare(b.filename)
+          );
+          setPhotos(sortedPhotos);
+          setExpiresAt(data.expires_at);
+          setGuestClusters(data.guest_clusters); // <-- НОВОЕ: Записываем базу лиц из ответа сервера
 
-          // 2. ЗАПРОС АНАЛИТИКИ (Запускаем сразу после успеха авторизации)
+          // 2. ЗАПРОС АНАЛИТИКИ (Запускаем сразу после успеха авторизации)
           const statsRes = await fetch(`${apiUrl}/api/weddings/${slug}/analytics-data`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -325,8 +327,15 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         */}
 
         {/* Галерея */}
-        <Gallery photos={photos} slug={slug} expiresAt={expiresAt} isVip={true} currentLanguage={language} />
-      </div>
+        <Gallery 
+          photos={photos} 
+          slug={slug} 
+          expiresAt={expiresAt} 
+          isVip={true} 
+          currentLanguage={language} 
+          guestClusters={guestClusters} // <-- НОВОЕ: Прокидываем данные в наш умный компонент
+        />
+      </div>
 
       {/* МОДАЛЬНОЕ МЕНЮ (PREMIUM BOTTOM SHEET) */}
       <AnimatePresence>

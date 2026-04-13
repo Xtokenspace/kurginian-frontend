@@ -7,12 +7,20 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useAppContext } from '@/context/AppContext';
 import { Blurhash } from 'react-blurhash';
 
+// --- НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ ИИ ---
+export interface GuestCluster {
+  avatar_filename: string;
+  bbox: number[];
+  photo_count: number;
+}
+
 // --- ИНТЕРФЕЙСЫ ---
-interface MatchedPhoto {
+export interface MatchedPhoto {
   filename: string;
   width: number;
   height: number;
   blurhash?: string;
+  cluster_ids?: string[]; // <-- ДОБАВЛЕНО ДЛЯ ИИ
   urls: {
     web: string;
     thumb: string;
@@ -25,9 +33,10 @@ interface GalleryProps {
   expiresAt?: string | null;
   isVip?: boolean;
   currentLanguage?: 'fr' | 'en' | 'ru';
+  guestClusters?: Record<string, GuestCluster>; // <-- ДОБАВЛЕНА БАЗА ЛИЦ
 }
 
-// --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX ---
+// --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX И SMART SEARCH ---
 const translations = {
   fr: { 
     download: "Télécharger", share: "Partager", saveAll: "Enregistrer mes photos", copied: "Lien copié !", shareText: "Regardez cette magnifique photo sur KURGINIAN Premium Gallery ✨",
@@ -36,7 +45,11 @@ const translations = {
     noPhotos: "Aucune photo trouvée.",
     copyPrompt: "Copiez ce lien :",
     shareTitle: "Mes photos KURGINIAN",
-    saveToGallery: "Enregistrer dans la pellicule"
+    saveToGallery: "Enregistrer dans la pellicule",
+    guests: "Invités",
+    foundForGuest: "photos trouvées",
+    resetFilter: "✕ Réinitialiser",
+    downloadGuest: "Télécharger la sélection"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -45,7 +58,11 @@ const translations = {
     noPhotos: "No photos found.",
     copyPrompt: "Copy this link:",
     shareTitle: "My KURGINIAN photos",
-    saveToGallery: "Save to Camera Roll"
+    saveToGallery: "Save to Camera Roll",
+    guests: "Guests",
+    foundForGuest: "photos found",
+    resetFilter: "✕ Reset Filter",
+    downloadGuest: "Download selection"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -54,7 +71,11 @@ const translations = {
     noPhotos: "Фотографии не найдены.",
     copyPrompt: "Скопируйте ссылку:",
     shareTitle: "Мои фото KURGINIAN",
-    saveToGallery: "Сохранить в фотопленку"
+    saveToGallery: "Сохранить в фотопленку",
+    guests: "Гости",
+    foundForGuest: "фото найдено",
+    resetFilter: "✕ Сбросить фильтр",
+    downloadGuest: "Скачать архив гостя"
   }
 } as const;
 
@@ -79,6 +100,56 @@ const brickVariants: Variants = {
   },
 };
 
+// --- КОМПОНЕНТ АВАТАРА ГОСТЯ (CSS МАГИЯ КРОПА ЛИЦА) ---
+function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCluster, photos: MatchedPhoto[], isSelected: boolean, onClick: () => void }) {
+  const photo = photos.find(p => p.filename === cluster.avatar_filename);
+  if (!photo) return null;
+
+  const [x1, y1, x2, y2] = cluster.bbox;
+  const faceWidth = x2 - x1;
+  const faceHeight = y2 - y1;
+  
+  // 1. Смещаем центр лица чуть выше (0.4 вместо 0.5), чтобы глаза были по центру, а не нос
+  const cx = x1 + faceWidth / 2;
+  const cy = y1 + faceHeight * 0.4;
+  
+  // 2. Коэффициент запаса (1.8 = 180%). Добавляем «воздух», чтобы влезли волосы, подбородок и шея.
+  const paddingFactor = 1.8;
+  const targetSize = Math.max(faceWidth, faceHeight) * paddingFactor;
+
+  // 3. Вычисляем, во сколько раз оригинальная картинка больше нашего целевого "квадрата лица"
+  const widthPercent = (photo.width / targetSize) * 100;
+  const heightPercent = (photo.height / targetSize) * 100;
+
+  // 4. Вычисляем точные проценты для сдвига картинки
+  const transX = (cx / photo.width) * 100;
+  const transY = (cy / photo.height) * 100;
+
+  return (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      className={`relative flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden cursor-pointer transition-all duration-300 
+        ${isSelected ? 'ring-2 ring-lux-gold shadow-gold-glow scale-110' : 'ring-1 ring-white/20 opacity-70 hover:opacity-100'}`}
+    >
+      {/* Используем абсолютное позиционирование с отрицательным сдвигом для безупречного центрирования */}
+      <img 
+        src={photo.urls.thumb} 
+        alt="Guest"
+        className="absolute max-w-none pointer-events-none select-none"
+        style={{
+          width: `${widthPercent}%`,
+          height: `${heightPercent}%`,
+          left: '50%',
+          top: '50%',
+          transform: `translate(-${transX}%, -${transY}%)`
+        }}
+      />
+    </motion.button>
+  );
+}
+
 // --- КОМПОНЕНТ ОДНОГО ФОТО ---
 function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: number; onOpen: () => void }) {
   const flexGrow = photo.width / photo.height;
@@ -87,8 +158,12 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 
   return (
     <motion.div
-      id={`photo-card-${index}`} // <-- ДОБАВЛЕНО ДЛЯ SMART SCROLL
+      layout // <-- КЛЮЧ ДЛЯ ПЛАВНОЙ ФИЛЬТРАЦИИ ГОСТЕЙ
+      id={`photo-card-${index}`}
       variants={brickVariants}
+      initial="hidden"       // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
+      animate="visible"      // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
+      exit={{ opacity: 0, scale: 0.8 }} // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
       onClick={onOpen}
@@ -140,12 +215,26 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
 }
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
-export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage }: GalleryProps) {
+export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage, guestClusters }: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const lastTapRef = useRef<number>(0);
-  const constraintsRef = useRef<HTMLDivElement>(null);
+  const [panBounds, setPanBounds] = useState({ x: 1000, y: 1000 }); // <-- БЕЗОПАСНЫЕ ГРАНИЦЫ ДЛЯ SSR
+
+  // --- СТЕЙТЫ SMART SEARCH (ИИ ГОСТЕЙ) ---
+  const [showGuests, setShowGuests] = useState(false);
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+
+  // --- ФИЛЬТРАЦИЯ ФОТОГРАФИЙ ПО ВЫБРАННОМУ ГОСТЮ ---
+  const filteredPhotos = selectedGuestId 
+    ? photos.filter(p => p.cluster_ids?.includes(selectedGuestId))
+    : photos;
+
+  useEffect(() => {
+    // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
+    setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
+  }, []);
   
   // === РЕФЫ ДЛЯ МУЛЬТИТАЧА (PINCH-TO-ZOOM) ===
   const initialTouchDistance = useRef<number | null>(null);
@@ -248,7 +337,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
 
-  const handleSaveAll = async () => {
+  // ПРИНИМАЕТ targetPhotos, чтобы можно было скачать либо всё, либо только фото гостя
+  const handleSaveAll = async (targetPhotos: MatchedPhoto[]) => {
     if (isSaving) return;
     setIsSaving(true);
     setSaveProgress(0);
@@ -270,7 +360,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/generate-zip`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames: photos.map(p => p.filename) })
+        body: JSON.stringify({ filenames: targetPhotos.map(p => p.filename) })
       });
 
       if (!response.ok) throw new Error("ZIP generation failed");
@@ -360,18 +450,18 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, photos.length, zoomScale]);
+  }, [selectedIndex, filteredPhotos.length, zoomScale]);
 
   const goToNext = () => {
     if (zoomScale > 1) setZoomScale(1); // Сброс зума при перелистывании
     triggerVibration(10); 
-    setSelectedIndex((prev) => (prev! + 1) % photos.length);
+    setSelectedIndex((prev) => (prev! + 1) % filteredPhotos.length);
   };
   
   const goToPrev = () => {
     if (zoomScale > 1) setZoomScale(1);
     triggerVibration(10); 
-    setSelectedIndex((prev) => (prev! - 1 + photos.length) % photos.length);
+    setSelectedIndex((prev) => (prev! - 1 + filteredPhotos.length) % filteredPhotos.length);
   };
 
   // Функция переключения зума (Double Tap)
@@ -394,65 +484,148 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     <>
       {/* СЕТКА ФОТОГРАФИЙ */}
       <Suspense fallback={<div className="min-h-screen bg-lux-bg" />}>
-        {/* Кнопка "Сохранить всё" над сеткой */}
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex justify-center mb-8 px-4"
-        >
-          <button
-            onClick={handleSaveAll}
-            disabled={isSaving}
-            className={`w-full max-w-sm py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center transition-all duration-300 active:scale-95 disabled:opacity-80 relative overflow-hidden ${
-              isSaving 
-                ? 'bg-[#111] text-lux-gold border border-lux-gold/30' 
-                : 'bg-lux-gold text-black shadow-gold-glow'
-            }`}
-          >
-            {/* 🔥 ПОЛЗУНОК ПРОГРЕССА (Заполняет кнопку золотым фоном) */}
-            {isSaving && (
-              <div 
-                className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
-                style={{ width: `${saveProgress}%` }}
-              />
-            )}
+        
+        {/* === БЛОК КНОПОК И SMART SEARCH === */}
+        <div className="flex flex-col items-center mb-8 px-4 gap-3">
+          
+          {/* Главные кнопки (Сохранить всё + Гости) */}
+          {!selectedGuestId && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex w-full max-w-sm gap-2">
+              <button
+                onClick={() => handleSaveAll(photos)}
+                disabled={isSaving}
+                className={`flex-[2] py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center transition-all duration-300 relative overflow-hidden ${
+                  isSaving ? 'bg-[#111] text-lux-gold border border-lux-gold/30' : 'bg-lux-gold text-black shadow-gold-glow active:scale-[0.98]'
+                }`}
+              >
+                {/* 🔥 ПОЛЗУНОК ПРОГРЕССА (Заполняет кнопку золотым фоном) */}
+                {isSaving && (
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
+                    style={{ width: `${saveProgress}%` }}
+                  />
+                )}
 
-            {/* КОНТЕНТ КНОПКИ */}
-            <div className="relative z-10 flex items-center gap-3">
-              {isSaving ? (
-                <div className="w-4 h-4 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                </svg>
+                <div className="relative z-10 flex items-center gap-2">
+                  {isSaving ? (
+                    <div className="w-4 h-4 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                  )}
+                  <span>
+                    {isSaving 
+                      ? `${language === 'ru' ? 'АРХИВАЦИЯ' : language === 'fr' ? 'ARCHIVAGE' : 'ARCHIVING'} ${saveProgress}%` 
+                      : t.saveAll}
+                  </span>
+                </div>
+              </button>
+
+              {/* Кнопка "Гости" только для VIP */}
+              {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
+                <button
+                  onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
+                  className={`flex-[1] flex items-center justify-center gap-2 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-sm transition-all border ${
+                    showGuests ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' : 'bg-[#111] text-lux-gold border-lux-gold/30 hover:bg-white/5'
+                  }`}
+                >
+                  ✨ {t.guests}
+                </button>
               )}
+            </motion.div>
+          )}
 
-              <span>
-                {isSaving 
-                  ? `${language === 'ru' ? 'АРХИВАЦИЯ' : language === 'fr' ? 'ARCHIVAGE' : 'ARCHIVING'} ${saveProgress}%` 
-                  : t.saveAll}
-              </span>
-            </div>
-          </button>
-        </motion.div>
+          {/* === КАРУСЕЛЬ ГОСТЕЙ (Выезжает по клику) === */}
+          <AnimatePresence>
+            {showGuests && !selectedGuestId && guestClusters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="w-full max-w-2xl overflow-hidden"
+              >
+                <div className="flex gap-4 overflow-x-auto py-4 px-2 no-scrollbar items-center justify-start snap-x snap-mandatory">
+                  {Object.entries(guestClusters).map(([id, cluster]) => (
+                    <div key={id} className="snap-center">
+                      <FaceBubble 
+                        cluster={cluster} 
+                        photos={photos} 
+                        isSelected={selectedGuestId === id} 
+                        onClick={() => { triggerVibration(30); setSelectedGuestId(id); setShowGuests(false); }} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* === ПАНЕЛЬ АКТИВНОГО ФИЛЬТРА (Показывается когда выбран гость) === */}
+          <AnimatePresence>
+            {selectedGuestId && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-sm bg-[#111] border border-lux-gold/30 rounded-lg p-4 flex flex-col items-center gap-4 shadow-lg relative overflow-hidden"
+              >
+                <div className="flex items-center gap-4">
+                  <FaceBubble cluster={guestClusters![selectedGuestId]} photos={photos} isSelected={true} onClick={() => {}} />
+                  <div className="flex flex-col">
+                    <span className="text-lux-gold font-cinzel text-lg font-bold">{filteredPhotos.length}</span>
+                    <span className="text-white/60 text-xs uppercase tracking-widest">{t.foundForGuest}</span>
+                  </div>
+                </div>
+
+                <div className="flex w-full gap-2">
+                  <button
+                    onClick={() => { triggerVibration(10); setSelectedGuestId(null); }}
+                    className="flex-[1] py-3 text-white/50 hover:text-white uppercase text-[10px] md:text-xs font-bold tracking-widest border border-white/10 rounded-sm hover:bg-white/5 transition-all"
+                  >
+                    {t.resetFilter}
+                  </button>
+                  <button
+                    onClick={() => handleSaveAll(filteredPhotos)}
+                    disabled={isSaving}
+                    className="flex-[2] py-3 bg-lux-gold text-black font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-sm shadow-gold-glow flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? (
+                      <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                    )}
+                    {t.downloadGuest}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <motion.div 
+          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          className="flex flex-wrap justify-center gap-2 md:gap-4 pt-10 pb-20 after:content-[''] after:flex-grow-[999]"
+          className="flex flex-wrap justify-center gap-2 md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999]"
         >
-          {photos.map((photo, index) => (
-            <PhotoRowItem 
-              key={photo.filename} 
-              photo={photo} 
-              index={index} 
-              onOpen={() => openLightbox(index)} 
-            />
-          ))}
+          {/* Оборачиваем элементы сетки в AnimatePresence для плавного исчезновения */}
+          <AnimatePresence>
+            {filteredPhotos.map((photo, index) => (
+              <PhotoRowItem 
+                key={photo.filename} 
+                photo={photo} 
+                index={index} 
+                onOpen={() => openLightbox(index)} 
+              />
+            ))}
+          </AnimatePresence>
         </motion.div>
 
-        {/* === ПРЕМИАЛЬНАЯ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
+        {/* === ПРЕМИАЛЬНОЕ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
         {!isVip && expiresAt && (
           <motion.div 
             initial={{ opacity: 0 }}
@@ -474,7 +647,6 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            ref={constraintsRef}
             className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center select-none touch-none overflow-hidden"
           >
             {/* Кнопка закрытия (Справа) */}
@@ -516,7 +688,8 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 transition={{ type: "spring", stiffness: 350, damping: 35 }}
                 drag={true}
                 dragDirectionLock={zoomScale === 1} 
-                dragConstraints={zoomScale > 1 ? constraintsRef : { left: 0, right: 0, top: 0, bottom: 0 }}
+                // Твоя математика (80% экрана), чтобы object-contain фото не блокировалось, но и не улетало насовсем
+                dragConstraints={zoomScale > 1 ? { left: -panBounds.x, right: panBounds.x, top: -panBounds.y, bottom: panBounds.y } : { left: 0, right: 0, top: 0, bottom: 0 }}
                 dragElastic={zoomScale > 1 ? 0.15 : 0.6}
                 dragMomentum={true}
                 // --- ЛОГИКА PINCH-TO-ZOOM (Два пальца) ---
@@ -581,7 +754,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 style={{ cursor: zoomScale > 1 ? 'move' : 'grab' }}
               >
                 <Image
-                  src={photos[selectedIndex].urls.web}
+                  src={filteredPhotos[selectedIndex].urls.web}
                   alt="Full view"
                   fill
                   unoptimized
@@ -589,19 +762,19 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                   priority
                   draggable={false}
                   placeholder="blur" 
-                  blurDataURL={photos[selectedIndex].urls.thumb} 
+                  blurDataURL={filteredPhotos[selectedIndex].urls.thumb} 
                 />
               </motion.div>
 
               {/* 🔥 ТИХАЯ ПРЕДЗАГРУЗКА СОСЕДНИХ ФОТО 🔥 */}
               <div className="hidden">
                 <Image 
-                  src={photos[(selectedIndex + 1) % photos.length].urls.web} 
+                  src={filteredPhotos[(selectedIndex + 1) % filteredPhotos.length].urls.web} 
                   alt="preload next" 
                   width={1} height={1} priority 
                 />
                 <Image 
-                  src={photos[(selectedIndex - 1 + photos.length) % photos.length].urls.web} 
+                  src={filteredPhotos[(selectedIndex - 1 + filteredPhotos.length) % filteredPhotos.length].urls.web} 
                   alt="preload prev" 
                   width={1} height={1} priority 
                 />
@@ -643,7 +816,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
               {/* Action Bar (Скачать / Поделиться) */}
               <div className="w-full max-w-md flex gap-3">
                 <button
-                  onClick={() => handleDownload(photos[selectedIndex].filename, photos[selectedIndex].urls.web)}
+                  onClick={() => handleDownload(filteredPhotos[selectedIndex].filename, filteredPhotos[selectedIndex].urls.web)}
                   className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
                 >
                   <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -653,7 +826,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 </button>
                 
                 <button
-                  onClick={() => handleShare(photos[selectedIndex].filename)}
+                  onClick={() => handleShare(filteredPhotos[selectedIndex].filename)}
                   className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-lg"
                 >
                   <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -665,7 +838,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
               {/* Счетчик */}
               <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-sm text-white/60 text-xs font-mono">
-                {selectedIndex + 1} / {photos.length}
+                {selectedIndex + 1} / {filteredPhotos.length}
               </div>
             </div>
             
