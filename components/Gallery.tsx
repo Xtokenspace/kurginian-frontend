@@ -51,7 +51,9 @@ const translations = {
     resetFilter: "✕ Réinitialiser",
     downloadGuest: "Télécharger la sélection",
     whoIsHere: "Qui est sur la photo ?",
-    closeScanner: "✕ Fermer"
+    closeScanner: "✕ Fermer",
+    shareGuest: "Partager la sélection",
+    shareGuestText: "Regardez ma sélection de photos personnelle de l'événement ! ✨"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -66,7 +68,9 @@ const translations = {
     resetFilter: "✕ Reset Filter",
     downloadGuest: "Download selection",
     whoIsHere: "Who is here?",
-    closeScanner: "✕ Close"
+    closeScanner: "✕ Close",
+    shareGuest: "Share collection",
+    shareGuestText: "Check out my personal photo collection from the event! ✨"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -81,7 +85,9 @@ const translations = {
     resetFilter: "✕ Сбросить фильтр",
     downloadGuest: "Скачать архив гостя",
     whoIsHere: "Кто на фото?",
-    closeScanner: "✕ Скрыть"
+    closeScanner: "✕ Скрыть",
+    shareGuest: "Поделиться подборкой",
+    shareGuestText: "Посмотрите мою персональную подборку фотографий с мероприятия! ✨"
   }
 } as const;
 
@@ -237,6 +243,47 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const filteredPhotos = selectedGuestId 
     ? photos.filter(p => p.cluster_ids?.includes(selectedGuestId))
     : photos;
+
+  // МАГИЧЕСКАЯ ССЫЛКА: Читаем параметр ?guest= из URL при загрузке
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const guestParam = params.get('guest');
+      if (guestParam && guestClusters && guestClusters[guestParam]) {
+        setSelectedGuestId(guestParam);
+      }
+    }
+  }, [guestClusters]);
+
+  // ФУНКЦИЯ ШАРИНГА ПОДБОРКИ
+  const handleShareGuest = async () => {
+    triggerVibration(50);
+    trackAction('share'); 
+    // Генерируем магическую ссылку, которая сразу откроет этого гостя
+    const shareLink = `${window.location.origin}/weddings/${slug}?guest=${selectedGuestId}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'KURGINIAN Premium',
+          text: t.shareGuestText, 
+          url: shareLink,
+        });
+        return; 
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') console.error('Share failed:', err);
+        return; 
+      }
+    }
+    
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    } catch {
+      prompt(t.copyPrompt, shareLink);
+    }
+  };
 
   useEffect(() => {
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
@@ -578,37 +625,74 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-sm bg-[#111] border border-lux-gold/30 rounded-lg p-4 flex flex-col items-center gap-4 shadow-lg relative overflow-hidden"
+                className="w-full max-w-sm bg-[#111] border border-lux-gold/30 rounded-xl p-5 flex flex-col items-center gap-5 shadow-lg relative overflow-hidden"
               >
-                <div className="flex items-center gap-4">
+                {/* Шапка с аватаркой и счетчиком */}
+                <div className="flex items-center gap-5 w-full">
                   <FaceBubble cluster={guestClusters![selectedGuestId]} photos={photos} isSelected={true} onClick={() => {}} />
                   <div className="flex flex-col">
-                    <span className="text-lux-gold font-cinzel text-lg font-bold">{filteredPhotos.length}</span>
-                    <span className="text-white/60 text-xs uppercase tracking-widest">{t.foundForGuest}</span>
+                    <span className="text-lux-gold font-cinzel text-2xl font-bold leading-none">{filteredPhotos.length}</span>
+                    <span className="text-white/60 text-[10px] md:text-xs uppercase tracking-widest mt-1">{t.foundForGuest}</span>
                   </div>
                 </div>
 
-                <div className="flex w-full gap-2">
-                  <button
-                    onClick={() => { triggerVibration(10); setSelectedGuestId(null); }}
-                    className="flex-[1] py-3 text-white/50 hover:text-white uppercase text-[10px] md:text-xs font-bold tracking-widest border border-white/10 rounded-sm hover:bg-white/5 transition-all"
-                  >
-                    {t.resetFilter}
-                  </button>
+                {/* === БЛОК КНОПОК (ПРЕМИАЛЬНАЯ КОМПОНОВКА) === */}
+                <div className="flex flex-col w-full gap-2">
+                  
+                  {/* Главная кнопка: Скачать архив */}
                   <button
                     onClick={() => handleSaveAll(filteredPhotos)}
                     disabled={isSaving}
-                    className="flex-[2] py-3 bg-lux-gold text-black font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-sm shadow-gold-glow flex items-center justify-center gap-2"
+                    className={`w-full py-3.5 font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all relative overflow-hidden ${
+                      isSaving ? 'bg-[#0a0a0a] text-lux-gold border border-lux-gold/30' : 'bg-lux-gold text-black shadow-gold-glow'
+                    }`}
                   >
-                    {isSaving ? (
-                      <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
+                    {/* Ползунок прогресса для архивации */}
+                    {isSaving && (
+                      <div className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out" style={{ width: `${saveProgress}%` }} />
                     )}
-                    {t.downloadGuest}
+
+                    <div className="relative z-10 flex items-center gap-2">
+                      {isSaving ? (
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                      )}
+                      <span>
+                        {isSaving 
+                          ? `${language === 'ru' ? 'АРХИВАЦИЯ' : language === 'fr' ? 'ARCHIVAGE' : 'ARCHIVING'} ${saveProgress}%` 
+                          : t.downloadGuest}
+                      </span>
+                    </div>
                   </button>
+
+                  {/* Вторичные действия: Поделиться подборкой + Сбросить фильтр */}
+                  <div className="flex w-full gap-2">
+                    <button
+                      onClick={handleShareGuest}
+                      className="flex-[2] py-3 bg-[#1a1a1a] hover:bg-[#222] border border-lux-gold/30 text-lux-gold uppercase text-[9px] md:text-[10px] font-bold tracking-widest rounded-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                      </svg>
+                      {t.shareGuest}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        triggerVibration(10);
+                        // Сбрасываем URL параметр при закрытии (чтобы ссылка снова стала чистой)
+                        if (typeof window !== 'undefined') window.history.replaceState({}, '', window.location.pathname);
+                        setSelectedGuestId(null);
+                      }}
+                      className="flex-[1] py-3 text-white/50 hover:text-white uppercase text-[9px] md:text-[10px] font-bold tracking-widest border border-white/10 rounded-sm hover:bg-white/5 transition-all active:scale-[0.98]"
+                    >
+                      {t.resetFilter}
+                    </button>
+                  </div>
+
                 </div>
               </motion.div>
             )}
