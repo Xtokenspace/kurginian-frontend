@@ -82,8 +82,11 @@ const translations = {
     extendBtn: "Prolonger l'accès",
     contactSupportBtn: "Contacter le support",
     paymentTitle: "Extension de l'accès",
-    selectPeriod: "Sélectionnez la période :",
-    whatsappMsg: "Bonjour, je souhaite prolonger l'accès à la galerie {slug} pour le tarif {plan} ({price}€)."
+    selectPeriod: "Sélectionnez la période de prolongation :",
+    plan6m: "6 mois",
+    plan1y: "1 an",
+    plan5y: "5 ans (Premium)",
+    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe."
   },
   en: {
     welcome: "Welcome",
@@ -132,8 +135,11 @@ const translations = {
     extendBtn: "Extend Access",
     contactSupportBtn: "Contact Support",
     paymentTitle: "Extend Access",
-    selectPeriod: "Select period:",
-    whatsappMsg: "Hello, I would like to extend access to the {slug} gallery for the {plan} plan ({price}€)."
+    selectPeriod: "Select extension period:",
+    plan6m: "6 months",
+    plan1y: "1 year",
+    plan5y: "5 years (Premium)",
+    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached."
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -182,8 +188,11 @@ const translations = {
     extendBtn: "Продлить доступ",
     contactSupportBtn: "Связаться с нами",
     paymentTitle: "Продление доступа",
-    selectPeriod: "Выберите период:",
-    whatsappMsg: "Здравствуйте, я хочу продлить доступ к галерее {slug} по тарифу {plan} ({price}€)."
+    selectPeriod: "Выберите период продления:",
+    plan6m: "6 месяцев",
+    plan1y: "1 год",
+    plan5y: "5 лет (Премиум)",
+    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении."
   }
 } as const;
 
@@ -271,9 +280,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [selectedPlan, setSelectedPlan] = useState<{label: string, price: number} | null>(null);
 
   const plans = [
-    { label: language === 'ru' ? '6 месяцев' : language === 'fr' ? '6 mois' : '6 months', price: 15 },
-    { label: language === 'ru' ? '1 год' : language === 'fr' ? '1 an' : '1 year', price: 25 },
-    { label: language === 'ru' ? 'Навсегда' : language === 'fr' ? 'À vie' : 'Lifetime', price: 50 },
+    { label: t.plan6m, price: 50 },
+    { label: t.plan1y, price: 90 },
+    { label: t.plan5y, price: 350 },
   ];
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
@@ -1018,16 +1027,16 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 </button>
                 
                 {/* Кнопка Связи с фотографом */}
-                <button 
-                  onClick={() => {
-                    triggerVibration(10);
-                    window.open("https://wa.me/33621443657", "_blank");
-                  }}
-                  className="w-full py-4 bg-transparent border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.15em] rounded-xl transition-all duration-300 text-xs"
+                <a 
+                  href="https://wa.me/33743300000"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => triggerVibration(10)}
+                  className="w-full py-4 bg-transparent border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.15em] rounded-xl transition-all duration-300 text-xs flex items-center justify-center"
                 >
                   {/* @ts-ignore */}
                   {t.contactSupportBtn}
-                </button>
+                </a>
               </div>
             </motion.div>
 
@@ -1077,20 +1086,29 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                         ))}
                       </div>
 
-                      <button
-                        disabled={!selectedPlan}
-                        onClick={() => {
-                          triggerVibration(50);
-                          if (!selectedPlan) return;
-                          // @ts-ignore
-                          const msg = t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', selectedPlan.price.toString());
-                          window.open(`https://wa.me/33621443657?text=${encodeURIComponent(msg)}`, "_blank");
-                        }}
-                        className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl hover:bg-[#1ebe5d] transition-all font-bold text-xs disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.05-.711-.024-1.013-.16-.301-.137-1.786-.713-3.414-2.164-1.258-1.12-2.106-2.5-2.355-2.833-.25-.334-.027-.514.118-.66.13-.13.283-.332.425-.499.141-.166.188-.284.283-.474.094-.189.047-.356-.024-.499-.07-.142-.837-2.022-1.147-2.766-.301-.726-.607-.627-.837-.638-.216-.011-.466-.014-.716-.014-.25 0-.658.094-1.003.469-.345.375-1.317 1.288-1.317 3.141s1.35 3.642 1.538 3.892c.188.25 2.656 4.053 6.434 5.592.898.365 1.598.584 2.144.748.902.27 1.722.232 2.37.14.733-.105 2.251-.92 2.566-1.81.315-.89.315-1.651.22-1.81-.095-.158-.345-.253-.775-.469zM12 2C6.48 2 2 6.48 2 12c0 1.76.455 3.408 1.246 4.839L2 22l5.29-1.201C8.636 21.56 10.274 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
-                        WhatsApp
-                      </button>
+                      {selectedPlan ? (
+                        <a 
+                          href={`https://wa.me/33743300000?text=${encodeURIComponent(
+                            // @ts-ignore
+                            t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', String(selectedPlan.price))
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => triggerVibration(50)}
+                          className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl hover:bg-[#1ebe5d] transition-all font-bold text-xs flex items-center justify-center gap-2 shadow-lg"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
+                          WhatsApp
+                        </a>
+                      ) : (
+                        <button
+                          disabled
+                          className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl opacity-50 grayscale cursor-not-allowed font-bold text-xs flex items-center justify-center gap-2"
+                        >
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
+                          WhatsApp
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 </>
