@@ -717,10 +717,15 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="text-center max-w-2xl w-full px-4 flex flex-col items-center justify-center min-h-[75vh]"
           >
-            {/* Тонкий микро-хедер */}
-            <p className="font-cinzel text-[9px] md:text-[10px] text-lux-gold/50 tracking-[0.4em] uppercase mb-6">
-              Kurginian Premium Collection
-            </p>
+            {/* Тонкий микро-хедер (Две строки с идеальным центрированием) */}
+            <div className="flex flex-col items-center gap-1.5 mb-6 text-center">
+              <span className="font-cinzel text-[9px] md:text-[10px] text-lux-gold/50 tracking-[0.4em] uppercase pl-[0.4em]">
+                Kurginian
+              </span>
+              <span className="font-cinzel text-[9px] md:text-[10px] text-lux-gold/50 tracking-[0.4em] uppercase pl-[0.4em]">
+                Premium Collection
+              </span>
+            </div>
 
             {/* ВЕЕР ФОТОГРАФИЙ (Берем из API, если интернет слабый - показываем элегантные заглушки) */}
             <PhotoFan covers={metaInfo?.covers?.length ? metaInfo.covers : [
