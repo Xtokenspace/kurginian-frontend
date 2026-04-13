@@ -68,6 +68,23 @@ export default function RootLayout({
           {children}
           <InstallPrompt />
         </AppProvider>
+
+        {/* ПРИНУДИТЕЛЬНАЯ РЕГИСТРАЦИЯ SERVICE WORKER (Для стабильного WebAPK) */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('SW registered with scope:', registration.scope);
+                  }).catch(function(error) {
+                    console.error('SW registration failed:', error);
+                  });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
