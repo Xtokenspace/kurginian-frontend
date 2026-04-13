@@ -68,7 +68,12 @@ const translations = {
     analyzing: "Analyse biométrique...",
     networkError: "Erreur de connexion au serveur.",
     backBtn: "Retour",
-    enterVipCode: "Entrer le code VIP"
+    enterVipCode: "Entrer le code VIP",
+    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
+    vipPromptTitle: "Accès Privilégié",
+    vipPromptDesc: "Êtes-vous les mariés ou possédez-vous un code d'accès VIP ?",
+    yesHaveCode: "Oui, j'ai un code",
+    noGuest: "Non, je suis invité"
   },
   en: {
     welcome: "Welcome",
@@ -105,7 +110,12 @@ const translations = {
     analyzing: "Biometric analysis...",
     networkError: "Connection error to the server.",
     backBtn: "Back",
-    enterVipCode: "Enter VIP code"
+    enterVipCode: "Enter VIP code",
+    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
+    vipPromptTitle: "Privileged Access",
+    vipPromptDesc: "Are you the newlyweds or do you have a VIP access code?",
+    yesHaveCode: "Yes, enter code",
+    noGuest: "No, I'm a guest"
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -142,7 +152,12 @@ const translations = {
     analyzing: "Анализ биометрии...",
     networkError: "Ошибка соединения с сервером.",
     backBtn: "Назад",
-    enterVipCode: "Ввести VIP-код"
+    enterVipCode: "Ввести VIP-код",
+    // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
+    vipPromptTitle: "Привилегированный доступ",
+    vipPromptDesc: "Вы молодожены или у вас есть код VIP-доступа?",
+    yesHaveCode: "Да, ввести код",
+    noGuest: "Нет, я гость"
   }
 } as const;
 
@@ -237,6 +252,41 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState(false);
+
+  // Стейты умного онбординга (Вопрос при первом входе)
+  const [showInitialVipPrompt, setShowInitialVipPrompt] = useState(false);
+
+  // Логика умного показа вопроса
+  useEffect(() => {
+    // Проверяем: спрашивали ли мы уже? Есть ли уже фото? Вошел ли уже как VIP?
+    const promptShown = localStorage.getItem(`vip_prompt_shown_${slug}`);
+    const hasVip = localStorage.getItem(`vip_code_${slug}`);
+    const hasPhotos = localStorage.getItem(`photos_${slug}`);
+
+    // Если это самый первый заход и стартовый экран (не загрузка по ссылке)
+    if (!promptShown && !hasVip && !hasPhotos && status === 'idle') {
+      const timer = setTimeout(() => {
+        setShowInitialVipPrompt(true);
+      }, 1500); // Кинематографичная пауза 1.5 секунды перед вопросом
+      return () => clearTimeout(timer);
+    }
+  }, [slug, status]);
+
+  // Функции обработки ответов
+  const dismissVipPrompt = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
+    setShowInitialVipPrompt(false);
+  };
+
+  const acceptVipPrompt = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
+    setShowInitialVipPrompt(false);
+    setTimeout(() => {
+      setShowPasswordModal(true); // Плавно открываем окно пароля
+    }, 300); 
+  };
 
 
   // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (ПРИШЛИ С СЕРВЕРА БЕЗ МЕРЦАНИЯ) ===
@@ -1214,6 +1264,61 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* === УМНЫЙ ВОПРОС О VIP ДОСТУПЕ (Smart Onboarding) === */}
+      <AnimatePresence>
+        {showInitialVipPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[105] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={dismissVipPrompt} // Закрытие по клику на фон
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-sm bg-[#0a0a0a] border border-lux-gold/30 rounded-[2rem] p-8 shadow-[0_10px_40px_rgba(212,175,55,0.15)] text-center relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Блик на фоне */}
+              <div className="absolute -top-20 -left-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Премиальная иконка (Замочек) */}
+              <div className="w-14 h-14 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6 relative z-10">
+                <svg className="w-6 h-6 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+
+              <h3 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest mb-3 relative z-10 leading-snug">
+                {t.vipPromptTitle}
+              </h3>
+              <p className="font-montserrat text-xs md:text-sm text-gray-400 mb-8 leading-relaxed relative z-10 px-2">
+                {t.vipPromptDesc}
+              </p>
+
+              {/* Кнопки */}
+              <div className="flex flex-col gap-3 relative z-10">
+                <button
+                  onClick={acceptVipPrompt}
+                  className="w-full py-4.5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-xl shadow-gold-glow hover:bg-white transition-all active:scale-[0.98]"
+                >
+                  {t.yesHaveCode}
+                </button>
+                <button
+                  onClick={dismissVipPrompt}
+                  className="w-full py-4.5 bg-transparent border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-xl transition-all active:scale-[0.98]"
+                >
+                  {t.noGuest}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
