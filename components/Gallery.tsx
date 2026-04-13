@@ -49,7 +49,9 @@ const translations = {
     guests: "Invités",
     foundForGuest: "photos trouvées",
     resetFilter: "✕ Réinitialiser",
-    downloadGuest: "Télécharger la sélection"
+    downloadGuest: "Télécharger la sélection",
+    whoIsHere: "Qui est sur la photo ?",
+    closeScanner: "✕ Fermer"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -62,7 +64,9 @@ const translations = {
     guests: "Guests",
     foundForGuest: "photos found",
     resetFilter: "✕ Reset Filter",
-    downloadGuest: "Download selection"
+    downloadGuest: "Download selection",
+    whoIsHere: "Who is here?",
+    closeScanner: "✕ Close"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -75,7 +79,9 @@ const translations = {
     guests: "Гости",
     foundForGuest: "фото найдено",
     resetFilter: "✕ Сбросить фильтр",
-    downloadGuest: "Скачать архив гостя"
+    downloadGuest: "Скачать архив гостя",
+    whoIsHere: "Кто на фото?",
+    closeScanner: "✕ Скрыть"
   }
 } as const;
 
@@ -219,6 +225,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const [showLightboxGuests, setShowLightboxGuests] = useState(false);
   const lastTapRef = useRef<number>(0);
   const [panBounds, setPanBounds] = useState({ x: 1000, y: 1000 }); // <-- БЕЗОПАСНЫЕ ГРАНИЦЫ ДЛЯ SSR
 
@@ -404,6 +411,7 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const openLightbox = (index: number) => {
     triggerVibration(10); 
     setZoomScale(1); // Сброс зума при открытии
+    setShowLightboxGuests(false); // Сбрасываем сканер лиц
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
   };
@@ -454,12 +462,14 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
   const goToNext = () => {
     if (zoomScale > 1) setZoomScale(1); // Сброс зума при перелистывании
+    setShowLightboxGuests(false); // Скрываем сканер при перелистывании
     triggerVibration(10); 
     setSelectedIndex((prev) => (prev! + 1) % filteredPhotos.length);
   };
   
   const goToPrev = () => {
     if (zoomScale > 1) setZoomScale(1);
+    setShowLightboxGuests(false); // Скрываем сканер при перелистывании
     triggerVibration(10); 
     setSelectedIndex((prev) => (prev! - 1 + filteredPhotos.length) % filteredPhotos.length);
   };
@@ -796,6 +806,59 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
             {/* НИЖНЯЯ ПАНЕЛЬ ДЕЙСТВИЙ */}
             <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-4 px-6 z-[110]">
               
+              {/* === ЛОКАТОР ГОСТЕЙ В ФОТОГРАФИИ (Smart In-Photo Search) === */}
+              {isVip && guestClusters && filteredPhotos[selectedIndex].cluster_ids && filteredPhotos[selectedIndex].cluster_ids.length > 0 && (
+                <div className="flex flex-col items-center mb-2 w-full z-[115]">
+                  <AnimatePresence>
+                    {showLightboxGuests && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto"
+                      >
+                        {filteredPhotos[selectedIndex].cluster_ids.map(id => {
+                          const cluster = guestClusters[id];
+                          if (!cluster) return null;
+                          return (
+                            <FaceBubble
+                              key={id}
+                              cluster={cluster}
+                              photos={photos} 
+                              isSelected={false}
+                              onClick={() => {
+                                triggerVibration([30, 50]);
+                                setShowLightboxGuests(false);
+                                closeLightbox();
+                                setTimeout(() => setSelectedGuestId(id), 300); // Даем шторке плавно закрыться
+                              }}
+                            />
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <button
+                    onClick={() => {
+                      triggerVibration(10);
+                      setShowLightboxGuests(!showLightboxGuests);
+                    }}
+                    className={`px-5 py-2.5 rounded-full font-bold text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 transition-all active:scale-95 border pointer-events-auto ${
+                      showLightboxGuests 
+                        ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' 
+                        : 'bg-[#111]/80 backdrop-blur-md text-lux-gold border-lux-gold/40 hover:bg-white/10'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                    </svg>
+                    {showLightboxGuests ? t.closeScanner : t.whoIsHere}
+                  </button>
+                </div>
+              )}
+              {/* === КОНЕЦ ЛОКАТОРА === */}
+
               {/* Toast Уведомление о копировании ссылки */}
               <AnimatePresence>
                 {showToast && (
