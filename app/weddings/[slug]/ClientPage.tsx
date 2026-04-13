@@ -741,7 +741,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               {t.subtitle}
             </p>
 
-            {/* КНОПКА (Исправлено залипание через blur + timeout) */}
+            {/* КНОПКА (Исправлено залипание и конфликт Z-index) */}
             <button
               onClick={(e) => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
@@ -752,7 +752,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   setShowChoiceModal(!showChoiceModal);
                 }, 50);
               }}
-              className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-[160]"
+              className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-10"
             >
               {t.findPhotos}
             </button>
