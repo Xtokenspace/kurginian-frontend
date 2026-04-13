@@ -27,10 +27,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>('fr');
   const [sessions, setSessions] = useState<GallerySession[]>([]);
 
-    // 1. Инициализация при первом запуске
+    // 1. Инициализация при первом запуске (с умным авто-определением языка)
   useEffect(() => {
     const savedLang = localStorage.getItem('kurginian_global_lang') as Language;
-    if (savedLang) setLanguageState(savedLang);
+    
+    if (savedLang) {
+      // Если язык уже был сохранен ранее — используем его
+      setLanguageState(savedLang);
+    } else if (typeof navigator !== 'undefined' && navigator.language) {
+      // МАГИЯ UX: Если гость тут впервые, читаем язык его устройства!
+      const browserLang = navigator.language.toLowerCase();
+      let detectedLang: Language = 'fr'; // По умолчанию ставим французский
+
+      if (browserLang.startsWith('en')) {
+        detectedLang = 'en';
+      } else if (browserLang.startsWith('ru') || browserLang.startsWith('uk') || browserLang.startsWith('be')) {
+        // Умный захват СНГ-региона (русский, украинский, белорусский)
+        detectedLang = 'ru';
+      } else if (browserLang.startsWith('fr')) {
+        detectedLang = 'fr';
+      }
+
+      setLanguageState(detectedLang);
+      localStorage.setItem('kurginian_global_lang', detectedLang); // Сразу сохраняем, чтобы не проверять каждый раз
+    }
     
     scanSessions();
     

@@ -20,7 +20,7 @@ export interface MatchedPhoto {
   width: number;
   height: number;
   blurhash?: string;
-  cluster_ids?: string[]; // <-- ДОБАВЛЕНО ДЛЯ ИИ
+  cluster_ids?: string[];
   urls: {
     web: string;
     thumb: string;
@@ -33,7 +33,7 @@ interface GalleryProps {
   expiresAt?: string | null;
   isVip?: boolean;
   currentLanguage?: 'fr' | 'en' | 'ru';
-  guestClusters?: Record<string, GuestCluster>; // <-- ДОБАВЛЕНА БАЗА ЛИЦ
+  guestClusters?: Record<string, GuestCluster>;
 }
 
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX И SMART SEARCH ---
@@ -53,7 +53,12 @@ const translations = {
     whoIsHere: "Qui est sur la photo ?",
     closeScanner: "✕ Fermer",
     shareGuest: "Partager la sélection",
-    shareGuestText: "Regardez ma sélection de photos personnelle de l'événement ! ✨"
+    shareGuestText: "Regardez ma sélection de photos personnelle de l'événement ! ✨",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
+    select: "Sélectionner",
+    selected: "sélectionné(s)",
+    cancel: "Annuler",
+    actions: "Actions avec l'image"
   },
   en: { 
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -70,7 +75,12 @@ const translations = {
     whoIsHere: "Who is here?",
     closeScanner: "✕ Close",
     shareGuest: "Share collection",
-    shareGuestText: "Check out my personal photo collection from the event! ✨"
+    shareGuestText: "Check out my personal photo collection from the event! ✨",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
+    select: "Select",
+    selected: "selected",
+    cancel: "Cancel",
+    actions: "Image Actions"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -87,7 +97,12 @@ const translations = {
     whoIsHere: "Кто на фото?",
     closeScanner: "✕ Скрыть",
     shareGuest: "Поделиться подборкой",
-    shareGuestText: "Посмотрите мою персональную подборку фотографий с мероприятия! ✨"
+    shareGuestText: "Посмотрите мою персональную подборку фотографий с мероприятия! ✨",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
+    select: "Выбрать",
+    selected: "выбрано",
+    cancel: "Отмена",
+    actions: "Действия с фото"
   }
 } as const;
 
@@ -163,23 +178,54 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
 }
 
 // --- КОМПОНЕНТ ОДНОГО ФОТО ---
-function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: number; onOpen: () => void }) {
+function PhotoRowItem({ 
+  photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
+}: { 
+  photo: MatchedPhoto; index: number; onOpen: () => void; 
+  isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
+}) {
   const flexGrow = photo.width / photo.height;
   const flexBasis = flexGrow * 250; 
   const [isLoaded, setIsLoaded] = useState(false);
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Логика кастомного 3D-Touch
+  const startPress = () => {
+    if (isSelectionMode) return; // Если уже выбираем, долгий тап не нужен
+    pressTimer.current = setTimeout(() => {
+      onLongPress(index);
+    }, 400); // 400мс удержания = 3D Touch
+  };
+
+  const cancelPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
 
   return (
     <motion.div
-      layout // <-- КЛЮЧ ДЛЯ ПЛАВНОЙ ФИЛЬТРАЦИИ ГОСТЕЙ
+      layout 
       id={`photo-card-${index}`}
       variants={brickVariants}
-      initial="hidden"       // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
-      animate="visible"      // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
-      exit={{ opacity: 0, scale: 0.8 }} // <-- ДОБАВЛЕНО ДЛЯ АНИМАЦИИ ИСЧЕЗНОВЕНИЯ
+      initial="hidden"
+      animate="visible"
+      exit={{ opacity: 0, scale: 0.8 }}
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
-      onClick={onOpen}
-      className="relative overflow-hidden group border border-lux-gold/10 hover:border-lux-gold/60 transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card"
+      // --- БЛОКИРУЕМ СИСТЕМНОЕ МЕНЮ И СЛУШАЕМ ПАЛЕЦ ---
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      onTouchStart={startPress}
+      onTouchEnd={cancelPress}
+      onTouchMove={cancelPress}
+      onMouseDown={startPress}
+      onMouseUp={cancelPress}
+      onMouseLeave={cancelPress}
+      onClick={() => {
+        if (isSelectionMode) onToggleSelect(photo.filename);
+        else onOpen();
+      }}
+      className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
+        isSelected ? 'border-2 border-lux-gold scale-95' : 'border border-lux-gold/10 hover:border-lux-gold/60'
+      }`}
       style={{
         flexGrow: flexGrow,
         flexBasis: `${flexBasis}px`,
@@ -190,14 +236,7 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
       {!isLoaded && (
         <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
           {photo.blurhash ? (
-            <Blurhash
-              hash={photo.blurhash}
-              width="100%"
-              height="100%"
-              resolutionX={32}
-              resolutionY={32}
-              punch={1}
-            />
+            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
           ) : (
             <motion.div 
               animate={{ x: ['-100%', '200%'] }}
@@ -216,11 +255,33 @@ function PhotoRowItem({ photo, index, onOpen }: { photo: MatchedPhoto; index: nu
         priority={index < 6}
         sizes="(max-width: 768px) 100vw, 50vw"
         onLoad={() => setIsLoaded(true)}
-        className={`object-cover group-hover:scale-105 transition-all duration-[800ms] ease-out ${
+        className={`object-cover transition-all duration-[800ms] ease-out pointer-events-none ${
           isLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-md scale-105'
-        }`}
+        } ${isSelected ? 'opacity-80' : 'group-hover:scale-105'}`}
       />
       
+      {/* ИНДИКАТОР ВЫБОРА (Apple Style) */}
+      <AnimatePresence>
+        {isSelectionMode && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            className="absolute bottom-2 right-2 z-30 pointer-events-none"
+          >
+            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+              isSelected ? 'bg-lux-gold border-lux-gold' : 'bg-black/30 border-white/50 backdrop-blur-sm'
+            }`}>
+              {isSelected && (
+                <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
@@ -233,11 +294,34 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   const [zoomScale, setZoomScale] = useState(1);
   const [showLightboxGuests, setShowLightboxGuests] = useState(false);
   const lastTapRef = useRef<number>(0);
-  const [panBounds, setPanBounds] = useState({ x: 1000, y: 1000 }); // <-- БЕЗОПАСНЫЕ ГРАНИЦЫ ДЛЯ SSR
+  const [panBounds, setPanBounds] = useState({ x: 1000, y: 1000 });
 
   // --- СТЕЙТЫ SMART SEARCH (ИИ ГОСТЕЙ) ---
   const [showGuests, setShowGuests] = useState(false);
   const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+
+  // --- СТЕЙТЫ МУЛЬТИВЫБОРА И 3D TOUCH ---
+  const [longPressedIndex, setLongPressedIndex] = useState<number | null>(null);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+
+  const handleLongPress = (index: number) => {
+    triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
+    setLongPressedIndex(index);
+  };
+
+  const togglePhotoSelection = (filename: string) => {
+    triggerVibration(10);
+    const newSelection = new Set(selectedPhotos);
+    if (newSelection.has(filename)) newSelection.delete(filename);
+    else newSelection.add(filename);
+    setSelectedPhotos(newSelection);
+  };
+
+  const closeSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedPhotos(new Set());
+  };
 
   // --- ФИЛЬТРАЦИЯ ФОТОГРАФИЙ ПО ВЫБРАННОМУ ГОСТЮ ---
   const filteredPhotos = selectedGuestId 
@@ -390,6 +474,35 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   // === УЛУЧШЕННАЯ ФУНКЦИЯ СОХРАНЕНИЯ С PROGRESS BAR ===
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+  const wakeLockRef = useRef<any>(null); // Хранилище блокировки экрана
+
+  // === SMART SCROLL-TO-TOP PILL ===
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Показываем кнопку, если мы ушли вниз больше чем на 1.5 экрана И скроллим вверх
+      if (currentScrollY > window.innerHeight * 1.5 && currentScrollY < lastScrollY.current) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+      
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    triggerVibration(10);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setShowScrollTop(false);
+  };
 
   // ПРИНИМАЕТ targetPhotos, чтобы можно было скачать либо всё, либо только фото гостя
   const handleSaveAll = async (targetPhotos: MatchedPhoto[]) => {
@@ -398,6 +511,15 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
     setSaveProgress(0);
     triggerVibration([50, 30, 50]);
     trackAction('save_all');
+
+    // --- WAKE LOCK API (Запрет на выключение экрана) ---
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+      }
+    } catch (err) {
+      console.warn("Wake Lock failed:", err);
+    }
 
     // 🔥 ИМИТАЦИЯ ПРОГРЕССА (Smart UX)
     const progressInterval = setInterval(() => {
@@ -438,9 +560,12 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
         }
         setIsSaving(false);
         setSaveProgress(0);
+        if (wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current = null; }
       }, 500);
 
     } catch (err) {
+      clearInterval(progressInterval);
+      if (wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current = null; }
       clearInterval(progressInterval);
       console.error("Save all failed:", err);
       const msg = language === 'ru' 
@@ -714,9 +839,107 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
                 photo={photo} 
                 index={index} 
                 onOpen={() => openLightbox(index)} 
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedPhotos.has(photo.filename)}
+                onToggleSelect={togglePhotoSelection}
+                onLongPress={handleLongPress}
               />
             ))}
           </AnimatePresence>
+          {/* === ПЛАВАЮЩАЯ ПАНЕЛЬ МУЛЬТИВЫБОРА (iOS Style) === */}
+        <AnimatePresence>
+          {isSelectionMode && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-md z-[110] bg-[#111]/90 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center justify-between"
+            >
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-sm">{selectedPhotos.size} {t.selected}</span>
+                <button onClick={closeSelectionMode} className="text-lux-gold text-[10px] uppercase tracking-widest text-left mt-1">
+                  {t.cancel}
+                </button>
+              </div>
+              
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => {
+                    const targets = photos.filter(p => selectedPhotos.has(p.filename));
+                    handleSaveAll(targets);
+                  }}
+                  disabled={selectedPhotos.size === 0 || isSaving}
+                  className="bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform"
+                >
+                  {t.download}
+                </button>
+                {/* Будущая кнопка "Поделиться" или "В печать" */}
+                <button 
+                  disabled={selectedPhotos.size === 0}
+                  className="bg-white/10 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform"
+                >
+                  {t.share}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* === ШТОРКА ДЕЙСТВИЙ ИЗ 3D-TOUCH (Long Press) === */}
+        <AnimatePresence>
+          {longPressedIndex !== null && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setLongPressedIndex(null)}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140]"
+              />
+              <motion.div
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+                transition={{ type: "tween", duration: 0.25, ease: "easeOut" }}
+                className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center"
+              >
+                <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl p-6 pb-10 shadow-2xl relative">
+                  <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+                  
+                  <h3 className="text-center font-cinzel text-lux-gold mb-6 uppercase tracking-widest text-sm">{t.actions}</h3>
+                  
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={() => {
+                        handleDownload(filteredPhotos[longPressedIndex].filename, filteredPhotos[longPressedIndex].urls.web);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                    >
+                      {t.download}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleShare(filteredPhotos[longPressedIndex].filename);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                    >
+                      {t.share}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        triggerVibration(20);
+                        setIsSelectionMode(true);
+                        togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-lux-gold/10 border border-lux-gold/30 py-4 rounded-xl text-lux-gold font-bold text-xs uppercase tracking-widest mt-2 hover:bg-lux-gold hover:text-black transition-colors"
+                    >
+                      {t.select}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
         </motion.div>
 
         {/* === ПРЕМИАЛЬНОЕ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
@@ -1048,6 +1271,25 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* === ЭЛЕГАНТНЫЙ ЛИФТ (Smart Scroll-to-Top Pill) === */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            onClick={scrollToTop}
+            className="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[90] bg-[#0a0a0a]/80 backdrop-blur-md border border-lux-gold/30 text-lux-gold px-4 py-2 rounded-full flex items-center justify-center gap-2 shadow-[0_5px_20px_rgba(212,175,55,0.15)] hover:bg-lux-gold hover:text-black transition-all group"
+          >
+            <svg className="w-4 h-4 group-hover:-translate-y-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+            </svg>
+            <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Наверх' : language === 'fr' ? 'Haut' : 'Top'}</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
     </>
   );
 }

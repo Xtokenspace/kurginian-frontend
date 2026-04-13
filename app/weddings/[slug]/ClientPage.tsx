@@ -164,16 +164,45 @@ const translations = {
   }
 } as const;
 
-// === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
+// === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ С 3D-ПАРАЛЛАКСОМ (APPLE WALLET STYLE) ===
 function PhotoFan({ covers }: { covers: string[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  // --- МАГИЯ ГИРОСКОПА И МЫШИ (Depth of Field) ---
+  useEffect(() => {
+    // Для ПК: следим за мышью
+    const handleMouseMove = (e: MouseEvent) => {
+      // Вычисляем отклонение от центра экрана (от -15 до 15 пикселей)
+      const x = (e.clientX / window.innerWidth - 0.5) * 30;
+      const y = (e.clientY / window.innerHeight - 0.5) * 30;
+      setTilt({ x, y });
+    };
+
+    // Для смартфонов: следим за гироскопом
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma === null || e.beta === null) return;
+      // gamma - наклон влево/вправо, beta - наклон вперед/назад
+      const x = Math.max(-20, Math.min(20, e.gamma / 2.5));
+      // Вычитаем 45 градусов, так как телефон обычно держат под углом
+      const y = Math.max(-20, Math.min(20, (e.beta - 45) / 2.5)); 
+      setTilt({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('deviceorientation', handleOrientation);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
 
   // Функция для тапа: выводим вперед на 2 секунды
   const handleTap = (index: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setActiveIndex(index);
     
-    // Автоматически возвращаем карту обратно через 2 секунды
     setTimeout(() => {
       setActiveIndex((prev) => (prev === index ? null : prev));
     }, 2000);
@@ -186,10 +215,13 @@ function PhotoFan({ covers }: { covers: string[] }) {
   return (
     <div 
       className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" 
-      style={{ WebkitTouchCallout: 'none' }} // Блокирует меню iOS на контейнере
+      style={{ WebkitTouchCallout: 'none', perspective: '1000px' }} // perspective добавляет 3D-глубину
     >
       {covers.map((src, i) => {
         const isActive = activeIndex === i;
+        
+        // Коэффициент глубины: задние фото (i=0 и i=2) двигаются сильнее, чем переднее (i=1)
+        const depthFactor = i === 1 ? 0.4 : 1.2;
         
         return (
           <motion.div
@@ -198,29 +230,38 @@ function PhotoFan({ covers }: { covers: string[] }) {
             initial={{ opacity: 0, y: 50, rotate: 0 }}
             animate={{ 
               opacity: 1, 
-              y: isActive ? -20 : yOffsets[i], 
-              x: isActive ? 0 : xOffsets[i], 
-              rotate: isActive ? 0 : rotations[i],
+              // Прибавляем значения гироскопа/мыши для создания эффекта скольжения
+              y: isActive ? -20 : yOffsets[i] + (tilt.y * depthFactor), 
+              x: isActive ? 0 : xOffsets[i] + (tilt.x * depthFactor), 
+              rotate: isActive ? 0 : rotations[i] + (tilt.x * 0.15), // Слегка доворачиваем от наклона
               scale: isActive ? 1.08 : 1,
               zIndex: isActive ? 50 : (i === 1 ? 30 : 10)
             }}
             transition={{ 
-              duration: 0.6, 
-              delay: activeIndex === null ? i * 0.15 : 0, // Задержка только при первом появлении страницы
+              duration: isActive ? 0.6 : 0.4, // Плавная реакция на гироскоп
+              delay: activeIndex === null && tilt.x === 0 && tilt.y === 0 ? i * 0.15 : 0, 
               type: "spring", 
-              stiffness: isActive ? 200 : 100,
-              damping: 15
+              stiffness: isActive ? 200 : 120,
+              damping: isActive ? 15 : 25
             }}
-            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
+            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111] will-change-transform"
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
           >
-            {/* pointer-events-none и draggable={false} убивают системные меню скачивания */}
+            {/* Сама картинка */}
             <img 
               src={src} 
               alt="cover" 
               draggable={false}
-              className="w-full h-full object-cover opacity-90 transition-opacity pointer-events-none" 
+              className="w-full h-full object-cover opacity-90 pointer-events-none" 
             />
+            
+            {/* Блик стекла, который реагирует на наклон */}
+            <motion.div 
+              animate={{ opacity: isActive ? 0 : Math.max(0, 0.2 + (tilt.y * -0.01)) }}
+              className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none mix-blend-overlay" 
+            />
+            
+            {/* Темная виньетка по краям */}
             <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
           </motion.div>
         );
@@ -291,6 +332,16 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }, 300); 
   };
 
+  const startGuestFlow = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
+    setShowInitialVipPrompt(false);
+    setTimeout(() => {
+      // Открываем ту самую нижнюю шторку выбора (Камера ИЛИ Галерея телефона)
+      setShowChoiceModal(true); 
+    }, 300); 
+  };
+
 
   // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (ПРИШЛИ С СЕРВЕРА БЕЗ МЕРЦАНИЯ) ===
   const [metaInfo, setMetaInfo] = useState<WeddingMeta | null>(initialMeta);
@@ -303,6 +354,24 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }
   };
 
+  // --- ЭМОЦИОНАЛЬНЫЙ ДВИЖОК: Haptic Heartbeat ---
+  // Имитируем биение сердца (тук-тук... тук-тук) во время анализа лица
+  useEffect(() => {
+    let heartbeatInterval: NodeJS.Timeout;
+    
+    if (status === 'loading') {
+      // Запускаем сердцебиение каждые 1.2 секунды
+      heartbeatInterval = setInterval(() => {
+        // Паттерн: вибрация 40мс, пауза 60мс, вибрация 50мс
+        triggerVibration([40, 60, 50]);
+      }, 1200);
+    }
+    
+    // Обязательно очищаем интервал, когда загрузка закончится (успех или ошибка)
+    return () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+    };
+  }, [status]);
 
   // Обработчик проверки пароля через API
   const handlePasswordSubmit = async () => {
@@ -1112,6 +1181,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
               <button 
                 onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); // Принудительно глушим вибромотор
                   stopCamera();
                   // ТОЧЕЧНОЕ ЛЕЧЕНИЕ: 
                   // Если мы не в success (например, застряли в error после неудачного селфи):
@@ -1323,7 +1393,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 {/* Кнопка гостя с подсказкой */}
                 <div className="flex flex-col items-center">
                   <button
-                    onClick={dismissVipPrompt}
+                    onClick={startGuestFlow} // <-- ИЗМЕНИЛИ ФУНКЦИЮ ЗДЕСЬ
                     className="w-full py-5 bg-transparent border border-white/20 text-gray-300 hover:text-white hover:bg-white/10 uppercase tracking-[0.15em] text-xs rounded-xl transition-all active:scale-[0.98]"
                   >
                     {t.noGuest}
