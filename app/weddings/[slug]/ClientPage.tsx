@@ -284,23 +284,61 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const { language, setLanguage, refreshSessions } = useAppContext(); // <-- ДОБАВЛЕНО
   const t = translations[language];
 
-  // Загружаем фото из памяти только для этой свадьбы
+  // Загружаем фото из памяти ИЛИ перехватываем магическую ссылку-подборку
   useEffect(() => {
-    const saved = localStorage.getItem(`photos_${slug}`);
-    const savedExpiry = localStorage.getItem(`expires_${slug}`);
-    if (savedExpiry) setExpiresAt(savedExpiry);
-
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.length > 0) {
-          setPhotos(parsed);
-          setStatus('success');
+    const loadGallery = async () => {
+      // 1. Проверяем, не перешел ли гость по ссылке "Поделиться подборкой" (?guest=...)
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const guestParam = params.get('guest');
+        
+        if (guestParam) {
+          setStatus('loading'); // Включаем красивый экран биометрии (как лоадер)
+          try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+            const res = await fetch(`${apiUrl}/api/weddings/${slug}/collection/${guestParam}`);
+            
+            if (res.ok) {
+              const data = await res.json();
+              setPhotos(data.data);
+              if (data.expires_at) setExpiresAt(data.expires_at);
+              setStatus('success');
+              
+              // ПРЕМИУМ-ФИШКА: Очищаем ссылку от параметра ?guest=, 
+              // чтобы в браузере гостя остался красивый короткий URL!
+              window.history.replaceState({}, '', window.location.pathname);
+              
+              // Мы НЕ сохраняем эти фото в localStorage. 
+              // Это защищает дашборд гостя от замусоривания чужими фото.
+              return; 
+            }
+          } catch (e) {
+            console.error("Ошибка загрузки подборки:", e);
+          }
+          // Если ссылка битая или устарела, скидываем статус обратно в idle
+          setStatus('idle');
         }
-      } catch (e) {
-        localStorage.removeItem(`photos_${slug}`);
       }
-    }
+
+      // 2. Обычный флоу: ищем собственные фото гостя в памяти устройства
+      const saved = localStorage.getItem(`photos_${slug}`);
+      const savedExpiry = localStorage.getItem(`expires_${slug}`);
+      if (savedExpiry) setExpiresAt(savedExpiry);
+
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.length > 0) {
+            setPhotos(parsed);
+            setStatus('success');
+          }
+        } catch (e) {
+          localStorage.removeItem(`photos_${slug}`);
+        }
+      }
+    };
+
+    loadGallery();
   }, [slug]);
 
   // === ФУНКЦИИ КАМЕРЫ ===
