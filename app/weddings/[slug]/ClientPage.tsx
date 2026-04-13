@@ -653,11 +653,16 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               {t.subtitle}
             </p>
 
-            {/* КНОПКА (Осталась прежней по функционалу, но лучше вписана в дизайн) */}
+            {/* КНОПКА (Исправлено залипание через blur + timeout) */}
             <button
-              onClick={() => {
+              onClick={(e) => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                setShowChoiceModal(!showChoiceModal); // Работает как выключатель
+                // Снимаем фокус с кнопки, чтобы сбросить состояние :active
+                e.currentTarget.blur();
+                // Даем 50мс на отыгрыш анимации "отжатия" перед открытием шторки
+                setTimeout(() => {
+                  setShowChoiceModal(!showChoiceModal);
+                }, 50);
               }}
               className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-[160]"
             >
@@ -930,12 +935,15 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                           <span className="text-gray-600 group-hover:text-gray-400 transition-colors">→</span>
                         </button>
 
-                        {/* 2. Ввести VIP код */}
+                        {/* 2. Ввести VIP код (Исправлено залипание) */}
                         <button
-                          onClick={() => { 
+                          onClick={(e) => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                            setShowMenu(false); 
-                            setShowPasswordModal(true); 
+                            e.currentTarget.blur();
+                            setTimeout(() => {
+                              setShowMenu(false); 
+                              setShowPasswordModal(true); 
+                            }, 50);
                           }}
                           className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-lux-gold/20"
                         >
