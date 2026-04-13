@@ -194,11 +194,12 @@ export default function StudioAdminPage() {
 
   // === ПРОДЛЕНИЕ ПРОЕКТА ===
   const extendProject = async () => {
-    const monthsStr = prompt("На сколько МЕСЯЦЕВ вы хотите продлить (или задать) срок хранения этого проекта?", "6");
+    const monthsStr = prompt("На сколько МЕСЯЦЕВ вы хотите продлить (или сократить, используя минус) срок хранения этого проекта?", "6");
     if (!monthsStr) return;
     
     const months = parseInt(monthsStr.trim());
-    if (isNaN(months) || months <= 0) {
+    // Убрали проверку months <= 0, теперь можно вводить отрицательные значения!
+    if (isNaN(months)) {
       alert("Пожалуйста, введите корректное число.");
       return;
     }
