@@ -73,7 +73,8 @@ const translations = {
     vipPromptTitle: "Accès Privilégié",
     vipPromptDesc: "Êtes-vous les mariés ou possédez-vous un code d'accès VIP ?",
     yesHaveCode: "Oui, j'ai un code",
-    noGuest: "Non, je suis invité"
+    noGuest: "Non, trouver mes photos",
+    guestHint: "L'IA trouvera vos photos parmi les invités"
   },
   en: {
     welcome: "Welcome",
@@ -114,8 +115,9 @@ const translations = {
     // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
     vipPromptTitle: "Privileged Access",
     vipPromptDesc: "Are you the newlyweds or do you have a VIP access code?",
-    yesHaveCode: "Yes, enter code",
-    noGuest: "No, I'm a guest"
+    yesHaveCode: "Yes, I have a code",
+    noGuest: "No, find my photos",
+    guestHint: "AI will find your photos among all guests"
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -155,9 +157,10 @@ const translations = {
     enterVipCode: "Ввести VIP-код",
     // --- НОВЫЕ ТЕКСТЫ УМНОГО ОНБОРДИНГА ---
     vipPromptTitle: "Привилегированный доступ",
-    vipPromptDesc: "Вы молодожены или у вас есть код VIP-доступа?",
-    yesHaveCode: "Да, ввести код",
-    noGuest: "Нет, я гость"
+    vipPromptDesc: "Вы виновники торжества или у вас есть код VIP-доступа?",
+    yesHaveCode: "Да, у меня есть код",
+    noGuest: "Нет, найти свои фото",
+    guestHint: "ИИ найдет ваши снимки среди всех гостей"
   }
 } as const;
 
@@ -1303,19 +1306,28 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               </p>
 
               {/* Кнопки */}
-              <div className="flex flex-col gap-3 relative z-10">
+              <div className="flex flex-col gap-4 relative z-10 mt-2">
+                {/* Главная кнопка VIP */}
                 <button
                   onClick={acceptVipPrompt}
-                  className="w-full py-4.5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-xl shadow-gold-glow hover:bg-white transition-all active:scale-[0.98]"
+                  className="w-full py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.15em] text-xs rounded-xl shadow-gold-glow hover:bg-white transition-all active:scale-[0.98]"
                 >
                   {t.yesHaveCode}
                 </button>
-                <button
-                  onClick={dismissVipPrompt}
-                  className="w-full py-4.5 bg-transparent border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-xl transition-all active:scale-[0.98]"
-                >
-                  {t.noGuest}
-                </button>
+                
+                {/* Кнопка гостя с подсказкой */}
+                <div className="flex flex-col items-center">
+                  <button
+                    onClick={dismissVipPrompt}
+                    className="w-full py-5 bg-transparent border border-white/20 text-gray-300 hover:text-white hover:bg-white/10 uppercase tracking-[0.15em] text-xs rounded-xl transition-all active:scale-[0.98]"
+                  >
+                    {t.noGuest}
+                  </button>
+                  {/* Новая премиальная подсказка */}
+                  <p className="text-[9px] md:text-[10px] text-gray-500 mt-4 tracking-widest uppercase text-center max-w-[80%] leading-relaxed">
+                    {t.guestHint}
+                  </p>
+                </div>
               </div>
             </motion.div>
           </motion.div>
