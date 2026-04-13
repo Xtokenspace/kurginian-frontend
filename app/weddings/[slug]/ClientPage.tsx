@@ -29,6 +29,8 @@ export interface WeddingMeta {
   title: string;
   subtitle: string;
   covers: string[];
+  is_expired?: boolean;
+  days_left?: number;
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -74,7 +76,14 @@ const translations = {
     vipPromptDesc: "Êtes-vous les mariés ou possédez-vous un code d'accès VIP ?",
     yesHaveCode: "Oui, j'ai un code",
     noGuest: "Non, trouver mes photos",
-    guestHint: "L'IA trouvera vos photos parmi les invités"
+    guestHint: "L'IA trouvera vos photos parmi les invités",
+    expiredTitle: "Collection Verrouillée",
+    expiredDesc: "La période d'accès à votre galerie privée est arrivée à son terme. Afin de préserver la confidentialité de vos souvenirs selon nos standards d'excellence, cette collection sera définitivement retirée de nos serveurs sécurisés dans {days} jours.",
+    extendBtn: "Prolonger l'accès",
+    contactSupportBtn: "Contacter le support",
+    paymentTitle: "Extension de l'accès",
+    selectPeriod: "Sélectionnez la période :",
+    whatsappMsg: "Bonjour, je souhaite prolonger l'accès à la galerie {slug} pour le tarif {plan} ({price}€)."
   },
   en: {
     welcome: "Welcome",
@@ -117,7 +126,14 @@ const translations = {
     vipPromptDesc: "Are you the newlyweds or do you have a VIP access code?",
     yesHaveCode: "Yes, I have a code",
     noGuest: "No, find my photos",
-    guestHint: "AI will find your photos among all guests"
+    guestHint: "AI will find your photos among all guests",
+    expiredTitle: "Collection Locked",
+    expiredDesc: "The viewing period for your private gallery has concluded. To uphold our uncompromising standards of digital privacy, this collection will be permanently erased from our secure servers in {days} days.",
+    extendBtn: "Extend Access",
+    contactSupportBtn: "Contact Support",
+    paymentTitle: "Extend Access",
+    selectPeriod: "Select period:",
+    whatsappMsg: "Hello, I would like to extend access to the {slug} gallery for the {plan} plan ({price}€)."
   },
   ru: {
     welcome: "Добро пожаловать",
@@ -160,49 +176,27 @@ const translations = {
     vipPromptDesc: "Вы виновники торжества или у вас есть код VIP-доступа?",
     yesHaveCode: "Да, у меня есть код",
     noGuest: "Нет, найти свои фото",
-    guestHint: "ИИ найдет ваши снимки среди всех гостей"
+    guestHint: "ИИ найдет ваши снимки среди всех гостей",
+    expiredTitle: "Коллекция Заблокирована",
+    expiredDesc: "Период доступа к вашей частной галерее завершен. В целях соблюдения наших высочайших стандартов цифровой приватности, эта коллекция будет безвозвратно удалена с защищенных серверов через {days} дней.",
+    extendBtn: "Продлить доступ",
+    contactSupportBtn: "Связаться с нами",
+    paymentTitle: "Продление доступа",
+    selectPeriod: "Выберите период:",
+    whatsappMsg: "Здравствуйте, я хочу продлить доступ к галерее {slug} по тарифу {plan} ({price}€)."
   }
 } as const;
 
-// === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ С 3D-ПАРАЛЛАКСОМ (APPLE WALLET STYLE) ===
+// === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
 function PhotoFan({ covers }: { covers: string[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-
-  // --- МАГИЯ ГИРОСКОПА И МЫШИ (Depth of Field) ---
-  useEffect(() => {
-    // Для ПК: следим за мышью
-    const handleMouseMove = (e: MouseEvent) => {
-      // Вычисляем отклонение от центра экрана (от -15 до 15 пикселей)
-      const x = (e.clientX / window.innerWidth - 0.5) * 30;
-      const y = (e.clientY / window.innerHeight - 0.5) * 30;
-      setTilt({ x, y });
-    };
-
-    // Для смартфонов: следим за гироскопом
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      if (e.gamma === null || e.beta === null) return;
-      // gamma - наклон влево/вправо, beta - наклон вперед/назад
-      const x = Math.max(-20, Math.min(20, e.gamma / 2.5));
-      // Вычитаем 45 градусов, так как телефон обычно держат под углом
-      const y = Math.max(-20, Math.min(20, (e.beta - 45) / 2.5)); 
-      setTilt({ x, y });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('deviceorientation', handleOrientation);
-    
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('deviceorientation', handleOrientation);
-    };
-  }, []);
 
   // Функция для тапа: выводим вперед на 2 секунды
   const handleTap = (index: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setActiveIndex(index);
     
+    // Автоматически возвращаем карту обратно через 2 секунды
     setTimeout(() => {
       setActiveIndex((prev) => (prev === index ? null : prev));
     }, 2000);
@@ -215,13 +209,10 @@ function PhotoFan({ covers }: { covers: string[] }) {
   return (
     <div 
       className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" 
-      style={{ WebkitTouchCallout: 'none', perspective: '1000px' }} // perspective добавляет 3D-глубину
+      style={{ WebkitTouchCallout: 'none' }} // Блокирует меню iOS на контейнере
     >
       {covers.map((src, i) => {
         const isActive = activeIndex === i;
-        
-        // Коэффициент глубины: задние фото (i=0 и i=2) двигаются сильнее, чем переднее (i=1)
-        const depthFactor = i === 1 ? 0.4 : 1.2;
         
         return (
           <motion.div
@@ -230,38 +221,29 @@ function PhotoFan({ covers }: { covers: string[] }) {
             initial={{ opacity: 0, y: 50, rotate: 0 }}
             animate={{ 
               opacity: 1, 
-              // Прибавляем значения гироскопа/мыши для создания эффекта скольжения
-              y: isActive ? -20 : yOffsets[i] + (tilt.y * depthFactor), 
-              x: isActive ? 0 : xOffsets[i] + (tilt.x * depthFactor), 
-              rotate: isActive ? 0 : rotations[i] + (tilt.x * 0.15), // Слегка доворачиваем от наклона
+              y: isActive ? -20 : yOffsets[i], 
+              x: isActive ? 0 : xOffsets[i], 
+              rotate: isActive ? 0 : rotations[i],
               scale: isActive ? 1.08 : 1,
               zIndex: isActive ? 50 : (i === 1 ? 30 : 10)
             }}
             transition={{ 
-              duration: isActive ? 0.6 : 0.4, // Плавная реакция на гироскоп
-              delay: activeIndex === null && tilt.x === 0 && tilt.y === 0 ? i * 0.15 : 0, 
+              duration: 0.6, 
+              delay: activeIndex === null ? i * 0.15 : 0, // Задержка только при первом появлении страницы
               type: "spring", 
-              stiffness: isActive ? 200 : 120,
-              damping: isActive ? 15 : 25
+              stiffness: isActive ? 200 : 100,
+              damping: 15
             }}
-            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111] will-change-transform"
+            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
           >
-            {/* Сама картинка */}
+            {/* pointer-events-none и draggable={false} убивают системные меню скачивания */}
             <img 
               src={src} 
               alt="cover" 
               draggable={false}
-              className="w-full h-full object-cover opacity-90 pointer-events-none" 
+              className="w-full h-full object-cover opacity-90 transition-opacity pointer-events-none" 
             />
-            
-            {/* Блик стекла, который реагирует на наклон */}
-            <motion.div 
-              animate={{ opacity: isActive ? 0 : Math.max(0, 0.2 + (tilt.y * -0.01)) }}
-              className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none mix-blend-overlay" 
-            />
-            
-            {/* Темная виньетка по краям */}
             <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
           </motion.div>
         );
@@ -274,9 +256,25 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [showLangMenu, setShowLangMenu] = useState(false);
   const router = useRouter();
 
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error' | 'verify'>('idle');
+  // ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО ПРОЕКТ МЕРТВ - МГНОВЕННО БЛОКИРУЕМ (Никаких камер и экранов приветствия)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error' | 'verify' | 'expired'>(
+    initialMeta?.is_expired ? 'expired' : 'idle'
+  );
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  
+  const { language, setLanguage, refreshSessions } = useAppContext();
+  const t = translations[language];
+
+  // Стейты для модуля продления (Upsell)
+  const [showPayment, setShowPayment] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{label: string, price: number} | null>(null);
+
+  const plans = [
+    { label: language === 'ru' ? '6 месяцев' : language === 'fr' ? '6 mois' : '6 months', price: 15 },
+    { label: language === 'ru' ? '1 год' : language === 'fr' ? '1 an' : '1 year', price: 25 },
+    { label: language === 'ru' ? 'Навсегда' : language === 'fr' ? 'À vie' : 'Lifetime', price: 50 },
+  ];
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -332,16 +330,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }, 300); 
   };
 
-  const startGuestFlow = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-    localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
-    setShowInitialVipPrompt(false);
-    setTimeout(() => {
-      // Открываем ту самую нижнюю шторку выбора (Камера ИЛИ Галерея телефона)
-      setShowChoiceModal(true); 
-    }, 300); 
-  };
-
 
   // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (ПРИШЛИ С СЕРВЕРА БЕЗ МЕРЦАНИЯ) ===
   const [metaInfo, setMetaInfo] = useState<WeddingMeta | null>(initialMeta);
@@ -354,24 +342,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }
   };
 
-  // --- ЭМОЦИОНАЛЬНЫЙ ДВИЖОК: Haptic Heartbeat ---
-  // Имитируем биение сердца (тук-тук... тук-тук) во время анализа лица
-  useEffect(() => {
-    let heartbeatInterval: NodeJS.Timeout;
-    
-    if (status === 'loading') {
-      // Запускаем сердцебиение каждые 1.2 секунды
-      heartbeatInterval = setInterval(() => {
-        // Паттерн: вибрация 40мс, пауза 60мс, вибрация 50мс
-        triggerVibration([40, 60, 50]);
-      }, 1200);
-    }
-    
-    // Обязательно очищаем интервал, когда загрузка закончится (успех или ошибка)
-    return () => {
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
-    };
-  }, [status]);
 
   // Обработчик проверки пароля через API
   const handlePasswordSubmit = async () => {
@@ -384,6 +354,16 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       });
 
       if (response.ok) {
+        const data = await response.json();
+        
+        // Перехват API Shield: Проект заморожен
+        if (data.status === 'expired') {
+          setStatus('expired');
+          setShowPasswordModal(false);
+          triggerVibration([50, 100, 50]);
+          return;
+        }
+
         // СОХРАНЯЕМ ПАРОЛЬ И КРАСИВОЕ ИМЯ
         localStorage.setItem(`vip_code_${slug}`, passwordInput);
         if (metaInfo?.title) localStorage.setItem(`title_${slug}`, metaInfo.title);
@@ -402,9 +382,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       setTimeout(() => setPasswordError(false), 2000);
     }
   };
-
-  const { language, setLanguage, refreshSessions } = useAppContext(); // <-- ДОБАВЛЕНО
-  const t = translations[language];
 
   // Загружаем фото из памяти ИЛИ перехватываем магическую ссылку-подборку
   useEffect(() => {
@@ -647,6 +624,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       }
 
       const data: AuthResponse = await response.json();
+
+      // Перехват API Shield: Проект заморожен
+      if (data.status === 'expired') {
+        setStatus('expired');
+        triggerVibration([50, 100, 50]);
+        return;
+      }
 
       if (data.matches_count > 0) {
         const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
@@ -976,6 +960,145 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           </motion.div>
         )}
 
+        {/* === ПРЕМИУМ ЭКРАН БЛОКИРОВКИ (THE REAPER LOCK SCREEN) === */}
+        {status === 'expired' && (
+          <motion.div 
+            key="expired"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[150] flex items-center justify-center p-6 overflow-hidden bg-black"
+          >
+            {/* AMBIENT GLOW ОТ ОБЛОЖКИ СВАДЬБЫ */}
+            {metaInfo?.covers?.[0] && (
+              <>
+                <div 
+                  className="absolute inset-0 bg-cover bg-center opacity-30 scale-110 blur-2xl"
+                  style={{ backgroundImage: `url(${metaInfo.covers[0]})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/60" />
+              </>
+            )}
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }}
+              className="relative z-10 w-full max-w-md bg-lux-card/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center"
+            >
+              {/* Премиальная иконка Замка/Песочных часов */}
+              <div className="w-16 h-16 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6 relative">
+                <div className="absolute inset-0 rounded-full shadow-[0_0_30px_rgba(212,175,55,0.2)] animate-pulse" />
+                <svg className="w-6 h-6 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              </div>
+
+              <h2 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest mb-4">
+                {/* @ts-ignore */}
+                {t.expiredTitle}
+              </h2>
+              
+              <p className="font-montserrat text-xs md:text-sm text-gray-300 leading-relaxed mb-10">
+                {/* @ts-ignore - Динамически подставляем дни из API */}
+                {t.expiredDesc.replace('{days}', (metaInfo?.days_left ?? 7).toString())}
+              </p>
+
+              <div className="flex flex-col gap-4">
+                {/* Кнопка Продления (Открывает Bottom Sheet) */}
+                <button 
+                  onClick={() => {
+                    triggerVibration(10);
+                    setShowPayment(true);
+                  }}
+                  className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.15em] rounded-xl hover:bg-white transition-all duration-300 font-bold text-xs shadow-gold-glow"
+                >
+                  {/* @ts-ignore */}
+                  {t.extendBtn}
+                </button>
+                
+                {/* Кнопка Связи с фотографом */}
+                <button 
+                  onClick={() => {
+                    triggerVibration(10);
+                    window.open("https://wa.me/33621443657", "_blank");
+                  }}
+                  className="w-full py-4 bg-transparent border border-white/20 text-gray-400 hover:text-white hover:bg-white/5 uppercase tracking-[0.15em] rounded-xl transition-all duration-300 text-xs"
+                >
+                  {/* @ts-ignore */}
+                  {t.contactSupportBtn}
+                </button>
+              </div>
+            </motion.div>
+
+            {/* ВЫЕЗЖАЮЩАЯ ШТОРКА ОПЛАТЫ (UPSELL) */}
+            <AnimatePresence>
+              {showPayment && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowPayment(false)}
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[160]"
+                  />
+                  <motion.div
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "100%" }}
+                    transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                    className="fixed bottom-0 left-0 right-0 z-[170] flex flex-col items-center"
+                  >
+                    <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-[2.5rem] p-8 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+                      <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-8" />
+                      <h3 className="font-cinzel text-xl text-lux-gold mb-6 text-center tracking-widest uppercase">
+                        {/* @ts-ignore */}
+                        {t.paymentTitle}
+                      </h3>
+                      
+                      <div className="space-y-3 mb-6">
+                        {plans.map((plan, i) => (
+                          <button
+                            key={i}
+                            onClick={() => { triggerVibration(10); setSelectedPlan(plan); }}
+                            className={`w-full flex justify-between items-center p-4 rounded-xl border transition-all ${
+                              selectedPlan?.label === plan.label 
+                                ? 'border-lux-gold bg-lux-gold/10' 
+                                : 'border-white/10 bg-[#111] hover:border-white/30'
+                            }`}
+                          >
+                            <span className={`text-sm uppercase tracking-wider ${selectedPlan?.label === plan.label ? 'text-lux-gold font-bold' : 'text-gray-300'}`}>
+                              {plan.label}
+                            </span>
+                            <span className={`text-lg font-cinzel ${selectedPlan?.label === plan.label ? 'text-lux-gold' : 'text-white'}`}>
+                              {plan.price}€
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        disabled={!selectedPlan}
+                        onClick={() => {
+                          triggerVibration(50);
+                          if (!selectedPlan) return;
+                          // @ts-ignore
+                          const msg = t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', selectedPlan.price.toString());
+                          window.open(`https://wa.me/33621443657?text=${encodeURIComponent(msg)}`, "_blank");
+                        }}
+                        className="w-full py-4 bg-[#25D366] text-white uppercase tracking-[0.15em] rounded-xl hover:bg-[#1ebe5d] transition-all font-bold text-xs disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.05-.711-.024-1.013-.16-.301-.137-1.786-.713-3.414-2.164-1.258-1.12-2.106-2.5-2.355-2.833-.25-.334-.027-.514.118-.66.13-.13.283-.332.425-.499.141-.166.188-.284.283-.474.094-.189.047-.356-.024-.499-.07-.142-.837-2.022-1.147-2.766-.301-.726-.607-.627-.837-.638-.216-.011-.466-.014-.716-.014-.25 0-.658.094-1.003.469-.345.375-1.317 1.288-1.317 3.141s1.35 3.642 1.538 3.892c.188.25 2.656 4.053 6.434 5.592.898.365 1.598.584 2.144.748.902.27 1.722.232 2.37.14.733-.105 2.251-.92 2.566-1.81.315-.89.315-1.651.22-1.81-.095-.158-.345-.253-.775-.469zM12 2C6.48 2 2 6.48 2 12c0 1.76.455 3.408 1.246 4.839L2 22l5.29-1.201C8.636 21.56 10.274 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                        WhatsApp
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
+        
         {/* ЭКРАН УСПЕХА */}
         {status === 'success' && (
           <motion.div 
@@ -1181,7 +1304,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
               <button 
                 onClick={() => {
-                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); // Принудительно глушим вибромотор
                   stopCamera();
                   // ТОЧЕЧНОЕ ЛЕЧЕНИЕ: 
                   // Если мы не в success (например, застряли в error после неудачного селфи):
@@ -1393,7 +1515,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 {/* Кнопка гостя с подсказкой */}
                 <div className="flex flex-col items-center">
                   <button
-                    onClick={startGuestFlow} // <-- ИЗМЕНИЛИ ФУНКЦИЮ ЗДЕСЬ
+                    onClick={dismissVipPrompt}
                     className="w-full py-5 bg-transparent border border-white/20 text-gray-300 hover:text-white hover:bg-white/10 uppercase tracking-[0.15em] text-xs rounded-xl transition-all active:scale-[0.98]"
                   >
                     {t.noGuest}
