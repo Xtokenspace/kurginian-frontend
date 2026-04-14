@@ -1316,12 +1316,12 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                     initial={{ y: "100%" }}
                     animate={{ y: 0 }}
                     exit={{ y: "100%" }}
-                    transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     drag="y"
-                    dragConstraints={{ top: 0 }}
-                    dragElastic={0.15}
+                    dragConstraints={{ top: 0, bottom: 800 }}
+                    dragElastic={0.1}
                     onDragEnd={(e, info) => {
-                      if (info.offset.y > 100) {
+                      if (info.offset.y > 80) {
                         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                         closeModalSafe(() => setShowMenu(false));
                       }
@@ -1533,12 +1533,12 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
               drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={0.15}
+              dragConstraints={{ top: 0, bottom: 800 }}
+              dragElastic={0.1}
               onDragEnd={(e, info) => {
-                if (info.offset.y > 100) {
+                if (info.offset.y > 80) {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                   closeModalSafe(() => setShowChoiceModal(false));
                 }

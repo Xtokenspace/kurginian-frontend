@@ -324,17 +324,11 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
       <div className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4">
         <button
           onClick={() => router.push('/')}
-          className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium hover:bg-lux-gold hover:text-black text-gray-300 transition-all shadow-lg group"
+          className="flex items-center gap-2 bg-[#0a0a0a]/60 backdrop-blur-md border border-white/10 rounded-full px-5 py-2.5 text-[10px] font-medium hover:border-lux-gold/50 hover:text-lux-gold text-gray-400 transition-all shadow-lg group uppercase tracking-[0.2em]"
         >
-          <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
-          <span className="hidden md:inline uppercase tracking-widest">
-            {t.home}
-          </span>
+          <span className="text-lg group-hover:-translate-x-1 transition-transform opacity-70">←</span>
+          {t.home}
         </button>
-        
-        <div className="bg-lux-gold text-black px-4 py-2 rounded-3xl font-cinzel font-bold text-xs tracking-[0.2em] shadow-gold-glow">
-          VIP ACCESS
-        </div>
       </div>
 
       <div className="w-full max-w-7xl mx-auto pt-24 pb-20">
@@ -355,7 +349,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                 <svg className="w-4 h-4 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                 </svg>
-                <p className="text-[10px] md:text-xs text-gray-300 uppercase tracking-widest whitespace-nowrap">
+                <p className="text-[10px] md:text-xs text-gray-300 uppercase tracking-widest leading-relaxed text-balance max-w-[180px] sm:max-w-none">
                   {t.archiveUntil} <span className="text-lux-gold font-bold ml-1">{new Date(expiresAt).toLocaleDateString()}</span>
                 </p>
               </div>
@@ -447,12 +441,12 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "tween", duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
               drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={0.15}
+              dragConstraints={{ top: 0, bottom: 800 }}
+              dragElastic={0.1}
               onDragEnd={(e, info) => {
-                if (info.offset.y > 100) {
+                if (info.offset.y > 80) {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                   closeModalSafe(() => setShowMenu(false));
                 }

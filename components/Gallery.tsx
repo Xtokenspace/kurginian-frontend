@@ -971,12 +971,20 @@ export default function Gallery({
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setLongPressedIndex(null)}
-                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140]"
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140] touch-none"
               />
               <motion.div
                 initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-                transition={{ type: "tween", duration: 0.25, ease: "easeOut" }}
-                className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center"
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 500 }}
+                dragElastic={0.2}
+                onDragEnd={(e, info) => {
+                  if (info.offset.y > 50) {
+                    setLongPressedIndex(null);
+                  }
+                }}
+                className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center touch-none will-change-transform"
               >
                 <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl p-6 pb-10 shadow-2xl relative">
                   <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
