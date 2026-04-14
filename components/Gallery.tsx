@@ -34,6 +34,12 @@ interface GalleryProps {
   isVip?: boolean;
   currentLanguage?: 'fr' | 'en' | 'ru';
   guestClusters?: Record<string, GuestCluster>;
+
+  // === УМНОЕ УПРАВЛЕНИЕ LIGHTBOX И ФИЛЬТРОМ ИЗ АДМИНКИ ===
+  isLightboxOpen?: boolean;
+  setIsLightboxOpen?: (open: boolean) => void;
+  selectedGuestId?: string | null;
+  setSelectedGuestId?: (id: string | null) => void;
 }
 
 // --- ПЕРЕВОДЫ ДЛЯ LIGHTBOX И SMART SEARCH ---
@@ -288,7 +294,19 @@ function PhotoRowItem({
 }
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
-export default function Gallery({ photos, slug, expiresAt, isVip = false, currentLanguage, guestClusters }: GalleryProps) {
+export default function Gallery({ 
+  photos, 
+  slug, 
+  expiresAt, 
+  isVip = false, 
+  currentLanguage, 
+  guestClusters,
+  // Новые пропсы из админки
+  isLightboxOpen = false,
+  setIsLightboxOpen,
+  selectedGuestId: externalSelectedGuestId,
+  setSelectedGuestId: externalSetSelectedGuestId
+}: GalleryProps) {
   const router = useRouter();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
@@ -298,7 +316,10 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
   // --- СТЕЙТЫ SMART SEARCH (ИИ ГОСТЕЙ) ---
   const [showGuests, setShowGuests] = useState(false);
-  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+  
+  // Используем внешние стейты из админки, если они переданы
+  const selectedGuestId = externalSelectedGuestId ?? null;
+  const setSelectedGuestId = externalSetSelectedGuestId ?? (() => {});
 
   // --- СТЕЙТЫ МУЛЬТИВЫБОРА И 3D TOUCH ---
   const [longPressedIndex, setLongPressedIndex] = useState<number | null>(null);
@@ -580,10 +601,14 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
   };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
-  const openLightbox = (index: number) => {
+    const openLightbox = (index: number) => {
     triggerVibration(10); 
-    setZoomScale(1); // Сброс зума при открытии
-    setShowLightboxGuests(false); // Сбрасываем сканер лиц
+    setZoomScale(1);
+    setShowLightboxGuests(false);
+    
+    // Уведомляем админку, что Lightbox открыт
+    if (setIsLightboxOpen) setIsLightboxOpen(true);
+    
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
   };
@@ -604,21 +629,27 @@ export default function Gallery({ photos, slug, expiresAt, isVip = false, curren
 
     setSelectedIndex(null);
     setZoomScale(1);
+    
+    // Уведомляем админку, что Lightbox закрыт
+    if (setIsLightboxOpen) setIsLightboxOpen(false);
+    
     if (window.history.state && window.history.state.lightbox) {
       window.history.back();
     }
   };
 
+  // Умный перехват кнопки "Назад" браузера
   useEffect(() => {
     const handlePopState = () => {
       if (selectedIndex !== null) {
         setSelectedIndex(null);
         setZoomScale(1);
+        if (setIsLightboxOpen) setIsLightboxOpen(false);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedIndex]);
+  }, [selectedIndex, setIsLightboxOpen]);
 
   // Обработка клавиатуры и свайпов
   useEffect(() => {

@@ -115,15 +115,21 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
 
-  // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API) ===
+  // === УМНЫЙ СЕРВИС КНОПОК "НАЗАД" ДЛЯ ВСЕХ ОВЕРЛЕЕВ ===
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [selectedGuestId, setSelectedGuestId] = useState<string | null>(null);
+
+  // === УМНЫЙ ПЕРЕХВАТ КНОПКИ "НАЗАД" БРАУЗЕРА ===
   useEffect(() => {
     const handlePopState = () => {
       if (showMenu) setShowMenu(false);
       if (showPaymentModal) setShowPaymentModal(false);
+      if (isLightboxOpen) setIsLightboxOpen(false);
+      if (selectedGuestId) setSelectedGuestId(null);
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMenu, showPaymentModal]);
+  }, [showMenu, showPaymentModal, isLightboxOpen, selectedGuestId]);
 
   const closeModalSafe = (closeFn: () => void) => {
     closeFn();
@@ -355,6 +361,12 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           isVip={true} 
           currentLanguage={language} 
           guestClusters={guestClusters}
+          
+          // === Передаём управление Lightbox и фильтром по гостю ===
+          isLightboxOpen={isLightboxOpen}
+          setIsLightboxOpen={setIsLightboxOpen}
+          selectedGuestId={selectedGuestId}
+          setSelectedGuestId={setSelectedGuestId}
         />
       </div>
 
