@@ -122,10 +122,22 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   // === УМНЫЙ ПЕРЕХВАТ КНОПКИ "НАЗАД" БРАУЗЕРА ===
   useEffect(() => {
     const handlePopState = () => {
-      if (showMenu) setShowMenu(false);
-      if (showPaymentModal) setShowPaymentModal(false);
-      if (isLightboxOpen) setIsLightboxOpen(false);
-      if (selectedGuestId) setSelectedGuestId(null);
+      // Приоритет закрытия: сначала верхние оверлеи
+      if (showMenu) {
+        setShowMenu(false);
+        return;               // ← Сначала закрываем меню
+      }
+      if (isLightboxOpen) {
+        setIsLightboxOpen(false);
+        return;
+      }
+      if (showPaymentModal) {
+        setShowPaymentModal(false);
+        return;
+      }
+      if (selectedGuestId) {
+        setSelectedGuestId(null);   // ← Сброс фильтра по гостю
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
