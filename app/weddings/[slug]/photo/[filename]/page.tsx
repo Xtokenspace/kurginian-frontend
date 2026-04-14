@@ -304,6 +304,8 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             onClick={() => {
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
               localStorage.removeItem(`photos_${slug}`);
+              localStorage.removeItem(`title_${slug}`);
+              localStorage.removeItem(`expires_${slug}`);
               refreshSessions(); // <-- Обновляем дашборд!
               router.push(`/weddings/${slug}`);
             }}
@@ -324,7 +326,10 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             exit={{ opacity: 0, y: 20 }}
             className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-sm font-bold shadow-gold-glow flex items-center gap-2 z-[200] text-xs uppercase tracking-wider"
           >
-            ✅ {t.toast}
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            {t.toast}
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,4 +1,4 @@
-// === ФАЙЛ: app/weddings/[slug]/page.tsx (ГОСТЕВАЯ КАМЕРА) ===
+// === ФАЙЛ: app/weddings/[slug]/ClientPage.tsx ===
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -207,16 +207,34 @@ const translations = {
 // === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
 function PhotoFan({ covers }: { covers: string[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
-  // Функция для тапа: выводим вперед на 2 секунды
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 30;
+      const y = (e.clientY / window.innerHeight - 0.5) * 30;
+      setTilt({ x, y });
+    };
+
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma === null || e.beta === null) return;
+      const x = Math.max(-20, Math.min(20, e.gamma / 2.5));
+      const y = Math.max(-20, Math.min(20, (e.beta - 45) / 2.5)); 
+      setTilt({ x, y });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('deviceorientation', handleOrientation);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, []);
+
   const handleTap = (index: number) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setActiveIndex(index);
-    
-    // Автоматически возвращаем карту обратно через 2 секунды
-    setTimeout(() => {
-      setActiveIndex((prev) => (prev === index ? null : prev));
-    }, 2000);
+    setTimeout(() => setActiveIndex((prev) => (prev === index ? null : prev)), 2000);
   };
 
   const rotations = [-12, 0, 12];
@@ -224,12 +242,10 @@ function PhotoFan({ covers }: { covers: string[] }) {
   const yOffsets = [15, 0, 15];
 
   return (
-    <div 
-      className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" 
-      style={{ WebkitTouchCallout: 'none' }} // Блокирует меню iOS на контейнере
-    >
+    <div className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" style={{ WebkitTouchCallout: 'none', perspective: '1000px' }}>
       {covers.map((src, i) => {
         const isActive = activeIndex === i;
+        const depthFactor = i === 1 ? 0.4 : 1.2;
         
         return (
           <motion.div
@@ -238,29 +254,22 @@ function PhotoFan({ covers }: { covers: string[] }) {
             initial={{ opacity: 0, y: 50, rotate: 0 }}
             animate={{ 
               opacity: 1, 
-              y: isActive ? -20 : yOffsets[i], 
-              x: isActive ? 0 : xOffsets[i], 
-              rotate: isActive ? 0 : rotations[i],
+              y: isActive ? -20 : yOffsets[i] + (tilt.y * depthFactor), 
+              x: isActive ? 0 : xOffsets[i] + (tilt.x * depthFactor), 
+              rotate: isActive ? 0 : rotations[i] + (tilt.x * 0.15), 
               scale: isActive ? 1.08 : 1,
               zIndex: isActive ? 50 : (i === 1 ? 30 : 10)
             }}
             transition={{ 
-              duration: 0.6, 
-              delay: activeIndex === null ? i * 0.15 : 0, // Задержка только при первом появлении страницы
-              type: "spring", 
-              stiffness: isActive ? 200 : 100,
-              damping: 15
+              duration: isActive ? 0.6 : 0.4, 
+              delay: activeIndex === null && tilt.x === 0 && tilt.y === 0 ? i * 0.15 : 0, 
+              type: "spring", stiffness: isActive ? 200 : 120, damping: isActive ? 15 : 25
             }}
-            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111]"
+            className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111] will-change-transform"
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
           >
-            {/* pointer-events-none и draggable={false} убивают системные меню скачивания */}
-            <img 
-              src={src} 
-              alt="cover" 
-              draggable={false}
-              className="w-full h-full object-cover opacity-90 transition-opacity pointer-events-none" 
-            />
+            <img src={src} alt="cover" draggable={false} className="w-full h-full object-cover opacity-90 pointer-events-none" />
+            <motion.div animate={{ opacity: isActive ? 0 : Math.max(0, 0.2 + (tilt.y * -0.01)) }} className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none mix-blend-overlay" />
             <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
           </motion.div>
         );
@@ -316,6 +325,28 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   // Стейты умного онбординга (Вопрос при первом входе)
   const [showInitialVipPrompt, setShowInitialVipPrompt] = useState(false);
 
+  // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API) ===
+  useEffect(() => {
+    const handlePopState = () => {
+      if (showMenu) setShowMenu(false);
+      if (showPasswordModal) setShowPasswordModal(false);
+      if (showPayment) setShowPayment(false);
+      if (showChoiceModal) setShowChoiceModal(false);
+      if (isCameraActive) {
+        stopCamera();
+        if (status !== 'success') setStatus(photos.length > 0 ? 'success' : 'idle');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showMenu, showPasswordModal, showPayment, showChoiceModal, isCameraActive, status, photos.length]);
+
+  // Универсальная функция для безопасного закрытия окон
+  const closeModalSafe = (closeFn: () => void) => {
+    closeFn();
+    if (window.history.state?.overlay) window.history.back();
+  };
+
   // Логика умного показа вопроса
   useEffect(() => {
     // Проверяем: спрашивали ли мы уже? Есть ли уже фото? Вошел ли уже как VIP?
@@ -339,12 +370,23 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     setShowInitialVipPrompt(false);
   };
 
+  const startGuestFlow = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
+    setShowInitialVipPrompt(false);
+    setTimeout(() => {
+      window.history.pushState({ overlay: 'camera_flow' }, "");
+      setShowChoiceModal(true); 
+    }, 300); 
+  };
+
   const acceptVipPrompt = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
     setShowInitialVipPrompt(false);
     setTimeout(() => {
-      setShowPasswordModal(true); // Плавно открываем окно пароля
+      window.history.pushState({ overlay: 'vip' }, "");
+      setShowPasswordModal(true); 
     }, 300); 
   };
 
@@ -835,7 +877,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 e.currentTarget.blur();
                 // Даем 50мс на отыгрыш анимации "отжатия" перед открытием шторки
                 setTimeout(() => {
-                  setShowChoiceModal(!showChoiceModal);
+                  window.history.pushState({ overlay: 'camera_flow' }, ""); // <-- ПУШ
+                  setShowChoiceModal(true);
                 }, 50);
               }}
               className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-10"
@@ -1027,6 +1070,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 <button 
                   onClick={() => {
                     triggerVibration(10);
+                    window.history.pushState({ overlay: 'payment' }, "");
                     setShowPayment(true);
                   }}
                   className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.15em] rounded-xl hover:bg-white transition-all duration-300 font-bold text-xs shadow-gold-glow"
@@ -1067,9 +1111,11 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                       </h2>
                       <button 
                         onClick={() => { 
-                          setShowPayment(false); 
-                          setSelectedPlan(null); 
-                          setPaymentStep('select');
+                          closeModalSafe(() => {
+                            setShowPayment(false); 
+                            setSelectedPlan(null); 
+                            setPaymentStep('select');
+                          });
                         }} 
                         className="text-gray-500 hover:text-white text-2xl leading-none"
                       >
@@ -1208,6 +1254,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                if (!showMenu) window.history.pushState({ overlay: 'menu' }, ""); // <-- ПУШ
+                else if (window.history.state?.overlay) window.history.back(); // <-- ОТКАТ КРЕСТИКОМ
                 setShowMenu(!showMenu);
               }}
               className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
@@ -1228,7 +1276,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     onClick={() => {
                       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                      setShowMenu(false);
+                      closeModalSafe(() => setShowMenu(false));
                     }}
                     className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] will-change-[opacity]"
                   />
@@ -1245,7 +1293,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                     onDragEnd={(e, info) => {
                       if (info.offset.y > 100) {
                         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                        setShowMenu(false);
+                        closeModalSafe(() => setShowMenu(false));
                       }
                     }}
                     className="fixed bottom-0 left-0 right-0 z-[130] flex flex-col items-center touch-none will-change-transform"
@@ -1262,8 +1310,11 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                            setShowMenu(false); 
-                            setShowChoiceModal(true); 
+                            closeModalSafe(() => setShowMenu(false));
+                            setTimeout(() => {
+                              window.history.pushState({ overlay: 'camera_flow' }, "");
+                              setShowChoiceModal(true); 
+                            }, 50);
                           }}
                           className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
                         >
@@ -1281,8 +1332,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                           onClick={(e) => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             e.currentTarget.blur();
+                            closeModalSafe(() => setShowMenu(false));
                             setTimeout(() => {
-                              setShowMenu(false); 
+                              window.history.pushState({ overlay: 'vip' }, "");
                               setShowPasswordModal(true); 
                             }, 50);
                           }}
@@ -1301,7 +1353,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                            setShowMenu(false); 
+                            closeModalSafe(() => setShowMenu(false)); 
                             window.open("https://www.instagram.com/hdart26/", "_blank"); 
                           }}
                           className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
@@ -1320,7 +1372,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                         <button
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                            setShowMenu(false); 
+                            closeModalSafe(() => setShowMenu(false)); 
                             window.open("https://kurginian.pro", "_blank"); 
                           }}
                           className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group"
@@ -1357,14 +1409,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
               <button 
                 onClick={() => {
-                  stopCamera();
-                  // ТОЧЕЧНОЕ ЛЕЧЕНИЕ: 
-                  // Если мы не в success (например, застряли в error после неудачного селфи):
-                  if (status !== 'success') {
-                    // Если у юзера уже есть фото -> бережно возвращаем его в галерею
-                    // Если фоток нет -> возвращаем на стартовый экран
-                    setStatus(photos.length > 0 ? 'success' : 'idle');
-                  }
+                  closeModalSafe(() => {
+                    stopCamera();
+                    if (status !== 'success') setStatus(photos.length > 0 ? 'success' : 'idle');
+                  });
                 }} 
                 className="text-white hover:text-lux-gold text-sm tracking-widest uppercase"
               >
@@ -1446,7 +1494,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[140] will-change-[opacity]"
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                setShowChoiceModal(false);
+                closeModalSafe(() => setShowChoiceModal(false));
               }}
             />
 
@@ -1462,7 +1510,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                  setShowChoiceModal(false);
+                  closeModalSafe(() => setShowChoiceModal(false));
                 }
               }}
               className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center touch-none will-change-transform"
@@ -1568,7 +1616,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 {/* Кнопка гостя с подсказкой */}
                 <div className="flex flex-col items-center">
                   <button
-                    onClick={dismissVipPrompt}
+                    onClick={startGuestFlow}
                     className="w-full py-5 bg-transparent border border-white/20 text-gray-300 hover:text-white hover:bg-white/10 uppercase tracking-[0.15em] text-xs rounded-xl transition-all active:scale-[0.98]"
                   >
                     {t.noGuest}
@@ -1592,7 +1640,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-6"
-            onClick={() => setShowPasswordModal(false)}
+            onClick={() => closeModalSafe(() => setShowPasswordModal(false))}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1628,7 +1676,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
               <div className="flex gap-4 mt-6">
                 <button
-                  onClick={() => setShowPasswordModal(false)}
+                  onClick={() => closeModalSafe(() => setShowPasswordModal(false))}
                   className="flex-1 px-4 py-3 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
                 >
                   {t.cancel}

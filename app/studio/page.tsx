@@ -36,6 +36,26 @@ export default function StudioAdminPage() {
   const [isSelectingCovers, setIsSelectingCovers] = useState(false);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
 
+  // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedProject) {
+        setSelectedProject(null);
+        setIsSelectingCovers(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedProject]);
+
+  const closeProjectViewSafe = () => {
+    setSelectedProject(null);
+    setIsSelectingCovers(false);
+    if (window.history.state?.view === 'project') {
+      window.history.back();
+    }
+  };
+
   useEffect(() => {
     const savedPassword = sessionStorage.getItem('super_admin_pwd');
     if (savedPassword) {
@@ -86,6 +106,7 @@ export default function StudioAdminPage() {
 
   // === ОТКРЫТИЕ КОНКРЕТНОЙ СВАДЬБЫ ===
   const openProject = async (slug: string) => {
+    window.history.pushState({ view: 'project' }, "");
     setSelectedProject(slug);
     setProjectPhotos([]);
     setProjectExpiry(null);
@@ -243,8 +264,8 @@ export default function StudioAdminPage() {
       });
       if (res.ok) {
         alert("Проект успешно удален.");
-        setSelectedProject(null);
-        fetchDashboardData(pwd!); // Обновляем дашборд
+        closeProjectViewSafe();
+        fetchDashboardData(pwd!);
       } else {
         alert("Ошибка при удалении проекта.");
       }
@@ -283,7 +304,7 @@ export default function StudioAdminPage() {
   };
 
   const toggleCover = (filename: string) => {
-    if (!isSelectingCovers) return; // Кликаем только в режиме редактирования
+    if (!isSelectingCovers) return;
     
     setSelectedCovers(prev => {
       if (prev.includes(filename)) return prev.filter(f => f !== filename);
@@ -319,7 +340,7 @@ export default function StudioAdminPage() {
     <div className="min-h-screen bg-[#050505] text-white font-montserrat pb-20">
       <header className="border-b border-white/10 bg-[#0a0a0a] sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 cursor-pointer" onClick={() => setSelectedProject(null)}>
+          <div className="flex items-center gap-4 cursor-pointer" onClick={closeProjectViewSafe}>
             <span className="font-cinzel text-xl text-lux-gold tracking-widest uppercase hover:text-white transition-colors">Kurginian Studio</span>
             <span className="hidden md:inline-block px-2 py-1 bg-white/10 rounded text-[10px] uppercase tracking-widest text-gray-400">Super Admin</span>
           </div>
@@ -375,7 +396,15 @@ export default function StudioAdminPage() {
             </motion.div>
           ) : (
             <motion.div key="project-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-              <button onClick={() => setSelectedProject(null)} className="text-gray-500 hover:text-white uppercase tracking-widest text-xs mb-6 flex items-center gap-2 transition-colors">← Back to Dashboard</button>
+              <button 
+                onClick={closeProjectViewSafe} 
+                className="text-gray-500 hover:text-white uppercase tracking-widest text-xs mb-6 flex items-center gap-2 transition-colors group"
+              >
+                <svg className="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Back to Dashboard
+              </button>
               
               {/* === ПАНЕЛЬ УПРАВЛЕНИЯ ПРОЕКТОМ === */}
               <div className="bg-[#0a0a0a] border border-white/10 p-6 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -497,7 +526,13 @@ export default function StudioAdminPage() {
                             disabled={isDeleting === photo.filename} 
                             className="absolute top-2 right-2 w-8 h-8 bg-red-500/80 hover:bg-red-600 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform group-hover:scale-100 scale-75 shadow-lg z-10 disabled:bg-gray-500"
                           >
-                            {isDeleting === photo.filename ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span>✕</span>}
+                            {isDeleting === photo.filename ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
                           </button>
                         )}
                       </div>

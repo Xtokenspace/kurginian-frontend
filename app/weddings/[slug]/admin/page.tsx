@@ -108,12 +108,27 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   const { language, setLanguage } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [guestClusters, setGuestClusters] = useState<any>(null); // <-- НОВОЕ: Стейт для лиц гостей
+  const [guestClusters, setGuestClusters] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
+
+  // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API) ===
+  useEffect(() => {
+    const handlePopState = () => {
+      if (showMenu) setShowMenu(false);
+      if (showPaymentModal) setShowPaymentModal(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showMenu, showPaymentModal]);
+
+  const closeModalSafe = (closeFn: () => void) => {
+    closeFn();
+    if (window.history.state?.overlay) window.history.back();
+  };
 
   const t = translations[language];
 
@@ -144,7 +159,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           );
           setPhotos(sortedPhotos);
           setExpiresAt(data.expires_at);
-          setGuestClusters(data.guest_clusters); // <-- НОВОЕ: Записываем базу лиц из ответа сервера
+          setGuestClusters(data.guest_clusters);
 
           // 2. ЗАПРОС АНАЛИТИКИ (Запускаем сразу после успеха авторизации)
           const statsRes = await fetch(`${apiUrl}/api/weddings/${slug}/analytics-data`, {
@@ -241,6 +256,8 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
         onClick={() => {
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+          if (!showMenu) window.history.pushState({ overlay: 'menu' }, "");
+          else if (window.history.state?.overlay) window.history.back();
           setShowMenu(!showMenu);
         }}
         className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
@@ -286,7 +303,11 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                 <span className="text-lux-gold text-lg">{new Date(expiresAt).toLocaleDateString()}</span>
               </p>
               <button 
-                onClick={() => setShowPaymentModal(true)}
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                  window.history.pushState({ overlay: 'payment' }, "");
+                  setShowPaymentModal(true);
+                }}
                 className="w-full px-6 py-2.5 bg-lux-gold/10 hover:bg-lux-gold text-lux-gold hover:text-black border border-lux-gold transition-all text-[10px] md:text-xs font-bold uppercase tracking-widest"
               >
                 {t.extendArchive}
@@ -333,7 +354,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           expiresAt={expiresAt} 
           isVip={true} 
           currentLanguage={language} 
-          guestClusters={guestClusters} // <-- НОВОЕ: Прокидываем данные в наш умный компонент
+          guestClusters={guestClusters}
         />
       </div>
 
@@ -349,7 +370,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               transition={{ duration: 0.2, ease: "easeOut" }}
               onClick={() => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                setShowMenu(false);
+                closeModalSafe(() => setShowMenu(false));
               }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] will-change-[opacity]"
             />
@@ -366,7 +387,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                  setShowMenu(false);
+                  closeModalSafe(() => setShowMenu(false));
                 }
               }}
               className="fixed bottom-0 left-0 right-0 z-[130] flex flex-col items-center touch-none will-change-transform"
@@ -383,7 +404,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                   <button
                     onClick={() => { 
                       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                      setShowMenu(false); 
+                      closeModalSafe(() => setShowMenu(false));
                       window.open("https://www.instagram.com/hdart26/", "_blank"); 
                     }}
                     className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5"
@@ -402,7 +423,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                   <button
                     onClick={() => { 
                       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                      setShowMenu(false); 
+                      closeModalSafe(() => setShowMenu(false));
                       window.open("https://kurginian.pro", "_blank"); 
                     }}
                     className="w-full bg-transparent hover:bg-white/5 transition-colors flex items-center justify-between px-5 py-4 group"
@@ -436,7 +457,15 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                 <h2 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest">
                   {t.paymentTitle}
                 </h2>
-                <button onClick={() => { setShowPaymentModal(false); setSelectedPlan(null); }} className="text-gray-500 hover:text-white text-2xl">✕</button>
+                <button 
+                  onClick={() => closeModalSafe(() => {
+                    setShowPaymentModal(false); 
+                    setSelectedPlan(null); 
+                  })} 
+                  className="text-gray-500 hover:text-white text-2xl"
+                >
+                  ✕
+                </button>
               </div>
 
               {!selectedPlan ? (

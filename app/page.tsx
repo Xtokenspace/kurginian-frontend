@@ -89,6 +89,15 @@ export default function PWAHome() {
   // === НОВЫЕ СТЕЙТЫ ДЛЯ ПРЕМИУМ МОДАЛКИ ===
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [codeInput, setCodeInput] = useState('');
+
+  // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API) ===
+  useEffect(() => {
+    const handlePopState = () => {
+      if (showCodeModal) setShowCodeModal(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [showCodeModal]);
   
   // Искусственный стейт загрузки для предотвращения мерцания (Hydration Fix)
   const [isMounted, setIsMounted] = useState(false);
@@ -132,6 +141,7 @@ export default function PWAHome() {
 
   const openLinkModal = () => {
     triggerVibration(10);
+    window.history.pushState({ overlay: 'code' }, "");
     setShowCodeModal(true);
   };
 
@@ -379,6 +389,7 @@ export default function PWAHome() {
                 onClick={() => {
                   if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                   setShowCodeModal(false);
+                  if (window.history.state?.overlay) window.history.back();
                 }}
               />
 
@@ -428,6 +439,7 @@ export default function PWAHome() {
                       onClick={() => {
                         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                         setShowCodeModal(false);
+                        if (window.history.state?.overlay) window.history.back(); // <-- ОТКАТ ИСТОРИИ
                       }}
                       className="flex-1 px-4 py-4 text-gray-400 hover:text-white transition-colors uppercase text-xs md:text-sm tracking-wider border border-white/5 rounded-sm hover:bg-white/5"
                     >
