@@ -41,7 +41,9 @@ const translations = {
     bankDetails: "Coordonnées bancaires :",
     paymentInstruction: "Veuillez effectuer le virement. Ensuite, cliquez sur le bouton ci-dessous pour envoyer le reçu sur WhatsApp afin d'activer.",
     sendReceipt: "Envoyer le reçu sur WhatsApp",
-    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe."
+    whatsappMsg: "Bonjour ! Je souhaite prolonger le projet {slug} pour {plan}. Le reçu de {price}€ est en pièce jointe.",
+    paymentSuccessTitle: "Paiement réussi",
+    paymentSuccessDesc: "L'accès à votre galerie a été prolongé avec succès."
   },
   en: {
     downloadAll: "Download all photos",
@@ -67,7 +69,9 @@ const translations = {
     bankDetails: "Bank details:",
     paymentInstruction: "Please make the transfer. Then click the button below to send the receipt via WhatsApp for activation.",
     sendReceipt: "Send receipt via WhatsApp",
-    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached."
+    whatsappMsg: "Hello! I want to extend the project {slug} for {plan}. The receipt for {price}€ is attached.",
+    paymentSuccessTitle: "Payment Successful",
+    paymentSuccessDesc: "Access to your gallery has been successfully extended."
   },
   ru: {
     downloadAll: "Скачать все фото",
@@ -93,7 +97,9 @@ const translations = {
     bankDetails: "Банковские реквизиты:",
     paymentInstruction: "Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.",
     sendReceipt: "Отправить чек в WhatsApp",
-    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении."
+    whatsappMsg: "Здравствуйте! Я хочу продлить проект {slug} на {plan}. Квитанция об оплате на {price}€ в приложении.",
+    paymentSuccessTitle: "Оплата успешна",
+    paymentSuccessDesc: "Доступ к вашей галерее был успешно продлен."
   }
 } as const;
 
@@ -110,8 +116,9 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [guestClusters, setGuestClusters] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false); 
+  const [showSuccessPayment, setShowSuccessPayment] = useState(false); // <-- ДЛЯ ПРЕМИУМ УВЕДОМЛЕНИЯ
   
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
@@ -150,8 +157,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('success')) {
-        alert(language === 'ru' ? 'Оплата успешно завершена! Доступ продлен.' : language === 'fr' ? 'Paiement réussi ! Accès prolongé.' : 'Payment successful! Access extended.');
+        setShowSuccessPayment(true); // <-- ВЫЗЫВАЕМ ПРЕМИУМ-МОДАЛКУ ВМЕСТО ALERT
         window.history.replaceState({}, '', window.location.pathname);
+        // Автоматически закроем ее через 5 секунд для красоты
+        setTimeout(() => setShowSuccessPayment(false), 5000);
       }
     }
 
@@ -220,7 +229,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ months: plan.months, price: plan.price }),
+        body: JSON.stringify({ months: plan.months, price: plan.price, language }), // <-- ПЕРЕДАЕМ ЯЗЫК НА БЭКЕНД
       });
       
       if (!response.ok) throw new Error('Network error');
@@ -582,6 +591,49 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* === ПРЕМИУМ-УВЕДОМЛЕНИЕ ОБ УСПЕШНОЙ ОПЛАТЕ === */}
+      <AnimatePresence>
+        {showSuccessPayment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setShowSuccessPayment(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="max-w-sm w-full bg-[#0a0a0a] border border-lux-gold/50 p-8 rounded-2xl shadow-gold-glow text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+              
+              <h3 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest mb-3">
+                {t.paymentSuccessTitle}
+              </h3>
+              
+              <p className="text-gray-400 text-sm font-montserrat leading-relaxed mb-8">
+                {t.paymentSuccessDesc}
+              </p>
+              
+              <button
+                onClick={() => setShowSuccessPayment(false)}
+                className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.2em] font-bold text-xs rounded-sm hover:bg-white transition-colors shadow-lg active:scale-95"
+              >
+                ОК
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
     </main>
   );
 }
