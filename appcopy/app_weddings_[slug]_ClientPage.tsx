@@ -316,22 +316,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [attemptCount, setAttemptCount] = useState(1);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<MatchedPhoto[]>([]);
-
-  // ИСПРАВЛЕНО: Глобальная очистка памяти Safari (Blob URL Leak) и аппаратной камеры
-  // Спасет iPhone от крашей RAM и отключит зеленую точку камеры, если гость просто закрыл окно.
-  useEffect(() => {
-    return () => {
-      // 1. Очищаем оперативную память от фото
-      if (capturedImage) {
-        URL.revokeObjectURL(capturedImage);
-      }
-      // 2. Жестко глушим аппаратный стрим камеры при закрытии компонента
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-    };
-  }, [capturedImage]);
   
   // Стейты для VIP-пароля
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -480,13 +464,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               if (data.expires_at) setExpiresAt(data.expires_at);
               setStatus('success');
               
-              // ИСПРАВЛЕНО: Оставляем ?guest= в URL! 
-              // Если гость случайно обновит страницу свайпом вниз, он не потеряет свою подборку.
-              // Ссылка элегантно очистится сама только при нажатии "✕ Сбросить фильтр" в галерее.
+              // ПРЕМИУМ-ФИШКА: Очищаем ссылку от параметра ?guest=, 
+              // чтобы в браузере гостя остался красивый короткий URL!
+              window.history.replaceState({}, '', window.location.pathname);
               
               // Мы НЕ сохраняем эти фото в localStorage. 
               // Это защищает дашборд гостя от замусоривания чужими фото.
-              return;
+              return; 
             }
           } catch (e) {
             console.error("Ошибка загрузки подборки:", e);
@@ -529,13 +513,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     
     try {
       setShowChoiceModal(false);
-      
-      // ИСПРАВЛЕНО: Жестко убиваем старый поток перед открытием нового,
-      // чтобы на телефоне не зависал зеленый индикатор активной камеры (Privacy Leak).
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-      }
-
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
       });
@@ -761,8 +738,6 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     const file = e.target.files?.[0];
     if (file) {
       triggerVibration(10); // Тактильный отклик при выборе файла
-      // ИСПРАВЛЕНО: Очищаем старый Blob перед созданием нового, спасаем RAM
-      if (capturedImage) URL.revokeObjectURL(capturedImage);
       setCapturedImage(URL.createObjectURL(file)); 
       handleSelfieUpload(file);
     }

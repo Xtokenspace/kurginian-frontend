@@ -515,6 +515,22 @@ export default function Gallery({
   const [saveProgress, setSaveProgress] = useState(0);
   const wakeLockRef = useRef<any>(null); // Хранилище блокировки экрана
 
+  // ИСПРАВЛЕНО: Защита WakeLock от сворачивания браузера (iOS/Android сбрасывают его).
+  // Если юзер ответил в WhatsApp и вернулся, мы заново запрещаем экрану гаснуть.
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && isSaving && 'wakeLock' in navigator) {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          console.warn("Wake Lock re-acquire failed:", err);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isSaving]);
+
   // === SMART SCROLL-TO-TOP PILL ===
   const [showScrollTop, setShowScrollTop] = useState(false);
   const lastScrollY = useRef(0);
