@@ -292,16 +292,33 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const { language, setLanguage, refreshSessions } = useAppContext();
   const t = translations[language];
 
-    // Стейты для модуля продления (Upsell) — ДВУХШАГОВЫЙ ФЛОУ
+    // Стейты для модуля продления (Upsell) — ОДИН КЛИК (STRIPE)
   const [showPayment, setShowPayment] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<{label: string, price: number} | null>(null);
-  const [paymentStep, setPaymentStep] = useState<'select' | 'details'>('select');
+  const [processingPlan, setProcessingPlan] = useState<number | null>(null);
 
-  const plans = [
-    { label: t.plan6m, price: 50 },
-    { label: t.plan1y, price: 90 },
-    { label: t.plan5y, price: 350 },
-  ];
+  const handleStripeCheckout = async (plan: { months: number; price: number; label: string }) => {
+    setProcessingPlan(plan.months);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/weddings/${slug}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ months: plan.months, price: plan.price, language }), 
+      });
+      
+      if (!response.ok) throw new Error('Network error');
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url; 
+      }
+    } catch (error) {
+      console.error("Stripe Error:", error);
+      alert(language === 'ru' ? 'Ошибка при создании платежа. Попробуйте позже.' : language === 'fr' ? 'Erreur de paiement. Veuillez réessayer.' : 'Payment error. Please try again.');
+      setProcessingPlan(null);
+    }
+  };
+
   const [showChoiceModal, setShowChoiceModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1115,107 +1132,95 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               </div>
             </motion.div>
 
-            {/* === НОВОЕ ДВУХШАГОВОЕ МОДАЛЬНОЕ ОКНО ПРОДЛЕНИЯ === */}
+            {/* === ПРЕМИАЛЬНОЕ ОКНО ОПЛАТЫ (ОДИН КЛИК) === */}
             <AnimatePresence>
               {showPayment && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
                 >
                   <motion.div
-                    initial={{ scale: 0.95, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    exit={{ scale: 0.95, y: 20 }}
-                    className="w-full max-w-2xl bg-[#0a0a0a] border border-lux-gold/30 p-6 md:p-10 shadow-gold-glow max-h-[90vh] overflow-y-auto rounded-3xl"
+                    initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
+                    className="w-full max-w-md bg-[#0a0a0a] border border-lux-gold/30 p-8 rounded-3xl shadow-gold-glow relative overflow-hidden text-left"
                   >
-                    <div className="flex justify-between items-start mb-8">
-                      <h2 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest">
+                    {/* Блик на фоне */}
+                    <div className="absolute -top-20 -left-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
+
+                    <div className="flex justify-between items-start mb-8 relative z-10">
+                      <h2 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest leading-snug">
                         {t.paymentTitle}
                       </h2>
                       <button 
-                        onClick={() => { 
-                          closeModalSafe(() => {
-                            setShowPayment(false); 
-                            setSelectedPlan(null); 
-                            setPaymentStep('select');
-                          });
-                        }} 
-                        className="text-gray-500 hover:text-white text-2xl leading-none"
+                        onClick={() => closeModalSafe(() => setShowPayment(false))} 
+                        className="text-gray-500 hover:text-white text-2xl transition-colors leading-none"
                       >
                         ✕
                       </button>
                     </div>
 
-                    {paymentStep === 'select' && !selectedPlan ? (
-                      // ШАГ 1: Выбор тарифа
-                      <div className="space-y-4">
-                        <p className="text-gray-400 text-sm mb-6 uppercase tracking-wider font-mono">
-                          {t.selectPeriod}
-                        </p>
-                        {[
-                          { months: 6, price: 50, label: t.plan6m },
-                          { months: 12, price: 90, label: t.plan1y },
-                          { months: 60, price: 350, label: t.plan5y }
-                        ].map((plan, idx) => (
-                          <div 
+                    <div className="space-y-4 relative z-10">
+                      <p className="text-gray-400 text-xs mb-6 uppercase tracking-wider font-mono text-center">
+                        {t.selectPeriod}
+                      </p>
+                      
+                      {[
+                        { months: 6, price: 50, label: t.plan6m },
+                        { months: 12, price: 90, label: t.plan1y, popular: true },
+                        { months: 60, price: 350, label: t.plan5y }
+                      ].map((plan, idx) => {
+                        const isProcessing = processingPlan === plan.months;
+                        const isDisabled = processingPlan !== null && !isProcessing;
+
+                        return (
+                          <button 
                             key={idx} 
-                            onClick={() => {
-                              setSelectedPlan(plan);
-                              setPaymentStep('details');
-                            }}
-                            className="border border-white/10 hover:border-lux-gold p-6 cursor-pointer group transition-all flex justify-between items-center bg-white/5 rounded-2xl"
+                            disabled={isDisabled}
+                            onClick={() => handleStripeCheckout(plan)}
+                            className={`w-full group relative overflow-hidden flex items-center justify-between p-5 rounded-2xl border transition-all duration-300 active:scale-[0.98] ${
+                              plan.popular 
+                                ? 'bg-lux-gold/10 border-lux-gold/50 hover:bg-lux-gold hover:border-lux-gold shadow-[0_0_20px_rgba(212,175,55,0.1)]' 
+                                : 'bg-[#111] border-white/10 hover:border-lux-gold/50 hover:bg-white/5'
+                            } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            <span className="font-cinzel text-lg group-hover:text-lux-gold transition-colors">{plan.label}</span>
-                            <span className="font-mono text-xl text-lux-gold">{plan.price} €</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      // ШАГ 2: Реквизиты + WhatsApp
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                        <button 
-                          onClick={() => {
-                            setSelectedPlan(null);
-                            setPaymentStep('select');
-                          }} 
-                          className="text-lux-gold text-xs uppercase tracking-widest flex items-center gap-2 mb-4"
-                        >
-                          ← {t.backToPlans || 'Назад к тарифам'}
-                        </button>
-                        
-                        <div className="bg-[#111] border border-lux-gold/20 p-6 font-mono text-sm text-gray-300 space-y-4 select-all rounded-2xl">
-                          <p className="text-lux-gold text-xs uppercase tracking-widest mb-2">
-                            {t.bankDetails || 'Банковские реквизиты:'}
-                          </p>
-                          <p><strong>Name:</strong> Zokhrab Kurginian</p>
-                          <p><strong>IBAN:</strong> FR76 2823 3000 0193 7860 8937 114</p>
-                          <p><strong>BIC/SWIFT:</strong> REVOFRP2</p>
-                          <div className="w-full h-[1px] bg-white/10 my-4" />
-                          <p className="text-xs text-gray-500">Revolut Bank UAB<br/>10 avenue Kléber, 75116, Paris, France</p>
-                        </div>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`font-cinzel text-lg md:text-xl transition-colors ${plan.popular ? 'text-lux-gold group-hover:text-black' : 'text-gray-200 group-hover:text-lux-gold'}`}>
+                                {plan.label}
+                              </span>
+                              {plan.popular && (
+                                <span className="text-[9px] uppercase tracking-widest bg-lux-gold text-black px-2 py-0.5 rounded-sm font-bold">
+                                  Most Popular
+                                </span>
+                              )}
+                            </div>
 
-                        <p className="text-xs text-gray-400 italic text-center my-6">
-                          {t.paymentInstruction || 'Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.'}
-                        </p>
+                            <div className="flex items-center gap-4">
+                              <span className={`font-mono text-xl transition-colors ${plan.popular ? 'text-lux-gold group-hover:text-black' : 'text-lux-gold'}`}>
+                                {plan.price} €
+                              </span>
+                              
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-inner ${
+                                plan.popular ? 'bg-lux-gold text-black group-hover:bg-black group-hover:text-lux-gold' : 'bg-white/10 text-white group-hover:bg-lux-gold group-hover:text-black'
+                              }`}>
+                                {isProcessing ? (
+                                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                                  </svg>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                        <a 
-                          href={`https://wa.me/33743300000?text=${encodeURIComponent(
-                            t.whatsappMsg
-                              .replace('{slug}', slug)
-                              .replace('{plan}', selectedPlan?.label || '')
-                              .replace('{price}', String(selectedPlan?.price || ''))
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-3 w-full py-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold uppercase tracking-widest transition-colors shadow-lg rounded-2xl"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
-                          {t.sendReceipt || 'Отправить чек в WhatsApp'}
-                        </a>
-                      </motion.div>
-                    )}
+                    <div className="mt-8 flex items-center justify-center gap-2 opacity-50 relative z-10">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-white">
+                        <path d="M11.996 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm5.545 8.796-6.19 8.252a.858.858 0 0 1-1.344.152l-3.553-3.32a.857.857 0 1 1 1.173-1.253l2.846 2.659 5.585-7.442a.857.857 0 1 1 1.483 1.026v-.074z"/>
+                      </svg>
+                      <span className="text-[9px] uppercase tracking-widest text-white">Secured by Stripe & Apple Pay</span>
+                    </div>
                   </motion.div>
                 </motion.div>
               )}
