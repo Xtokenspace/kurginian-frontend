@@ -367,6 +367,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
 
         {/* Галерея */}
         <Gallery 
+          key={`gallery-${selectedGuestId || 'all'}`}
           photos={photos} 
           slug={slug} 
           expiresAt={expiresAt} 

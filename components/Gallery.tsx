@@ -301,7 +301,7 @@ export default function Gallery({
   isVip = false, 
   currentLanguage, 
   guestClusters,
-  // Новые пропсы из админки
+  // Новые пропсы из админки (контролируемые)
   isLightboxOpen = false,
   setIsLightboxOpen,
   selectedGuestId: externalSelectedGuestId,
@@ -317,9 +317,19 @@ export default function Gallery({
   // --- СТЕЙТЫ SMART SEARCH (ИИ ГОСТЕЙ) ---
   const [showGuests, setShowGuests] = useState(false);
   
-  // Используем внешние стейты из админки, если они переданы
-  const selectedGuestId = externalSelectedGuestId ?? null;
-  const setSelectedGuestId = externalSetSelectedGuestId ?? (() => {});
+  // Контролируемый selectedGuestId из админки
+  const [internalSelectedGuestId, setInternalSelectedGuestId] = useState<string | null>(null);
+
+  // Синхронизируем пропс из админки с внутренним состоянием
+  useEffect(() => {
+    setInternalSelectedGuestId(externalSelectedGuestId ?? null);
+  }, [externalSelectedGuestId]);
+
+  const selectedGuestId = internalSelectedGuestId;
+  const setSelectedGuestId = (id: string | null) => {
+    setInternalSelectedGuestId(id);
+    if (externalSetSelectedGuestId) externalSetSelectedGuestId(id);
+  };
 
   // --- СТЕЙТЫ МУЛЬТИВЫБОРА И 3D TOUCH ---
   const [longPressedIndex, setLongPressedIndex] = useState<number | null>(null);
