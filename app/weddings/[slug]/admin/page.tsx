@@ -569,16 +569,33 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                     <button 
                       onClick={() => handleStripeCheckout(selectedPlan)}
                       disabled={isProcessingPayment}
-                      className="w-full py-4 bg-white text-black font-bold uppercase tracking-widest text-[11px] md:text-xs rounded-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-3 disabled:opacity-50 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                      className="group relative overflow-hidden w-full py-5 bg-white text-black font-bold uppercase tracking-[0.25em] text-[10px] md:text-xs rounded-full transition-all duration-500 hover:scale-[1.02] active:scale-95 disabled:opacity-50 shadow-[0_10px_40px_rgba(255,255,255,0.15)]"
                     >
-                      {isProcessingPayment ? (
-                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                          <path d="M11.996 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm5.545 8.796-6.19 8.252a.858.858 0 0 1-1.344.152l-3.553-3.32a.857.857 0 1 1 1.173-1.253l2.846 2.659 5.585-7.442a.857.857 0 1 1 1.483 1.026v-.074z"/>
-                        </svg>
-                      )}
-                      Pay with Stripe / Apple Pay
+                      <AnimatePresence mode="wait">
+                        {isProcessingPayment ? (
+                          <motion.div 
+                            key="loader"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="flex items-center justify-center gap-2"
+                          >
+                            <div className="w-3 h-3 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                            <span>Processing...</span>
+                          </motion.div>
+                        ) : (
+                          <motion.div 
+                            key="content"
+                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+                            className="flex items-center justify-center gap-3"
+                          >
+                            <span>
+                              {language === 'fr' ? 'Payer en un clic' : language === 'ru' ? 'Оплатить в 1 клик' : 'Quick Checkout'}
+                            </span>
+                            <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.75 11.41l-4.41 4.41-1.42-1.42 2.99-2.99H7v-2h7.91l-2.99-2.99 1.42-1.42 4.41 4.41z"/></svg>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </button>
                   </div>
                   
