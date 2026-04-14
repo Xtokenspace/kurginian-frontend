@@ -121,27 +121,21 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
 
   // === УМНЫЙ ПЕРЕХВАТ КНОПКИ "НАЗАД" БРАУЗЕРА ===
   useEffect(() => {
-    const handlePopState = () => {
-      // Приоритет закрытия: сначала верхние оверлеи
-      if (showMenu) {
+    const handlePopState = (e: PopStateEvent) => {
+      // Делегируем управление Lightbox и GuestFilter компоненту Gallery.
+      // Здесь управляем только локальными оверлеями админки (Меню и Оплата),
+      // проверяя e.state, чтобы не закрывать их ложно при свайпах из Lightbox.
+      
+      if (showMenu && !(e.state && e.state.overlay === 'menu')) {
         setShowMenu(false);
-        return;               // ← Сначала закрываем меню
       }
-      if (isLightboxOpen) {
-        setIsLightboxOpen(false);
-        return;
-      }
-      if (showPaymentModal) {
+      if (showPaymentModal && !(e.state && e.state.overlay === 'payment')) {
         setShowPaymentModal(false);
-        return;
-      }
-      if (selectedGuestId) {
-        setSelectedGuestId(null);   // ← Сброс фильтра по гостю
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMenu, showPaymentModal, isLightboxOpen, selectedGuestId]);
+  }, [showMenu, showPaymentModal]);
 
   const closeModalSafe = (closeFn: () => void) => {
     closeFn();

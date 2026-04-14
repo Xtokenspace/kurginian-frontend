@@ -327,6 +327,14 @@ export default function Gallery({
 
   const selectedGuestId = internalSelectedGuestId;
   const setSelectedGuestId = (id: string | null) => {
+    // Если включаем фильтр впервые — пушим состояние в историю, чтобы кнопка "Назад" не выкидывала из проекта
+    if (id !== null && internalSelectedGuestId === null) {
+      const params = new URLSearchParams(window.location.search);
+      // Не пушим, если зашли по прямой магической ссылке (чтобы не сломать стартовую историю)
+      if (!params.get('guest')) {
+        window.history.pushState({ guestFilter: true }, "");
+      }
+    }
     setInternalSelectedGuestId(id);
     if (externalSetSelectedGuestId) externalSetSelectedGuestId(id);
   };
@@ -648,18 +656,26 @@ export default function Gallery({
     }
   };
 
-  // Умный перехват кнопки "Назад" браузера
+  // Умный перехват кнопки "Назад" браузера (Lightbox + Смарт-фильтр гостей)
   useEffect(() => {
-    const handlePopState = () => {
-      if (selectedIndex !== null) {
+    const handlePopState = (e: PopStateEvent) => {
+      // 1. Проверяем Lightbox. Если мы вернулись из Меню назад в Lightbox (e.state.lightbox === true), НЕ закрываем его!
+      if (selectedIndex !== null && !(e.state && e.state.lightbox)) {
         setSelectedIndex(null);
         setZoomScale(1);
         if (setIsLightboxOpen) setIsLightboxOpen(false);
       }
+
+      // 2. Проверяем фильтр гостя. Отключаем его, если в новом стейте нет флага фильтра (и нет открытого лайтбокса)
+      if (internalSelectedGuestId !== null && !(e.state && (e.state.guestFilter || e.state.lightbox))) {
+        setInternalSelectedGuestId(null);
+        if (externalSetSelectedGuestId) externalSetSelectedGuestId(null);
+        if (typeof window !== 'undefined') window.history.replaceState({}, '', window.location.pathname);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedIndex, setIsLightboxOpen]);
+  }, [selectedIndex, internalSelectedGuestId, setIsLightboxOpen]);
 
   // Обработка клавиатуры и свайпов
   useEffect(() => {
@@ -851,7 +867,13 @@ export default function Gallery({
                         triggerVibration(10);
                         // Сбрасываем URL параметр при закрытии (чтобы ссылка снова стала чистой)
                         if (typeof window !== 'undefined') window.history.replaceState({}, '', window.location.pathname);
-                        setSelectedGuestId(null);
+                        
+                        // Умный откат: если есть история фильтра, жмем назад (popstate сам обнулит стейт)
+                        if (window.history.state && window.history.state.guestFilter) {
+                          window.history.back();
+                        } else {
+                          setSelectedGuestId(null);
+                        }
                       }}
                       className="flex-[1] py-3 text-white/50 hover:text-white uppercase text-[9px] md:text-[10px] font-bold tracking-widest border border-white/10 rounded-sm hover:bg-white/5 transition-all active:scale-[0.98]"
                     >
