@@ -111,6 +111,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   const [guestClusters, setGuestClusters] = useState<any>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
@@ -145,6 +146,15 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   const t = translations[language];
 
   useEffect(() => {
+    // 0. Проверка успешной оплаты Stripe после редиректа
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('success')) {
+        alert(language === 'ru' ? 'Оплата успешно завершена! Доступ продлен.' : language === 'fr' ? 'Paiement réussi ! Accès prolongé.' : 'Payment successful! Access extended.');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+
     // 1. Ищем VIP-пароль
     const vipCode = localStorage.getItem(`vip_code_${slug}`);
     if (!vipCode) {
@@ -202,6 +212,29 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
     router.push(`/weddings/${slug}`);
   };
 
+  // === ВЫЗОВ STRIPE API ===
+  const handleStripeCheckout = async (plan: { months: number; price: number; label: string }) => {
+    setIsProcessingPayment(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/api/weddings/${slug}/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ months: plan.months, price: plan.price }),
+      });
+      
+      if (!response.ok) throw new Error('Network error');
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url; // Редирект на защищенную шторку Apple Pay / Stripe
+      }
+    } catch (error) {
+      console.error("Stripe Error:", error);
+      alert(language === 'ru' ? 'Ошибка при создании платежа. Попробуйте позже.' : language === 'fr' ? 'Erreur de paiement. Veuillez réessayer.' : 'Payment error. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -509,36 +542,40 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                   ))}
                 </div>
               ) : (
-                // РЕКВИЗИТЫ И КНОПКА WHATSAPP
+                // ИНТЕГРАЦИЯ STRIPE / APPLE PAY
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                   <button onClick={() => setSelectedPlan(null)} className="text-lux-gold text-xs uppercase tracking-widest flex items-center gap-2 mb-4">
                     ← {t.backToPlans}
                   </button>
                   
-                  <div className="bg-[#111] border border-lux-gold/20 p-6 font-mono text-sm text-gray-300 space-y-4 select-all">
-                    <p className="text-lux-gold text-xs uppercase tracking-widest mb-2">
-                      {t.bankDetails}
-                    </p>
-                    <p><strong>Name:</strong> Zokhrab Kurginian</p>
-                    <p><strong>IBAN:</strong> FR76 2823 3000 0193 7860 8937 114</p>
-                    <p><strong>BIC/SWIFT:</strong> REVOFRP2</p>
-                    <div className="w-full h-[1px] bg-white/10 my-4" />
-                    <p className="text-xs text-gray-500">Revolut Bank UAB<br/>10 avenue Kléber, 75116, Paris, France</p>
+                  <div className="bg-[#111] border border-lux-gold/20 p-8 text-center rounded-sm">
+                    <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                      <svg className="w-6 h-6 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-cinzel text-xl text-white mb-2">{selectedPlan.label} Premium</h3>
+                    <p className="text-3xl font-mono text-lux-gold mb-8">{selectedPlan.price} €</p>
+                    
+                    <button 
+                      onClick={() => handleStripeCheckout(selectedPlan)}
+                      disabled={isProcessingPayment}
+                      className="w-full py-4 bg-white text-black font-bold uppercase tracking-widest text-[11px] md:text-xs rounded-sm hover:bg-gray-200 transition-colors flex items-center justify-center gap-3 disabled:opacity-50 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                    >
+                      {isProcessingPayment ? (
+                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                          <path d="M11.996 0a12 12 0 1 0 0 24 12 12 0 0 0 0-24zm5.545 8.796-6.19 8.252a.858.858 0 0 1-1.344.152l-3.553-3.32a.857.857 0 1 1 1.173-1.253l2.846 2.659 5.585-7.442a.857.857 0 1 1 1.483 1.026v-.074z"/>
+                        </svg>
+                      )}
+                      Pay with Stripe / Apple Pay
+                    </button>
                   </div>
-
-                  <p className="text-xs text-gray-400 italic text-center my-6">
-                    {t.paymentInstruction}
+                  
+                  <p className="text-[10px] text-gray-500 uppercase tracking-widest text-center mt-4">
+                    Secured by Stripe
                   </p>
-
-                  <a 
-                    href={`https://wa.me/33743300000?text=${encodeURIComponent(t.whatsappMsg.replace('{slug}', slug).replace('{plan}', selectedPlan.label).replace('{price}', String(selectedPlan.price)))}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-3 w-full py-4 bg-[#25D366] hover:bg-[#1ebe5d] text-white text-xs font-bold uppercase tracking-widest transition-colors shadow-lg"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.751-2.874-2.502-2.961-2.617-.087-.116-.708-.94-.708-1.793s.448-1.273.607-1.446c.159-.173.346-.217.462-.217l.332.006c.106.005.249-.04.39.298.144.347.491 1.2.534 1.287.043.087.072.188.014.304-.058.116-.087.188-.173.289l-.26.304c-.087.086-.177.18-.076.354.101.174.449.741.964 1.201.662.591 1.221.774 1.394.86s.274.072.376-.043c.101-.116.433-.506.549-.68.116-.173.231-.145.39-.087s1.011.477 1.184.564.289.13.332.202c.045.072.045.419-.099.824z"/></svg>
-                    {t.sendReceipt}
-                  </a>
                 </motion.div>
               )}
             </motion.div>
