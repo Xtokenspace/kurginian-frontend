@@ -289,8 +289,42 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   
-  const { language, setLanguage, refreshSessions, cart } = useAppContext();
+  const { language, setLanguage, refreshSessions, cart, isMounted } = useAppContext();
   const t = translations[language];
+
+  // === ПРЕДЗАГРУЗКА ИИ (Pre-warming) ===
+  // Тихо качаем весы нейросети, пока гость читает приветствие
+  useEffect(() => {
+    if (status === 'idle' && !faceDetectorRef.current) {
+      FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm")
+        .then(vision => FaceDetector.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite", delegate: "CPU" },
+          runningMode: "IMAGE"
+        }))
+        .then(detector => { faceDetectorRef.current = detector; })
+        .catch(() => {});
+    }
+  }, [status]);
+
+  // === ЗВУК ЗАТВОРА КАМЕРЫ (Синтезатор Web Audio API - 0 байт трафика) ===
+  const playShutterSound = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audioCtx = new AudioContextClass();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    } catch(e) {}
+  };
 
     // Стейты для модуля продления (Upsell) — ОДИН КЛИК (STRIPE)
   const [showPayment, setShowPayment] = useState(false);
@@ -619,7 +653,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       if (blob) {
         // СОХРАНЯЕМ ФОТО ДЛЯ КРАСИВОГО ФОНА СКАНИРОВАНИЯ
         setCapturedImage(URL.createObjectURL(blob)); 
-        triggerVibration(50); // Имитация затвора камеры
+        triggerVibration([30, 50]); // Более резкая тактильная отдача
+        playShutterSound();         // Звуковой щелчок (100% уверенность)
+        
         const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
         stopCamera();
         handleSelfieUpload(file);
@@ -797,6 +833,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     }
   };
 
+
+  if (!isMounted) return <main className="min-h-[100dvh] bg-lux-bg" />;
 
   return (
     <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
