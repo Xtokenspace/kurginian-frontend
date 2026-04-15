@@ -14,22 +14,49 @@ export interface GallerySession {
   rawKey: string;
 }
 
+// --- НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ ПЕЧАТИ ---
+export type PrintSize = '10x15' | '15x20' | 'A4' | 'A3';
+
+export interface CartItem {
+  id: string; // Уникальный ID (filename + size)
+  filename: string;
+  thumb_url: string;
+  size: PrintSize;
+  quantity: number;
+  price: number;
+}
+
 interface AppContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   refreshSessions: () => Promise<void>;
   sessions: GallerySession[];
   isMounted: boolean;
+  // Методы корзины
+  cart: CartItem[];
+  addToCart: (items: CartItem[]) => void;
+  updateCartItem: (id: string, quantity: number, size?: PrintSize) => void;
+  removeFromCart: (id: string) => void;
+  clearCart: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
+
+// Прайслист зашит в константу
+export const PRINT_PRICES: Record<PrintSize, number> = {
+  '10x15': 1.50,
+  '15x20': 3.00,
+  'A4': 8.00,
+  'A3': 15.00
+};
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>('fr');
   const [sessions, setSessions] = useState<GallerySession[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [cart, setCart] = useState<CartItem[]>([]);
 
-    // 1. Инициализация при первом запуске (с умным авто-определением языка)
+  // 1. Инициализация при первом запуске (с умным авто-определением языка и загрузкой корзины)
   useEffect(() => {
     setIsMounted(true);
     const savedLang = localStorage.getItem('kurginian_global_lang') as Language;
@@ -127,13 +154,71 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSessions(found);
   };
 
+  // --- ЛОГИКА КОРЗИНЫ ---
+  useEffect(() => {
+    const savedCart = localStorage.getItem('kurginian_print_cart');
+    if (savedCart) {
+      try { setCart(JSON.parse(savedCart)); } catch (e) {}
+    }
+  }, []);
+
+  const saveCart = (newCart: CartItem[]) => {
+    setCart(newCart);
+    localStorage.setItem('kurginian_print_cart', JSON.stringify(newCart));
+  };
+
+  const addToCart = (items: CartItem[]) => {
+    const newCart = [...cart];
+    items.forEach(newItem => {
+      const existingIndex = newCart.findIndex(item => item.id === newItem.id);
+      if (existingIndex >= 0) {
+        newCart[existingIndex].quantity += newItem.quantity;
+      } else {
+        newCart.push(newItem);
+      }
+    });
+    saveCart(newCart);
+  };
+
+  const updateCartItem = (id: string, quantity: number, newSize?: PrintSize) => {
+    let newCart = [...cart];
+    const index = newCart.findIndex(item => item.id === id);
+    if (index >= 0) {
+      if (quantity <= 0) {
+        newCart.splice(index, 1);
+      } else {
+        newCart[index].quantity = quantity;
+        if (newSize) {
+          // Меняем размер и пересчитываем ID и цену
+          newCart[index].size = newSize;
+          newCart[index].price = PRINT_PRICES[newSize];
+          newCart[index].id = `${newCart[index].filename}_${newSize}`;
+          
+          // Проверяем, не слился ли он с уже существующим таким же размером
+          const duplicateIndex = newCart.findIndex((item, i) => item.id === newCart[index].id && i !== index);
+          if (duplicateIndex >= 0) {
+            newCart[duplicateIndex].quantity += newCart[index].quantity;
+            newCart.splice(index, 1);
+          }
+        }
+      }
+      saveCart(newCart);
+    }
+  };
+
+  const removeFromCart = (id: string) => {
+    saveCart(cart.filter(item => item.id !== id));
+  };
+
+  const clearCart = () => saveCart([]);
+
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem('kurginian_global_lang', lang);
   };
 
   return (
-    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions, isMounted }}>
+    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions, isMounted, cart, addToCart, updateCartItem, removeFromCart, clearCart }}>
       {children}
     </AppContext.Provider>
   );

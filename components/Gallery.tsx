@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { useAppContext } from '@/context/AppContext';
+import { useAppContext, PrintSize } from '@/context/AppContext';
 import { Blurhash } from 'react-blurhash';
 
 // --- НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ ИИ ---
@@ -64,9 +64,18 @@ const translations = {
     select: "Sélectionner",
     selected: "sélectionné(s)",
     cancel: "Annuler",
-    actions: "Actions avec l'image"
+    actions: "Actions avec l'image",
+    // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
+    orderPrints: "Commander tirages",
+    cartTitle: "Votre Commande",
+    freeShipping: "Livraison gratuite",
+    addMoreForFree: "Ajoutez {amount}€ pour la livraison gratuite en France 🇫🇷",
+    checkout: "Passer à la caisse",
+    emptyCart: "Votre panier est vide",
+    total: "Total :",
+    size: "Format"
   },
-  en: { 
+  en: {
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
     expiresText: "Your premium subscription is active until",
     feedbackTitle: "Thank you!", feedbackText: "Your emotions are precious. Share your review on Instagram.", instagramBtn: "Write on Instagram",
@@ -86,7 +95,16 @@ const translations = {
     select: "Select",
     selected: "selected",
     cancel: "Cancel",
-    actions: "Image Actions"
+    actions: "Image Actions",
+    // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
+    orderPrints: "Order prints",
+    cartTitle: "Your Order",
+    freeShipping: "Free shipping",
+    addMoreForFree: "Add {amount}€ for free shipping in France 🇫🇷",
+    checkout: "Checkout securely",
+    emptyCart: "Your cart is empty",
+    total: "Total:",
+    size: "Size"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -108,7 +126,16 @@ const translations = {
     select: "Выбрать",
     selected: "выбрано",
     cancel: "Отмена",
-    actions: "Действия с фото"
+    actions: "Действия с фото",
+    // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
+    orderPrints: "Заказать печать",
+    cartTitle: "Ваш заказ",
+    freeShipping: "Бесплатная доставка",
+    addMoreForFree: "Добавьте на {amount}€ для бесплатной доставки по Франции 🇫🇷",
+    checkout: "Оплатить заказ",
+    emptyCart: "Ваша корзина пуста",
+    total: "Итого:",
+    size: "Формат"
   }
 } as const;
 
@@ -367,17 +394,6 @@ export default function Gallery({
     ? photos.filter(p => p.cluster_ids?.includes(selectedGuestId))
     : photos;
 
-  // МАГИЧЕСКАЯ ССЫЛКА: Читаем параметр ?guest= из URL при загрузке
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const guestParam = params.get('guest');
-      if (guestParam && guestClusters && guestClusters[guestParam]) {
-        setSelectedGuestId(guestParam);
-      }
-    }
-  }, [guestClusters]);
-
   // ФУНКЦИЯ ШАРИНГА ПОДБОРКИ
   const handleShareGuest = async () => {
     triggerVibration(50);
@@ -431,12 +447,50 @@ export default function Gallery({
   const [showToast, setShowToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
-  // Получаем язык из глобального контекста
-  const { language: contextLanguage } = useAppContext();
-  
+  // Получаем язык и корзину из глобального контекста
+  const { language: contextLanguage, cart, addToCart, updateCartItem, removeFromCart, clearCart } = useAppContext();
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const FREE_SHIPPING_THRESHOLD = 80;
+
+  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const amountToFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - cartTotal);
+  const progressPercent = Math.min(100, (cartTotal / FREE_SHIPPING_THRESHOLD) * 100);
+
   // Если язык пришел сверху (prop), используем его, иначе — глобальный
   const language = currentLanguage || contextLanguage;
   const t = translations[language];
+
+  // МАГИЧЕСКАЯ ССЫЛКА И ПРОВЕРКА ОПЛАТЫ
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      
+      // 1. Умный поиск гостей
+      const guestParam = params.get('guest');
+      if (guestParam && guestClusters && guestClusters[guestParam]) {
+        setSelectedGuestId(guestParam);
+      }
+
+      // 2. Успешная оплата заказа печати
+      const printSuccess = params.get('print_success');
+      if (printSuccess) {
+        if (clearCart) clearCart(); // Безопасная очистка корзины
+        triggerVibration([50, 100, 50]); // Радостная вибрация
+        
+        // Показываем премиальное сообщение
+        const msg = language === 'ru' 
+          ? `Успешно! Заказ ${printSuccess} оплачен. Мы скоро начнем сборку.` 
+          : language === 'fr' 
+          ? `Succès ! Commande ${printSuccess} payée. Nous commençons la préparation.` 
+          : `Success! Order ${printSuccess} paid. We will start processing soon.`;
+        
+        setTimeout(() => alert(msg), 500);
+        
+        // Очищаем URL, чтобы сообщение не вылезало повторно
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [guestClusters, clearCart, language]);
 
   // === HAPTIC FEEDBACK (Тактильность) ===
   const triggerVibration = (pattern: number | number[]) => {
@@ -966,9 +1020,28 @@ export default function Gallery({
                 {/* Будущая кнопка "Поделиться" или "В печать" */}
                 <button 
                   disabled={selectedPhotos.size === 0}
-                  className="bg-white/10 text-white px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform"
+                  onClick={() => {
+                    triggerVibration([20, 40]);
+                    // Формируем товары из выбранных фото (по умолчанию 10x15)
+                    const itemsToAdd = Array.from(selectedPhotos).map(filename => {
+                      const photo = photos.find(p => p.filename === filename);
+                      return {
+                        id: `${filename}_10x15`,
+                        filename: filename,
+                        thumb_url: photo?.urls.thumb || '',
+                        size: '10x15' as const,
+                        quantity: 1,
+                        price: 1.50
+                      };
+                    });
+                    addToCart(itemsToAdd);
+                    setIsSelectionMode(false);
+                    setSelectedPhotos(new Set());
+                    setIsCartOpen(true);
+                  }}
+                  className="bg-white text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform shadow-lg shadow-white/20 flex items-center gap-2"
                 >
-                  {t.share}
+                  🛒 {t.orderPrints}
                 </button>
               </div>
             </motion.div>
@@ -1040,7 +1113,137 @@ export default function Gallery({
         </AnimatePresence>
         </motion.div>
 
-        {/* === ПРЕМИАЛЬНОЕ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
+        {/* === ШТОРКА КОРЗИНЫ ЗАКАЗА ПЕЧАТИ (Premium Bottom Sheet) === */}
+        <AnimatePresence>
+          {isCartOpen && (
+            <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsCartOpen(false)}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[160] touch-none"
+            />
+            <motion.div
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed bottom-0 left-0 right-0 z-[170] flex flex-col items-center max-h-[85vh]"
+            >
+              <div className="w-full max-w-2xl bg-[#0a0a0a] border-t border-lux-gold/30 rounded-t-[2rem] p-6 pb-8 shadow-[0_-10px_50px_rgba(212,175,55,0.15)] flex flex-col h-full">
+                
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-cinzel text-xl text-lux-gold tracking-widest uppercase">{t.cartTitle}</h3>
+                  <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-white text-2xl leading-none">✕</button>
+                </div>
+
+                {/* Прогресс-бар бесплатной доставки */}
+                <div className="mb-6 bg-[#111] border border-white/5 p-4 rounded-2xl relative overflow-hidden">
+                  <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold mb-3 relative z-10">
+                    <span className="text-gray-400">{amountToFreeShipping > 0 ? t.addMoreForFree.replace('{amount}', amountToFreeShipping.toFixed(2)) : '✨ ' + t.freeShipping}</span>
+                    <span className="text-lux-gold">{cartTotal.toFixed(2)}€ / 80€</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-black rounded-full overflow-hidden relative z-10">
+                    <motion.div 
+                      initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 0.8, ease: "easeOut" }}
+                      className={`h-full ${progressPercent >= 100 ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-lux-gold'}`}
+                    />
+                  </div>
+                </div>
+
+                {/* Список товаров (Скроллится) */}
+                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 mb-6">
+                  {cart.length === 0 ? (
+                    <p className="text-center text-gray-500 uppercase tracking-widest text-xs mt-10">{t.emptyCart}</p>
+                  ) : (
+                    cart.map((item) => (
+                      <div key={item.id} className="flex gap-4 items-center bg-[#111] p-3 rounded-2xl border border-white/5">
+                        <img src={item.thumb_url} alt="print" className="w-16 h-20 object-cover rounded-lg" />
+                        <div className="flex-1 flex flex-col gap-2">
+                          
+                          <div className="flex justify-between items-center">
+                            <select 
+                              value={item.size}
+                              onChange={(e) => updateCartItem(item.id, item.quantity, e.target.value as PrintSize)}
+                              className="bg-black border border-white/10 text-white text-[10px] uppercase tracking-widest rounded-lg px-2 py-1 outline-none focus:border-lux-gold"
+                            >
+                              <option value="10x15">10x15 (1.50€)</option>
+                              <option value="15x20">15x20 (3.00€)</option>
+                              <option value="A4">A4 (8.00€)</option>
+                              <option value="A3">A3 (15.00€)</option>
+                            </select>
+                            <button onClick={() => removeFromCart(item.id)} className="text-gray-600 hover:text-red-500 text-xs uppercase">✕</button>
+                          </div>
+
+                          <div className="flex justify-between items-center mt-1">
+                            {/* Счетчик количества (Apple-style pill) */}
+                            <div className="flex items-center bg-black rounded-full border border-white/10 px-1">
+                              <button onClick={() => updateCartItem(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">-</button>
+                              <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
+                              <button onClick={() => updateCartItem(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">+</button>
+                            </div>
+                            <span className="text-lux-gold font-mono font-bold">{(item.price * item.quantity).toFixed(2)}€</span>
+                          </div>
+
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer с оплатой */}
+                <div className="border-t border-white/10 pt-6">
+                  <div className="flex justify-between items-end mb-4 px-2">
+                    <span className="text-gray-400 text-xs uppercase tracking-widest">{t.total}</span>
+                    <span className="text-2xl font-cinzel text-white">{cartTotal.toFixed(2)} €</span>
+                  </div>
+                  <button 
+                    disabled={cart.length === 0 || isSaving}
+                    onClick={async () => {
+                      triggerVibration([50, 50]);
+                      setIsSaving(true); // Используем стейт isSaving для спиннера на кнопке
+                      
+                      try {
+                        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+                        const response = await fetch(`${apiUrl}/api/weddings/${slug}/create-print-session`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            items: cart,
+                            language: language
+                          })
+                        });
+
+                        if (!response.ok) throw new Error("Payment session failed");
+                        const data = await response.json();
+                        
+                        if (data.url) {
+                          // Бесшовный редирект на нативную форму Apple Pay / Stripe
+                          window.location.href = data.url; 
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        alert(language === 'ru' ? 'Ошибка соединения с сервером оплаты' : 'Payment gateway connection error');
+                        setIsSaving(false);
+                      }
+                    }}
+                    className="w-full py-4 bg-lux-gold text-black font-bold uppercase tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50 disabled:active:scale-100 active:scale-95 shadow-gold-glow flex items-center justify-center gap-2"
+                  >
+                    {isSaving ? (
+                      <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    )}
+                    {isSaving ? (language === 'ru' ? 'ПОДГОТОВКА...' : 'PROCESSING...') : t.checkout}
+                  </button>
+                </div>
+
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕМИАЛЬНОЕ НАДПИСЬ ОБ ОКОНЧАНИИ ДОСТУПА (Только для гостей) === */}
         {!isVip && expiresAt && (
           <motion.div 
             initial={{ opacity: 0 }}
