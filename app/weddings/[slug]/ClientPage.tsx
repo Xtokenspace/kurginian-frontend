@@ -787,7 +787,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
 
   return (
-    <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
+    <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center justify-center selection:bg-lux-gold selection:text-black relative">
       
       {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
       <AnimatePresence>
@@ -800,7 +800,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           >
             <div className="relative">
               <button
-                onClick={() => setShowLangMenu(!showLangMenu)}
+                onClick={() => {
+                  triggerVibration(10);
+                  setShowLangMenu(!showLangMenu);
+                }}
                 className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
               >
                 <span className="uppercase tracking-widest">{language}</span>
@@ -821,6 +824,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                       <button
                         key={lang}
                         onClick={() => {
+                          triggerVibration(10);
                           setLanguage(lang);
                           setShowLangMenu(false);
                         }}
@@ -1453,10 +1457,10 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
             {/* Видоискатель */}
             <div className="flex-1 relative flex items-center justify-center overflow-hidden bg-black">
-              {/* Эффект "Soft Ring Light" (Умная подсветка лица светом экрана) */}
-              <div className="absolute inset-0 z-10 shadow-[inset_0_0_120px_rgba(255,255,255,0.15)] pointer-events-none" />
+              {/* Эффект "Soft Ring Light" (Аппаратная подсветка лица светом экрана без потери FPS) */}
+              <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(255,255,255,0.15)_100%)] pointer-events-none" />
               
-              <video 
+              <video
                 ref={videoRef} 
                 autoPlay 
                 playsInline 

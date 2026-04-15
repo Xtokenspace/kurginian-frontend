@@ -41,10 +41,10 @@ export default function InstallPrompt() {
       navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW ref:', err));
     }
 
-    // 2. Проверяем, не закрывал ли юзер баннер недавно
-    const dismissed = localStorage.getItem('pwa_prompt_dismissed');
-    if (dismissed && Date.now() - parseInt(dismissed) < 1000 * 60 * 60 * 24 * 7) {
-      return; // Не показываем 7 дней, если юзер закрыл
+    // 2. Проверяем, закрывал ли юзер баннер ранее (Premium UX: больше не беспокоим)
+    const dismissed = localStorage.getItem('kurginian_pwa_dismissed');
+    if (dismissed) {
+      return; // Навсегда скрываем, если гость уже сделал выбор
     }
 
     // 3. Проверяем, установлено ли уже приложение (Standalone mode)
@@ -90,7 +90,7 @@ export default function InstallPrompt() {
   const handleDismiss = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     setShowPrompt(false);
-    localStorage.setItem('pwa_prompt_dismissed', Date.now().toString());
+    localStorage.setItem('kurginian_pwa_dismissed', 'true');
   };
 
   if (!showPrompt) return null;

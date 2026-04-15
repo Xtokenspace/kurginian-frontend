@@ -19,6 +19,7 @@ interface AppContextType {
   setLanguage: (lang: Language) => void;
   refreshSessions: () => Promise<void>;
   sessions: GallerySession[];
+  isMounted: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -26,9 +27,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>('fr');
   const [sessions, setSessions] = useState<GallerySession[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
     // 1. Инициализация при первом запуске (с умным авто-определением языка)
   useEffect(() => {
+    setIsMounted(true);
     const savedLang = localStorage.getItem('kurginian_global_lang') as Language;
     
     if (savedLang) {
@@ -60,6 +63,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const scanSessions = async () => {
+    // Освобождаем главный поток (Event Loop) для плавной отрисовки UI
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     const found: GallerySession[] = [];
     
     for (let i = 0; i < localStorage.length; i++) {
@@ -127,7 +133,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions }}>
+    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions, isMounted }}>
       {children}
     </AppContext.Provider>
   );

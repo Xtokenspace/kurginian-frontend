@@ -33,8 +33,10 @@ export default function StudioAdminPage() {
   const [eventTitle, setEventTitle] = useState('');
   const [eventSubtitle, setEventSubtitle] = useState('');
   const [selectedCovers, setSelectedCovers] = useState<string[]>([]);
+  const [originalCovers, setOriginalCovers] = useState<string[]>([]); // <-- БАЗОВОЕ СОСТОЯНИЕ ОБЛОЖЕК
   const [isSelectingCovers, setIsSelectingCovers] = useState(false);
   const [isSavingMeta, setIsSavingMeta] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true); // <-- ЗАЩИТА ОТ МОРГАНИЯ
 
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
@@ -60,6 +62,8 @@ export default function StudioAdminPage() {
     const savedPassword = sessionStorage.getItem('super_admin_pwd');
     if (savedPassword) {
       fetchDashboardData(savedPassword);
+    } else {
+      setIsCheckingSession(false);
     }
   }, []);
 
@@ -88,6 +92,7 @@ export default function StudioAdminPage() {
       setError('Ошибка соединения с сервером');
     } finally {
       setIsLoading(false);
+      setIsCheckingSession(false); // Выключаем спиннер первоначальной загрузки
     }
   };
 
@@ -151,6 +156,7 @@ export default function StudioAdminPage() {
                 .filter((p: StudioPhoto) => cUrls.some((url: string) => decodeURIComponent(url).includes(p.filename.split('.')[0])))
                 .map((p: StudioPhoto) => p.filename);
               setSelectedCovers(exactFilenames);
+              setOriginalCovers(exactFilenames); // Сохраняем исходное состояние для кнопки "Отмена"
             }
           }
         } catch (e) {
@@ -292,6 +298,7 @@ export default function StudioAdminPage() {
       });
       if (res.ok) {
         alert("Welcome-зона успешно обновлена!");
+        setOriginalCovers(selectedCovers); // Успешно сохранили -> обновляем базовое состояние
         setIsSelectingCovers(false);
       } else {
         alert("Ошибка при сохранении.");
@@ -315,6 +322,14 @@ export default function StudioAdminPage() {
       return [...prev, filename];
     });
   };
+
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-[#020202] flex items-center justify-center">
+        <div className="w-12 h-12 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -450,7 +465,14 @@ export default function StudioAdminPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     <button 
-                      onClick={() => setIsSelectingCovers(!isSelectingCovers)} 
+                      onClick={() => {
+                        if (isSelectingCovers) {
+                          setSelectedCovers(originalCovers); // Откат к сохраненному состоянию
+                          setIsSelectingCovers(false);
+                        } else {
+                          setIsSelectingCovers(true);
+                        }
+                      }} 
                       className={`px-4 py-2 text-[10px] md:text-xs font-bold tracking-widest uppercase border transition-all ${isSelectingCovers ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'bg-transparent text-white border-white/30 hover:border-white'}`}
                     >
                       {isSelectingCovers ? "Отменить выбор" : "Выбрать обложки (3)"}

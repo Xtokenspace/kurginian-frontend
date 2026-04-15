@@ -15,7 +15,7 @@ const cormorant = Cormorant_Garamond({
 const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 
 export const viewport: Viewport = {
-  themeColor: "#D4AF37",
+  themeColor: "#050505",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

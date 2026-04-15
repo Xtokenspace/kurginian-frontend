@@ -151,6 +151,12 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
 
   const t = translations[language];
 
+  const triggerVibration = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  };
+
   useEffect(() => {
     // 0. Проверка успешной оплаты Stripe после редиректа
     if (typeof window !== 'undefined') {
@@ -191,16 +197,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           setExpiresAt(data.expires_at);
           setGuestClusters(data.guest_clusters);
 
-          // 2. ЗАПРОС АНАЛИТИКИ (Запускаем сразу после успеха авторизации)
-          const statsRes = await fetch(`${apiUrl}/api/weddings/${slug}/analytics-data`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: vipCode }),
-          });
-          if (statsRes.ok) {
-            const statsData = await statsRes.json();
-            setStats(statsData.data);
-          }
+          // Аналитика отключена для разгрузки сервера (Dashboard скрыт в UI)
         } else {
           localStorage.removeItem(`vip_code_${slug}`);
           router.replace(`/weddings/${slug}`);
@@ -265,7 +262,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
       <div className="fixed top-6 right-6 z-[100]">
         <div className="relative">
           <button
-            onClick={() => setShowLangMenu(!showLangMenu)}
+            onClick={() => {
+              triggerVibration(10);
+              setShowLangMenu(!showLangMenu);
+            }}
             className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
           >
             <span className="uppercase tracking-widest">{language}</span>
@@ -276,27 +276,35 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
 
           <AnimatePresence>
             {showLangMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
-              >
-                {(['fr', 'en', 'ru'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => {
-                      setLanguage(lang);
-                      setShowLangMenu(false);
-                    }}
-                    className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
-                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    {lang}
-                  </button>
-                ))}
-              </motion.div>
+              <>
+                {/* Невидимый слой-перехватчик кликов */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowLangMenu(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -5 }}
+                  className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
+                >
+                  {(['fr', 'en', 'ru'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => {
+                        triggerVibration(10);
+                        setLanguage(lang);
+                        setShowLangMenu(false);
+                      }}
+                      className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
+                        language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {lang}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -509,10 +517,12 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => closeModalSafe(() => setShowPaymentModal(false))}
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }}
               className="w-full max-w-md bg-[#0a0a0a] border border-lux-gold/30 p-8 rounded-3xl shadow-gold-glow relative overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Блик на фоне */}
               <div className="absolute -top-20 -left-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />

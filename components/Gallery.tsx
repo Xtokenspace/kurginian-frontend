@@ -412,6 +412,16 @@ export default function Gallery({
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
     setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
   }, []);
+
+  // БЛОКИРОВКА СКРОЛЛА (Ghost Scrolling Fix)
+  useEffect(() => {
+    if (selectedIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [selectedIndex]);
   
   // === РЕФЫ ДЛЯ МУЛЬТИТАЧА (PINCH-TO-ZOOM) ===
   const initialTouchDistance = useRef<number | null>(null);
@@ -948,9 +958,10 @@ export default function Gallery({
                     handleSaveAll(targets);
                   }}
                   disabled={selectedPhotos.size === 0 || isSaving}
-                  className="bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform"
+                  className="bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform flex items-center justify-center gap-2"
                 >
-                  {t.download}
+                  {isSaving && <div className="w-3 h-3 border-2 border-black/20 border-t-black rounded-full animate-spin" />}
+                  {isSaving ? `${saveProgress}%` : t.download}
                 </button>
                 {/* Будущая кнопка "Поделиться" или "В печать" */}
                 <button 
@@ -1209,7 +1220,7 @@ export default function Gallery({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto"
+                        className="flex gap-3 overflow-x-auto no-scrollbar max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto"
                       >
                         {filteredPhotos[selectedIndex].cluster_ids.map(id => {
                           const cluster = guestClusters[id];

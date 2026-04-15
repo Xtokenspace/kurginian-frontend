@@ -398,8 +398,18 @@ export default function PWAHome() {
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 exit={{ y: "100%" }}
-                transition={{ type: "tween", duration: 0.25, ease: [0.2, 0.9, 0.3, 1] }}
-                className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center will-change-transform"
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 500 }}
+                dragElastic={0.2}
+                onDragEnd={(e, info) => {
+                  if (info.offset.y > 50) {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                    setShowCodeModal(false);
+                    if (window.history.state?.overlay) window.history.back();
+                  }
+                }}
+                className="fixed bottom-0 left-0 right-0 z-[101] flex flex-col items-center touch-none will-change-transform"
               >
                 <div className="w-full max-w-md bg-[#0F0F0F] border-t border-white/10 rounded-t-3xl p-6 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]" onClick={(e) => e.stopPropagation()}>
                   

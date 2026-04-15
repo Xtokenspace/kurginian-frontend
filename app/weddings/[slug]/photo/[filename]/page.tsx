@@ -20,7 +20,8 @@ const translations = {
     thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
     toast: "Lien copié dans le presse-papiers",
     shareText: "Regardez cette magnifique photo dans la KURGINIAN Premium Gallery ✨",
-    copyPrompt: "Copiez ce lien :"
+    copyPrompt: "Copiez ce lien :",
+    confirmReset: "Êtes-vous sûr ? (Appuyez à nouveau)"
   },
   en: {
     title: "Memory • 1 photo",
@@ -33,7 +34,8 @@ const translations = {
     thanks: "Thank you for using KURGINIAN Premium Gallery",
     toast: "Link copied to clipboard",
     shareText: "Take a look at this wonderful photo in the KURGINIAN Premium Gallery ✨",
-    copyPrompt: "Copy this link:"
+    copyPrompt: "Copy this link:",
+    confirmReset: "Are you sure? (Tap again)"
   },
   ru: {
     title: "Воспоминание • 1 фото",
@@ -46,7 +48,8 @@ const translations = {
     thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
     toast: "Ссылка скопирована",
     shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
-    copyPrompt: "Скопируйте ссылку:"
+    copyPrompt: "Скопируйте ссылку:",
+    confirmReset: "Уверены? (Нажмите еще раз)"
   }
 } as const;
 
@@ -60,7 +63,8 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [showToast, setShowToast] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false); // <-- НОВЫЙ СТЕЙТ
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false); // <-- СТЕЙТ ЗАЩИТЫ ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
 
   // === ЯЗЫК (Берем из Контекста) ===
   const { language, setLanguage, refreshSessions } = useAppContext();
@@ -193,7 +197,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="border border-lux-gold/30 rounded-sm overflow-hidden shadow-2xl relative min-h-[300px] md:min-h-[500px] bg-[#070707]"
+            className="border border-lux-gold/30 rounded-sm overflow-hidden shadow-2xl relative h-[60vh] md:h-[75vh] w-full bg-[#070707]"
           >
             {!isImageLoaded && (
                <div className="absolute inset-0 flex items-center justify-center">
@@ -206,9 +210,8 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             <Image
               src={photoUrl}
               alt={filename}
-              width={2500}
-              height={2500}
-              className={`w-full h-auto object-contain transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              fill
+              className={`object-contain transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
               quality={95}
               priority
               onLoad={() => setIsImageLoaded(true)}
@@ -299,19 +302,30 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             {t.thanks}
           </p>
           
-          {/* Деструктивное действие убрано вниз и сделано ссылкой */}
+          {/* Умная деструктивная кнопка (Защита от случайного клика) */}
           <button
             onClick={() => {
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+              
+              if (!confirmReset) {
+                setConfirmReset(true);
+                setTimeout(() => setConfirmReset(false), 3000); // Сбрасываем через 3 секунды
+                return;
+              }
+              
               localStorage.removeItem(`photos_${slug}`);
               localStorage.removeItem(`title_${slug}`);
               localStorage.removeItem(`expires_${slug}`);
               refreshSessions(); // <-- Обновляем дашборд!
               router.push(`/weddings/${slug}`);
             }}
-            className="text-[10px] text-gray-500 hover:text-red-400 transition-colors uppercase tracking-[0.2em] underline underline-offset-4 decoration-transparent hover:decoration-red-400/50"
+            className={`text-[10px] uppercase tracking-[0.2em] underline underline-offset-4 transition-colors duration-300 ${
+              confirmReset 
+                ? 'text-red-500 decoration-red-500 font-bold' 
+                : 'text-gray-500 hover:text-red-400 decoration-transparent hover:decoration-red-400/50'
+            }`}
           >
-            {t.searchAgain}
+            {confirmReset ? t.confirmReset : t.searchAgain}
           </button>
         </motion.div>
 
@@ -324,7 +338,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-sm font-bold shadow-gold-glow flex items-center gap-2 z-[200] text-xs uppercase tracking-wider"
+            className="fixed bottom-24 md:bottom-12 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-sm font-bold shadow-gold-glow flex items-center gap-2 z-[200] text-xs uppercase tracking-wider"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
