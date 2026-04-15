@@ -428,7 +428,7 @@ export default function Gallery({
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
     setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
     
-    // Слушатель для открытия корзины из внешнего меню (Burger Menu)
+    // Перехват команды открытия корзины из глобального меню
     const handleOpenCart = () => setIsCartOpen(true);
     window.addEventListener('open-print-cart', handleOpenCart);
     return () => window.removeEventListener('open-print-cart', handleOpenCart);
@@ -448,8 +448,9 @@ export default function Gallery({
   const initialTouchDistance = useRef<number | null>(null);
   const currentScale = useRef<number>(1);
   
-  // Стейты уведомлений
+// Стейты уведомлений
   const [showToast, setShowToast] = useState(false);
+  const [showCartToast, setShowCartToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 
   // Получаем язык и корзину из глобального контекста
@@ -1172,18 +1173,29 @@ export default function Gallery({
                         <img src={item.thumb_url} alt="print" className="w-16 h-20 object-cover rounded-lg" />
                         <div className="flex-1 flex flex-col gap-2">
                           
-                          <div className="flex justify-between items-center">
-                            <select 
-                              value={item.size}
-                              onChange={(e) => updateCartItem(item.id, item.quantity, e.target.value as PrintSize)}
-                              className="bg-black border border-white/10 text-white text-[10px] uppercase tracking-widest rounded-lg px-2 py-1 outline-none focus:border-lux-gold"
-                            >
-                              <option value="10x15">10x15 (1.50€)</option>
-                              <option value="15x20">15x20 (3.00€)</option>
-                              <option value="A4">A4 (8.00€)</option>
-                              <option value="A3">A3 (15.00€)</option>
-                            </select>
-                            <button onClick={() => removeFromCart(item.id)} className="text-gray-600 hover:text-red-500 text-xs uppercase">✕</button>
+                          <div className="flex justify-between items-center mb-1">
+                            {/* PREMIUM SEGMENTED PICKER */}
+                            <div className="flex bg-black p-0.5 rounded-lg border border-white/10">
+                              {(['10x15', '15x20', 'A4', 'A3'] as PrintSize[]).map((sizeOption) => (
+                                <button
+                                  key={sizeOption}
+                                  onClick={() => {
+                                    if (item.size !== sizeOption) {
+                                      triggerVibration(10);
+                                      updateCartItem(item.id, item.quantity, sizeOption);
+                                    }
+                                  }}
+                                  className={`px-2.5 py-1 text-[10px] rounded-md font-bold transition-all ${
+                                    item.size === sizeOption 
+                                      ? 'bg-[#222] text-lux-gold shadow-sm' 
+                                      : 'text-gray-500 hover:text-white'
+                                  }`}
+                                >
+                                  {sizeOption}
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={() => removeFromCart(item.id)} className="text-gray-600 hover:text-red-500 text-xs uppercase p-1">✕</button>
                           </div>
 
                           <div className="flex justify-between items-center mt-1">
@@ -1481,9 +1493,9 @@ export default function Gallery({
               )}
               {/* === КОНЕЦ ЛОКАТОРА === */}
 
-              {/* Toast Уведомление о копировании ссылки */}
+              {/* Toast Уведомления */}
               <AnimatePresence>
-                {showToast && (
+                {(showToast || showCartToast) && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1493,7 +1505,7 @@ export default function Gallery({
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
-                    {t.copied}
+                    {showCartToast ? (language === 'ru' ? 'В КОРЗИНЕ' : language === 'fr' ? 'AJOUTÉ' : 'ADDED') : t.copied}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1523,8 +1535,8 @@ export default function Gallery({
                     triggerVibration([20, 40]);
                     const photo = filteredPhotos[selectedIndex];
                     addToCart([{ id: `${photo.filename}_10x15`, filename: photo.filename, thumb_url: photo.urls.thumb, size: '10x15', quantity: 1, price: 1.50 }]);
-                    closeLightbox();
-                    setIsCartOpen(true);
+                    setShowCartToast(true);
+                    setTimeout(() => setShowCartToast(false), 2000);
                   }}
                   className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-lg transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
                 >
@@ -1596,6 +1608,28 @@ export default function Gallery({
               </a>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === FLOATING CART BADGE (Плавающая корзина слева) === */}
+      <AnimatePresence>
+        {cart.length > 0 && !isCartOpen && selectedIndex === null && !isSelectionMode && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.8, x: -20 }}
+            onClick={() => {
+              triggerVibration(10);
+              setIsCartOpen(true);
+            }}
+            className="fixed bottom-6 left-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 h-14 px-5 rounded-full flex items-center justify-center gap-3 shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all group"
+          >
+            <span className="text-xl leading-none">🛒</span>
+            <span className="font-bold text-xs">{cartTotal.toFixed(2)}€</span>
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-[#0a0a0a]">
+              {cart.reduce((sum, item) => sum + item.quantity, 0)}
+            </div>
+          </motion.button>
         )}
       </AnimatePresence>
 

@@ -498,6 +498,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             
             if (res.ok) {
               const data = await res.json();
+              
+              // Перехват API Shield: Если сервер ответил, что проект заморожен
+              if (data.status === 'expired') {
+                setStatus('expired');
+                return;
+              }
+
               setPhotos(data.data);
               if (data.expires_at) setExpiresAt(data.expires_at);
               setStatus('success');
@@ -1370,7 +1377,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
                         {/* 1. Новый поиск */}
                         <button
-                          onClick={() => {
+                          onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             closeModalSafe(() => setShowMenu(false));
                             setTimeout(() => {
