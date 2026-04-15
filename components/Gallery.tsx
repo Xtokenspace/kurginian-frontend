@@ -428,10 +428,20 @@ export default function Gallery({
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
     setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
     
-    // Перехват команды открытия корзины из глобального меню
+    // Перехват команд из глобального меню
     const handleOpenCart = () => setIsCartOpen(true);
+    const handleStartSelection = () => {
+      setIsSelectionMode(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' }); // Поднимаем гостя наверх к фото
+    };
+    
     window.addEventListener('open-print-cart', handleOpenCart);
-    return () => window.removeEventListener('open-print-cart', handleOpenCart);
+    window.addEventListener('start-print-selection', handleStartSelection);
+    
+    return () => {
+      window.removeEventListener('open-print-cart', handleOpenCart);
+      window.removeEventListener('start-print-selection', handleStartSelection);
+    };
   }, []);
 
   // БЛОКИРОВКА СКРОЛЛА (Ghost Scrolling Fix)
@@ -1611,18 +1621,18 @@ export default function Gallery({
         )}
       </AnimatePresence>
 
-      {/* === FLOATING CART BADGE (Плавающая корзина слева) === */}
+      {/* === FLOATING CART BADGE (Плавающая корзина справа над меню) === */}
       <AnimatePresence>
         {cart.length > 0 && !isCartOpen && selectedIndex === null && !isSelectionMode && (
           <motion.button
-            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+            initial={{ opacity: 0, scale: 0.8, x: 20 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.8, x: -20 }}
+            exit={{ opacity: 0, scale: 0.8, x: 20 }}
             onClick={() => {
               triggerVibration(10);
               setIsCartOpen(true);
             }}
-            className="fixed bottom-6 left-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 h-14 px-5 rounded-full flex items-center justify-center gap-3 shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all group"
+            className="fixed bottom-24 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 h-14 px-5 rounded-full flex items-center justify-center gap-3 shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all group"
           >
             <span className="text-xl leading-none">🛒</span>
             <span className="font-bold text-xs">{cartTotal.toFixed(2)}€</span>

@@ -1352,28 +1352,33 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                       {/* Единый блок меню (iOS Style List) */}
                       <div className="bg-[#111] border border-white/10 rounded-2xl flex flex-col w-full shadow-lg">
                         
-                        {/* 0. Корзина печати */}
-                        {cart.length > 0 && (
-                          <button
-                            onClick={() => { 
-                              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                              closeModalSafe(() => setShowMenu(false));
-                              // Элегантно вызываем корзину через Custom Event без перезагрузок
+                        {/* 0. Услуга Печати (Всегда видима) */}
+                        <button
+                          onClick={() => { 
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                            closeModalSafe(() => setShowMenu(false));
+                            if (cart.length > 0) {
                               window.dispatchEvent(new CustomEvent('open-print-cart'));
-                            }}
-                            className="w-full bg-lux-gold/10 hover:bg-lux-gold/20 transition-colors flex items-center justify-between px-5 py-4 group border-b border-lux-gold/20"
-                          >
-                            <div className="flex items-center gap-4">
-                              <span className="text-xl">🛒</span>
-                              <span className="text-lux-gold group-hover:text-white transition-colors text-xs uppercase tracking-widest font-bold">
-                                {language === 'ru' ? 'Оформить печать' : language === 'fr' ? 'Commander l\'impression' : 'Order Prints'}
-                              </span>
-                            </div>
+                            } else {
+                              window.dispatchEvent(new CustomEvent('start-print-selection'));
+                            }
+                          }}
+                          className={`w-full transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5 hover:bg-white/5 ${cart.length > 0 ? 'bg-lux-gold/10 border-lux-gold/20 hover:bg-lux-gold/20' : 'bg-transparent'}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <span className="text-xl grayscale group-hover:grayscale-0 transition-all">🛒</span>
+                            <span className={`${cart.length > 0 ? 'text-lux-gold' : 'text-gray-300'} group-hover:text-white transition-colors text-xs uppercase tracking-widest font-bold`}>
+                              {language === 'ru' ? 'Заказать печать' : language === 'fr' ? 'Commander l\'impression' : 'Order Prints'}
+                            </span>
+                          </div>
+                          {cart.length > 0 ? (
                             <div className="bg-lux-gold text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
                               {cart.length}
                             </div>
-                          </button>
-                        )}
+                          ) : (
+                            <span className="text-gray-600 group-hover:text-gray-400 transition-colors">→</span>
+                          )}
+                        </button>
 
                         {/* 1. Новый поиск */}
                         <button
