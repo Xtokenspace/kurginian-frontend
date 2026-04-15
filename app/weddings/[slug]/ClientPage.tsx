@@ -1761,25 +1761,56 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               className="bg-lux-card border border-lux-gold/50 p-8 rounded-sm max-w-sm w-full shadow-gold-glow text-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="font-cinzel text-xl text-lux-gold mb-6 tracking-widest uppercase">
+              <h3 className="font-cinzel text-xl text-lux-gold mb-8 tracking-widest uppercase">
                 {t.enterPassword}
               </h3>
               
-              <input
-                type="password"
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••"
-                className={`w-full bg-[#111] border ${passwordError ? 'border-red-500' : 'border-lux-gold/30'} text-white px-4 py-4 rounded-sm text-center text-2xl tracking-[0.5em] pl-[0.5em] focus:outline-none focus:border-lux-gold transition-colors mb-2`}
-                autoFocus
-                onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-              />
+              {/* === APPLE-LEVEL PIN CODE (Native UI) === */}
+              <div className="relative flex justify-center mb-6">
+                {/* Невидимый инпут для вызова системной клавиатуры */}
+                <input
+                  type="tel"
+                  maxLength={6}
+                  value={passwordInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setPasswordInput(val);
+                    if (val.length > passwordInput.length) triggerVibration(10); // Вибрация при вводе
+                    if (val.length === 6) setTimeout(handlePasswordSubmit, 100); // Авто-отправка
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-text z-20"
+                  autoFocus
+                />
+                
+                {/* Стеклянные кружочки с физикой Framer Motion */}
+                <motion.div 
+                  animate={passwordError ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
+                  transition={{ duration: 0.4 }}
+                  className="flex gap-4 pointer-events-none"
+                >
+                  {[...Array(6)].map((_, i) => {
+                    const isActive = passwordInput.length > i;
+                    return (
+                      <motion.div 
+                        key={i}
+                        animate={{ 
+                          scale: isActive ? [1, 1.2, 1] : 1,
+                          backgroundColor: isActive ? '#D4AF37' : 'transparent',
+                          borderColor: passwordError ? '#ef4444' : isActive ? '#D4AF37' : 'rgba(255,255,255,0.2)'
+                        }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                        className="w-4 h-4 md:w-5 md:h-5 rounded-full border-[1.5px] transition-colors"
+                      />
+                    );
+                  })}
+                </motion.div>
+              </div>
               
               {/* Сообщение об ошибке */}
-              <div className="h-6">
+              <div className="h-6 mb-2">
                 <AnimatePresence>
                   {passwordError && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-400 text-sm">
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-red-400 text-xs uppercase tracking-widest">
                       {t.wrongPassword}
                     </motion.p>
                   )}

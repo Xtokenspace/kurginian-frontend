@@ -293,24 +293,39 @@ function PhotoRowItem({
         } ${isSelected ? 'opacity-80' : 'group-hover:scale-105'}`}
       />
       
-      {/* ИНДИКАТОР ВЫБОРА (Apple Style) */}
+      {/* ИНДИКАТОР ВЫБОРА (Apple Style Bouncing Physics) */}
       <AnimatePresence>
         {isSelectionMode && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.5 }}
+            initial={{ opacity: 0, scale: 0.2 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="absolute bottom-2 right-2 z-30 pointer-events-none"
+            exit={{ opacity: 0, scale: 0.2 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+            className="absolute bottom-3 right-3 z-30 pointer-events-none"
           >
-            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-              isSelected ? 'bg-lux-gold border-lux-gold' : 'bg-black/30 border-white/50 backdrop-blur-sm'
-            }`}>
-              {isSelected && (
-                <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                </svg>
-              )}
-            </div>
+            <motion.div 
+              animate={{ 
+                backgroundColor: isSelected ? '#D4AF37' : 'rgba(0,0,0,0.3)',
+                borderColor: isSelected ? '#D4AF37' : 'rgba(255,255,255,0.5)',
+                scale: isSelected ? [1, 1.2, 1] : 1
+              }}
+              transition={{ type: "spring", stiffness: 300, damping: 15 }}
+              className="w-6 h-6 rounded-full border-2 flex items-center justify-center backdrop-blur-sm shadow-lg"
+            >
+              <AnimatePresence>
+                {isSelected && (
+                  <motion.svg 
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    exit={{ opacity: 0, scale: 0 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </motion.svg>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1066,18 +1081,32 @@ export default function Gallery({
                   disabled={selectedPhotos.size === 0}
                   onClick={() => {
                     triggerVibration([20, 40]);
+                    
+                    // Умная пакетная логика: берем любимый размер, либо дефолт 10х15
+                    let targetSize = preferredSize;
+                    if (!targetSize) {
+                      targetSize = '10x15';
+                      localStorage.setItem('kurginian_pref_size', '10x15');
+                      // Компонент сам подхватит его при следующем рендере
+                    }
+
                     const itemsToAdd = Array.from(selectedPhotos).map(filename => {
                       const photo = photos.find(p => p.filename === filename);
-                      return { id: `${filename}_10x15`, filename, thumb_url: photo?.urls.thumb || '', size: '10x15' as const, quantity: 1, price: 1.50 };
+                      return { id: `${filename}_${targetSize}`, filename, thumb_url: photo?.urls.thumb || '', size: targetSize as PrintSize, quantity: 1, price: PRINT_PRICES[targetSize as PrintSize] };
                     });
                     addToCart(itemsToAdd);
                     setIsSelectionMode(false);
                     setSelectedPhotos(new Set());
+                    
+                    // Сразу открываем корзину, где они увидят пакет и могут изменить его
                     setIsCartOpen(true);
                   }}
-                  className="flex-[2] md:flex-none bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform shadow-gold-glow flex items-center justify-center gap-2"
+                  className="flex-[2] md:flex-none bg-lux-gold text-black px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-[0.98] transition-transform shadow-gold-glow flex items-center justify-center gap-2.5"
                 >
-                  🛒 {t.orderPrints}
+                  <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                  {t.orderPrints}
                 </button>
               </div>
             </motion.div>
@@ -1628,7 +1657,7 @@ export default function Gallery({
                     )}
                   </AnimatePresence>
 
-                  {/* Основная кнопка добавления */}
+                  {/* Основная кнопка добавления (УМНАЯ ЛОГИКА +1) */}
                   <button
                     onClick={() => {
                       if (preferredSize) {
@@ -1644,17 +1673,25 @@ export default function Gallery({
                         setShowSizeMenu(true);
                       }
                     }}
-                    className={`flex-1 h-full flex items-center justify-center gap-2 rounded-lg transition-all active:scale-[0.98] font-bold relative ${cart.length > 0 ? 'bg-white text-black' : 'bg-lux-gold text-black shadow-gold-glow hover:bg-white'}`}
+                    className={`flex-1 h-full flex items-center justify-center gap-2.5 rounded-lg transition-all active:scale-[0.98] font-bold relative ${
+                      cart.some(item => item.filename === filteredPhotos[selectedIndex]?.filename) 
+                        ? 'bg-white text-black' 
+                        : 'bg-lux-gold text-black shadow-gold-glow hover:bg-white'
+                    }`}
                   >
+                    {/* Элегантная иконка сумки покупок */}
                     <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.25a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.25z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                     </svg>
+                    
                     <span className="uppercase tracking-[0.2em] text-[10px] md:text-xs truncate">
-                      {preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints}
+                      {cart.some(item => item.filename === filteredPhotos[selectedIndex]?.filename)
+                        ? (language === 'ru' ? 'ДОБАВИТЬ ЕЩЕ (+1)' : language === 'fr' ? 'AJOUTER PLUS (+1)' : 'ADD ANOTHER (+1)')
+                        : (preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints)}
                     </span>
                     
                     <AnimatePresence>
-                      {cart.length > 0 && (
+                      {cart.reduce((sum, item) => sum + item.quantity, 0) > 0 && (
                         <motion.div 
                           initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
                           className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-[#0a0a0a] shadow-md"
@@ -1754,10 +1791,12 @@ export default function Gallery({
               triggerVibration(10);
               setIsCartOpen(true);
             }}
-            className="fixed bottom-24 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 h-14 px-5 rounded-full flex items-center justify-center gap-3 shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all group"
+            className="fixed bottom-24 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 h-14 px-5 rounded-full flex items-center justify-center gap-3 shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all group text-lux-gold"
           >
-            <span className="text-xl leading-none">🛒</span>
-            <span className="font-bold text-xs">{cartTotal.toFixed(2)}€</span>
+            <svg className="w-5 h-5 transition-colors group-hover:text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            <span className="font-bold text-xs text-white group-hover:text-black transition-colors">{cartTotal.toFixed(2)}€</span>
             <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-[#0a0a0a]">
               {cart.reduce((sum, item) => sum + item.quantity, 0)}
             </div>
