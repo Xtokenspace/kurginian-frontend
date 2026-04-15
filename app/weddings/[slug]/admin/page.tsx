@@ -111,7 +111,7 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
-  const { language, setLanguage } = useAppContext();
+  const { language, setLanguage, cart } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [guestClusters, setGuestClusters] = useState<any>(null);
@@ -469,6 +469,28 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                 {/* Единый блок меню (iOS Style List) */}
                 <div className="bg-[#111] border border-white/10 rounded-2xl flex flex-col w-full shadow-lg">
                   
+                  {/* 0. Корзина печати */}
+                  {cart.length > 0 && (
+                    <button
+                      onClick={() => { 
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                        closeModalSafe(() => setShowMenu(false));
+                        window.dispatchEvent(new CustomEvent('open-print-cart'));
+                      }}
+                      className="w-full bg-lux-gold/10 hover:bg-lux-gold/20 transition-colors flex items-center justify-between px-5 py-4 group border-b border-lux-gold/20"
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className="text-xl">🛒</span>
+                        <span className="text-lux-gold group-hover:text-white transition-colors text-xs uppercase tracking-widest font-bold">
+                          {language === 'ru' ? 'Оформить печать' : language === 'fr' ? 'Commander l\'impression' : 'Order Prints'}
+                        </span>
+                      </div>
+                      <div className="bg-lux-gold text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {cart.length}
+                      </div>
+                    </button>
+                  )}
+
                   {/* 1. Instagram */}
                   <button
                     onClick={() => { 

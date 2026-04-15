@@ -427,6 +427,11 @@ export default function Gallery({
   useEffect(() => {
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
     setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
+    
+    // Слушатель для открытия корзины из внешнего меню (Burger Menu)
+    const handleOpenCart = () => setIsCartOpen(true);
+    window.addEventListener('open-print-cart', handleOpenCart);
+    return () => window.removeEventListener('open-print-cart', handleOpenCart);
   }, []);
 
   // БЛОКИРОВКА СКРОЛЛА (Ghost Scrolling Fix)
@@ -1005,41 +1010,50 @@ export default function Gallery({
                 </button>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full mt-3 md:w-auto md:mt-0">
                 <button 
                   onClick={() => {
                     const targets = photos.filter(p => selectedPhotos.has(p.filename));
                     handleSaveAll(targets);
                   }}
                   disabled={selectedPhotos.size === 0 || isSaving}
-                  className="bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform flex items-center justify-center gap-2"
+                  className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
                 >
-                  {isSaving && <div className="w-3 h-3 border-2 border-black/20 border-t-black rounded-full animate-spin" />}
-                  {isSaving ? `${saveProgress}%` : t.download}
+                  {isSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : '↓'}
                 </button>
-                {/* Будущая кнопка "Поделиться" или "В печать" */}
+
+                <button 
+                  disabled={selectedPhotos.size === 0}
+                  onClick={async () => {
+                    triggerVibration(50);
+                    const fileNames = Array.from(selectedPhotos).join(',');
+                    const shareLink = `${window.location.origin}/weddings/${slug}?p=${fileNames}`;
+                    if (navigator.share) {
+                      try { await navigator.share({ title: 'KURGINIAN Premium', url: shareLink }); } catch (err) {}
+                    } else {
+                      navigator.clipboard.writeText(shareLink);
+                      setShowToast(true); setTimeout(() => setShowToast(false), 2000);
+                    }
+                  }}
+                  className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
+                >
+                  ↗
+                </button>
+
                 <button 
                   disabled={selectedPhotos.size === 0}
                   onClick={() => {
                     triggerVibration([20, 40]);
-                    // Формируем товары из выбранных фото (по умолчанию 10x15)
                     const itemsToAdd = Array.from(selectedPhotos).map(filename => {
                       const photo = photos.find(p => p.filename === filename);
-                      return {
-                        id: `${filename}_10x15`,
-                        filename: filename,
-                        thumb_url: photo?.urls.thumb || '',
-                        size: '10x15' as const,
-                        quantity: 1,
-                        price: 1.50
-                      };
+                      return { id: `${filename}_10x15`, filename, thumb_url: photo?.urls.thumb || '', size: '10x15' as const, quantity: 1, price: 1.50 };
                     });
                     addToCart(itemsToAdd);
                     setIsSelectionMode(false);
                     setSelectedPhotos(new Set());
                     setIsCartOpen(true);
                   }}
-                  className="bg-white text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform shadow-lg shadow-white/20 flex items-center gap-2"
+                  className="flex-[2] md:flex-none bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-transform shadow-gold-glow flex items-center justify-center gap-2"
                 >
                   🛒 {t.orderPrints}
                 </button>
@@ -1484,26 +1498,38 @@ export default function Gallery({
                 )}
               </AnimatePresence>
 
-              {/* Action Bar (Скачать / Поделиться) */}
-              <div className="w-full max-w-md flex gap-3">
+              {/* Action Bar (Скачать / Поделиться / Печать) */}
+              <div className="w-full max-w-md flex gap-2">
                 <button
                   onClick={() => handleDownload(filteredPhotos[selectedIndex].filename, filteredPhotos[selectedIndex].urls.web)}
-                  className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
+                  className="flex-1 flex items-center justify-center bg-[#111] hover:bg-[#1a1a1a] border border-white/10 text-white px-2 py-3.5 rounded-lg transition-all active:scale-[0.98]"
                 >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                   </svg>
-                  <span className="uppercase tracking-widest text-[10px] md:text-xs">{t.download}</span>
                 </button>
                 
                 <button
                   onClick={() => handleShare(filteredPhotos[selectedIndex].filename)}
-                  className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-3.5 rounded-sm transition-all active:scale-[0.98] shadow-lg"
+                  className="flex-1 flex items-center justify-center bg-[#111] hover:bg-[#1a1a1a] border border-white/10 text-white px-2 py-3.5 rounded-lg transition-all active:scale-[0.98]"
                 >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                   </svg>
-                  <span className="font-medium uppercase tracking-widest text-[10px] md:text-xs">{t.share}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    triggerVibration([20, 40]);
+                    const photo = filteredPhotos[selectedIndex];
+                    addToCart([{ id: `${photo.filename}_10x15`, filename: photo.filename, thumb_url: photo.urls.thumb, size: '10x15', quantity: 1, price: 1.50 }]);
+                    closeLightbox();
+                    setIsCartOpen(true);
+                  }}
+                  className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-lg transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
+                >
+                  <span className="text-lg leading-none">🛒</span>
+                  <span className="uppercase tracking-widest text-[10px] md:text-xs">{t.orderPrints}</span>
                 </button>
               </div>
 

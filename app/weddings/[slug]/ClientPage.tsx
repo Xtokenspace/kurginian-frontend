@@ -289,7 +289,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   
-  const { language, setLanguage, refreshSessions } = useAppContext();
+  const { language, setLanguage, refreshSessions, cart } = useAppContext();
   const t = translations[language];
 
     // Стейты для модуля продления (Upsell) — ОДИН КЛИК (STRIPE)
@@ -480,16 +480,21 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   // ИСПРАВЛЕНИЕ: Приоритет — актуальному статусу expired с сервера (initialMeta)
   useEffect(() => {
     const loadGallery = async () => {
-      // 1. Проверяем, не перешел ли гость по ссылке "Поделиться подборкой" (?guest=...)
+      // 1. Проверяем, не перешел ли гость по ссылке "Поделиться подборкой" (?guest=... или ?p=...)
       if (typeof window !== 'undefined') {
         const params = new URLSearchParams(window.location.search);
         const guestParam = params.get('guest');
+        const pParam = params.get('p');
         
-        if (guestParam) {
+        if (guestParam || pParam) {
           setStatus('loading'); // Включаем красивый экран биометрии (как лоадер)
           try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-            const res = await fetch(`${apiUrl}/api/weddings/${slug}/collection/${guestParam}`);
+            const endpoint = guestParam 
+              ? `/api/weddings/${slug}/collection/${guestParam}`
+              : `/api/weddings/${slug}/shared-selection?p=${pParam}`;
+              
+            const res = await fetch(`${apiUrl}${endpoint}`);
             
             if (res.ok) {
               const data = await res.json();
@@ -1340,9 +1345,32 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                       {/* Единый блок меню (iOS Style List) */}
                       <div className="bg-[#111] border border-white/10 rounded-2xl flex flex-col w-full shadow-lg">
                         
+                        {/* 0. Корзина печати */}
+                        {cart.length > 0 && (
+                          <button
+                            onClick={() => { 
+                              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                              closeModalSafe(() => setShowMenu(false));
+                              // Элегантно вызываем корзину через Custom Event без перезагрузок
+                              window.dispatchEvent(new CustomEvent('open-print-cart'));
+                            }}
+                            className="w-full bg-lux-gold/10 hover:bg-lux-gold/20 transition-colors flex items-center justify-between px-5 py-4 group border-b border-lux-gold/20"
+                          >
+                            <div className="flex items-center gap-4">
+                              <span className="text-xl">🛒</span>
+                              <span className="text-lux-gold group-hover:text-white transition-colors text-xs uppercase tracking-widest font-bold">
+                                {language === 'ru' ? 'Оформить печать' : language === 'fr' ? 'Commander l\'impression' : 'Order Prints'}
+                              </span>
+                            </div>
+                            <div className="bg-lux-gold text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              {cart.length}
+                            </div>
+                          </button>
+                        )}
+
                         {/* 1. Новый поиск */}
                         <button
-                          onClick={() => { 
+                          onClick={() => {
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             closeModalSafe(() => setShowMenu(false));
                             setTimeout(() => {
