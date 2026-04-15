@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { useAppContext, PrintSize } from '@/context/AppContext';
+import { useAppContext, PrintSize, PRINT_PRICES } from '@/context/AppContext';
 import { Blurhash } from 'react-blurhash';
 
 // --- НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ ИИ ---
@@ -462,6 +462,17 @@ export default function Gallery({
   const [showToast, setShowToast] = useState(false);
   const [showCartToast, setShowCartToast] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  
+  // Стейты умной печати (Smart Print UX)
+  const [showSizeMenu, setShowSizeMenu] = useState(false);
+  const [preferredSize, setPreferredSize] = useState<PrintSize | null>(null);
+  const [customCartMsg, setCustomCartMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    // При загрузке галереи проверяем, выбирал ли гость размер ранее
+    const savedSize = localStorage.getItem('kurginian_pref_size') as PrintSize;
+    if (savedSize) setPreferredSize(savedSize);
+  }, []);
 
   // Получаем язык и корзину из глобального контекста
   const { language: contextLanguage, cart, addToCart, updateCartItem, removeFromCart, clearCart } = useAppContext();
@@ -1510,18 +1521,22 @@ export default function Gallery({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    className="bg-lux-gold text-black px-4 py-2 rounded-sm font-bold shadow-gold-glow text-[10px] md:text-xs uppercase tracking-wider mb-2 flex items-center gap-2"
+                    className="bg-lux-gold text-black px-4 py-2.5 rounded-xl font-bold shadow-gold-glow text-[10px] md:text-xs uppercase tracking-wider mb-3 flex items-center gap-2 text-center max-w-[95%] shadow-lg"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                     </svg>
-                    {showCartToast ? (language === 'ru' ? 'В КОРЗИНЕ' : language === 'fr' ? 'AJOUTÉ' : 'ADDED') : t.copied}
+                    <span>
+                      {showCartToast 
+                        ? (customCartMsg || (language === 'ru' ? 'ДОБАВЛЕНО В КОРЗИНУ' : language === 'fr' ? 'AJOUTÉ AU PANIER' : 'ADDED TO CART')) 
+                        : t.copied}
+                    </span>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Action Bar (Скачать / Поделиться / Печать) */}
-              <div className="w-full max-w-md flex gap-2">
+              <div className="w-full max-w-md flex gap-2 relative">
                 <button
                   onClick={() => handleDownload(filteredPhotos[selectedIndex].filename, filteredPhotos[selectedIndex].urls.web)}
                   className="flex-1 flex items-center justify-center bg-[#111] hover:bg-[#1a1a1a] border border-white/10 text-white px-2 py-3.5 rounded-lg transition-all active:scale-[0.98]"
@@ -1540,19 +1555,102 @@ export default function Gallery({
                   </svg>
                 </button>
 
-                <button
-                  onClick={() => {
-                    triggerVibration([20, 40]);
-                    const photo = filteredPhotos[selectedIndex];
-                    addToCart([{ id: `${photo.filename}_10x15`, filename: photo.filename, thumb_url: photo.urls.thumb, size: '10x15', quantity: 1, price: 1.50 }]);
-                    setShowCartToast(true);
-                    setTimeout(() => setShowCartToast(false), 2000);
-                  }}
-                  className="flex-[3] flex items-center justify-center gap-2 bg-lux-gold text-black px-4 py-3.5 rounded-lg transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold"
-                >
-                  <span className="text-lg leading-none">🛒</span>
-                  <span className="uppercase tracking-widest text-[10px] md:text-xs">{t.orderPrints}</span>
-                </button>
+                {/* === УМНАЯ КНОПКА ПЕЧАТИ (С ВЫБОРОМ РАЗМЕРА И ИКОНКОЙ ПРИНТЕРА) === */}
+                <div className="flex-[3] relative">
+                  <AnimatePresence>
+                    {showSizeMenu && (
+                      <>
+                        {/* Невидимый фон для закрытия меню по клику мимо */}
+                        <motion.div
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                          onClick={() => setShowSizeMenu(false)}
+                          className="fixed inset-0 z-[115]"
+                        />
+                        {/* Стеклянное выпадающее меню */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          className="absolute bottom-full right-0 w-[220px] mb-3 bg-[#111]/95 backdrop-blur-2xl border border-lux-gold/30 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-[120] flex flex-col gap-1 overflow-hidden"
+                        >
+                          <div className="text-center pb-2 pt-1">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest">{language === 'ru' ? 'Выберите формат' : language === 'fr' ? 'Choisissez le format' : 'Select Format'}</span>
+                          </div>
+                          {(Object.keys(PRINT_PRICES) as PrintSize[]).map((size) => (
+                            <button
+                              key={size}
+                              onClick={() => {
+                                triggerVibration([20, 40]);
+                                setPreferredSize(size);
+                                localStorage.setItem('kurginian_pref_size', size); // Запоминаем выбор
+                                
+                                const photo = filteredPhotos[selectedIndex];
+                                addToCart([{ id: `${photo.filename}_${size}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: size, quantity: 1, price: PRINT_PRICES[size] }]);
+                                
+                                setShowSizeMenu(false);
+                                
+                                // Показываем умный Toast
+                                const msg = language === 'ru' 
+                                  ? `Размер ${size} установлен. Изменить можно в корзине.` 
+                                  : language === 'fr' 
+                                  ? `Format ${size} défini. Modifiable dans le panier.` 
+                                  : `Size ${size} set. Changeable in cart.`;
+                                setCustomCartMsg(msg);
+                                setShowCartToast(true);
+                                setTimeout(() => { setShowCartToast(false); setCustomCartMsg(null); }, 4000);
+                              }}
+                              className="flex items-center justify-between px-4 py-3 hover:bg-lux-gold hover:text-black text-gray-300 rounded-xl transition-colors group"
+                            >
+                              <span className="font-bold text-sm">{size}</span>
+                              <span className="font-mono text-xs opacity-70 group-hover:opacity-100">{PRINT_PRICES[size].toFixed(2)}€</span>
+                            </button>
+                          ))}
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+
+                  <button
+                    onClick={() => {
+                      if (preferredSize) {
+                        // Быстрое добавление любимого размера (1-Click Add)
+                        triggerVibration([20, 40]);
+                        const photo = filteredPhotos[selectedIndex];
+                        addToCart([{ id: `${photo.filename}_${preferredSize}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: preferredSize, quantity: 1, price: PRINT_PRICES[preferredSize] }]);
+                        
+                        setCustomCartMsg(null); // Стандартное сообщение "Добавлено"
+                        setShowCartToast(true);
+                        setTimeout(() => setShowCartToast(false), 2000);
+                      } else {
+                        // Первый раз - открываем меню выбора
+                        triggerVibration(10);
+                        setShowSizeMenu(true);
+                      }
+                    }}
+                    className="w-full h-full flex items-center justify-center gap-2.5 bg-lux-gold text-black px-4 py-3.5 rounded-lg transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold relative"
+                  >
+                    {/* Премиальная SVG иконка Принтера */}
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.25a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.25z" />
+                    </svg>
+
+                    <span className="uppercase tracking-widest text-[10px] md:text-xs truncate">
+                      {preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints}
+                    </span>
+
+                    {/* Бейдж количества в корзине */}
+                    <AnimatePresence>
+                      {cart.length > 0 && (
+                        <motion.div 
+                          initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-[#0a0a0a] shadow-md"
+                        >
+                          {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </div>
               </div>
 
               {/* Счетчик */}
