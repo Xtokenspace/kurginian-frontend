@@ -1315,14 +1315,32 @@ export default function Gallery({
             className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center select-none touch-none overflow-hidden"
           >
             {/* Кнопка закрытия (Справа) */}
-            <button 
-              onClick={closeLightbox}
-              className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] p-4 flex items-center justify-center text-white/70 hover:text-lux-gold transition-colors"
-            >
-              <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] flex flex-col items-center gap-2">
+              <button 
+                onClick={closeLightbox}
+                className="p-4 flex items-center justify-center text-white/70 hover:text-lux-gold transition-colors"
+              >
+                <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* МИНИ-КОРЗИНА ПОД КРЕСТИКОМ (Только в лайтбоксе) */}
+              <AnimatePresence>
+                {cart.length > 0 && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    onClick={() => setIsCartOpen(true)}
+                    className="flex flex-col items-center gap-1 bg-[#111]/60 backdrop-blur-md border border-lux-gold/30 p-3 rounded-2xl shadow-lg active:scale-95 transition-all"
+                  >
+                    <span className="text-xl">🛒</span>
+                    <span className="text-lux-gold font-bold text-[10px]">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* === ПРЕМИУМ-БРЕНДИНГ (Слева сверху) === */}
             <motion.a
@@ -1555,8 +1573,8 @@ export default function Gallery({
                   </svg>
                 </button>
 
-                {/* === УМНАЯ КНОПКА ПЕЧАТИ (С ВЫБОРОМ РАЗМЕРА И ИКОНКОЙ ПРИНТЕРА) === */}
-                <div className="flex-[3] relative">
+                {/* === УМНАЯ КНОПКА ПЕЧАТИ (Логика "+" и смены размера) === */}
+                <div className="flex-[3] flex gap-1 relative">
                   <AnimatePresence>
                     {showSizeMenu && (
                       <>
@@ -1571,10 +1589,12 @@ export default function Gallery({
                           initial={{ opacity: 0, y: 10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute bottom-full right-0 w-[220px] mb-3 bg-[#111]/95 backdrop-blur-2xl border border-lux-gold/30 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-[120] flex flex-col gap-1 overflow-hidden"
+                          className="absolute bottom-[110%] right-0 w-[220px] bg-[#111]/95 backdrop-blur-2xl border border-lux-gold/30 rounded-2xl p-2 shadow-[0_10px_40px_rgba(0,0,0,0.8)] z-[120] flex flex-col gap-1 overflow-hidden"
                         >
-                          <div className="text-center pb-2 pt-1">
-                            <span className="text-[10px] text-gray-400 uppercase tracking-widest">{language === 'ru' ? 'Выберите формат' : language === 'fr' ? 'Choisissez le format' : 'Select Format'}</span>
+                          <div className="text-center pb-2 pt-1 border-b border-white/5 mb-1">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest">
+                              {language === 'ru' ? 'Выберите формат' : language === 'fr' ? 'Choisissez le format' : 'Select Format'}
+                            </span>
                           </div>
                           {(Object.keys(PRINT_PRICES) as PrintSize[]).map((size) => (
                             <button
@@ -1582,16 +1602,14 @@ export default function Gallery({
                               onClick={() => {
                                 triggerVibration([20, 40]);
                                 setPreferredSize(size);
-                                localStorage.setItem('kurginian_pref_size', size); // Запоминаем выбор
+                                localStorage.setItem('kurginian_pref_size', size);
+                                setShowSizeMenu(false);
                                 
                                 const photo = filteredPhotos[selectedIndex];
                                 addToCart([{ id: `${photo.filename}_${size}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: size, quantity: 1, price: PRINT_PRICES[size] }]);
                                 
-                                setShowSizeMenu(false);
-                                
-                                // Показываем умный Toast
                                 const msg = language === 'ru' 
-                                  ? `Размер ${size} установлен. Изменить можно в корзине.` 
+                                  ? `Размер ${size} выбран. Можно изменить в корзине.` 
                                   : language === 'fr' 
                                   ? `Format ${size} défini. Modifiable dans le panier.` 
                                   : `Size ${size} set. Changeable in cart.`;
@@ -1599,7 +1617,7 @@ export default function Gallery({
                                 setShowCartToast(true);
                                 setTimeout(() => { setShowCartToast(false); setCustomCartMsg(null); }, 4000);
                               }}
-                              className="flex items-center justify-between px-4 py-3 hover:bg-lux-gold hover:text-black text-gray-300 rounded-xl transition-colors group"
+                              className={`flex items-center justify-between px-4 py-3 rounded-xl transition-colors group ${preferredSize === size ? 'bg-lux-gold/20 text-lux-gold' : 'hover:bg-white/5 text-gray-300'}`}
                             >
                               <span className="font-bold text-sm">{size}</span>
                               <span className="font-mono text-xs opacity-70 group-hover:opacity-100">{PRINT_PRICES[size].toFixed(2)}€</span>
@@ -1610,35 +1628,31 @@ export default function Gallery({
                     )}
                   </AnimatePresence>
 
+                  {/* Основная кнопка добавления */}
                   <button
                     onClick={() => {
                       if (preferredSize) {
-                        // Быстрое добавление любимого размера (1-Click Add)
                         triggerVibration([20, 40]);
                         const photo = filteredPhotos[selectedIndex];
                         addToCart([{ id: `${photo.filename}_${preferredSize}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: preferredSize, quantity: 1, price: PRINT_PRICES[preferredSize] }]);
                         
-                        setCustomCartMsg(null); // Стандартное сообщение "Добавлено"
+                        setCustomCartMsg(null);
                         setShowCartToast(true);
                         setTimeout(() => setShowCartToast(false), 2000);
                       } else {
-                        // Первый раз - открываем меню выбора
                         triggerVibration(10);
                         setShowSizeMenu(true);
                       }
                     }}
-                    className="w-full h-full flex items-center justify-center gap-2.5 bg-lux-gold text-black px-4 py-3.5 rounded-lg transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold relative"
+                    className={`flex-1 h-full flex items-center justify-center gap-2 rounded-lg transition-all active:scale-[0.98] font-bold relative ${cart.length > 0 ? 'bg-white text-black' : 'bg-lux-gold text-black shadow-gold-glow hover:bg-white'}`}
                   >
-                    {/* Премиальная SVG иконка Принтера */}
                     <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0v-2.25a2.25 2.25 0 012.25-2.25h6a2.25 2.25 0 012.25 2.25v2.25z" />
                     </svg>
-
-                    <span className="uppercase tracking-widest text-[10px] md:text-xs truncate">
+                    <span className="uppercase tracking-[0.2em] text-[10px] md:text-xs truncate">
                       {preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints}
                     </span>
-
-                    {/* Бейдж количества в корзине */}
+                    
                     <AnimatePresence>
                       {cart.length > 0 && (
                         <motion.div 
@@ -1650,6 +1664,16 @@ export default function Gallery({
                       )}
                     </AnimatePresence>
                   </button>
+
+                  {/* Кнопка смены размера (появляется если размер уже выбран) */}
+                  {preferredSize && (
+                    <button
+                      onClick={() => setShowSizeMenu(true)}
+                      className="w-12 flex items-center justify-center bg-[#111] border border-white/10 text-lux-gold rounded-lg hover:bg-white/5 transition-colors"
+                    >
+                      <span className="text-[10px] font-bold">{preferredSize}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
