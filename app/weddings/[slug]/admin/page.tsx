@@ -111,7 +111,8 @@ export default function AdminGalleryPage({ params }: { params: Promise<{ slug: s
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all: 0 });
-  const { language, setLanguage, cart } = useAppContext();
+  const { language, setLanguage, getCartForSlug } = useAppContext();
+  const cart = getCartForSlug(slug);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [guestClusters, setGuestClusters] = useState<any>(null);
@@ -121,6 +122,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   
   // Новое состояние для меню
   const [showMenu, setShowMenu] = useState(false);
+  const [isGalleryOverlayActive, setIsGalleryOverlayActive] = useState(false); // Контроллер для скрытия UI
 
   // === УМНЫЙ СЕРВИС КНОПОК "НАЗАД" ДЛЯ ВСЕХ ОВЕРЛЕЕВ ===
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -258,86 +260,109 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   return (
     <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 relative">
       
-      {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
-      <div className="fixed top-6 right-6 z-[100]">
-        <div className="relative">
-          <button
-            onClick={() => {
-              triggerVibration(10);
-              setShowLangMenu(!showLangMenu);
-            }}
-            className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
+      {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ И КНОПКА ДОМОЙ (Скрываются при открытии Lightbox/Шторок) */}
+      <AnimatePresence>
+        {!isLightboxOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="fixed top-6 right-6 z-[100]"
           >
-            <span className="uppercase tracking-widest">{language}</span>
-            <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-            </svg>
-          </button>
+            <div className="relative">
+              <button
+                onClick={() => {
+                  triggerVibration(10);
+                  setShowLangMenu(!showLangMenu);
+                }}
+                className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
+              >
+                <span className="uppercase tracking-widest">{language}</span>
+                <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                </svg>
+              </button>
 
-          <AnimatePresence>
-            {showLangMenu && (
-              <>
-                {/* Невидимый слой-перехватчик кликов */}
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowLangMenu(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -5 }}
-                  className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
-                >
-                  {(['fr', 'en', 'ru'] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => {
-                        triggerVibration(10);
-                        setLanguage(lang);
-                        setShowLangMenu(false);
-                      }}
-                      className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
-                        language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
-                      }`}
+              <AnimatePresence>
+                {showLangMenu && (
+                  <>
+                    {/* Невидимый слой-перехватчик кликов */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowLangMenu(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -5 }}
+                      className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-50 overflow-hidden"
                     >
-                      {lang}
-                    </button>
-                  ))}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+                      {(['fr', 'en', 'ru'] as const).map((lang) => (
+                        <button
+                          key={lang}
+                          onClick={() => {
+                            triggerVibration(10);
+                            setLanguage(lang);
+                            setShowLangMenu(false);
+                          }}
+                          className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
+                            language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                          }`}
+                        >
+                          {lang}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
-      <motion.button 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
-        onClick={() => {
-          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-          if (!showMenu) window.history.pushState({ overlay: 'menu' }, "");
-          else if (window.history.state?.overlay) window.history.back();
-          setShowMenu(!showMenu);
-        }}
-        className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
-      >
-        {/* Анимация превращения 2-х полосок бургера в крестик (Х) */}
-        <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
-        <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
-      </motion.button>
+      <AnimatePresence>
+        {!isLightboxOpen && (
+          <motion.button 
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            onClick={() => {
+              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+              if (!showMenu) window.history.pushState({ overlay: 'menu' }, "");
+              else if (window.history.state?.overlay) window.history.back();
+              setShowMenu(!showMenu);
+            }}
+            className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
+          >
+            {/* Анимация превращения 2-х полосок бургера в крестик (Х) */}
+            <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
+            <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* КНОПКА ДОМОЙ И VIP ИНДИКАТОР (Скроллятся вместе со страницей) */}
-      <div className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4">
-        <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-2 bg-[#0a0a0a]/60 backdrop-blur-md border border-white/10 rounded-full px-5 py-2.5 text-[10px] font-medium hover:border-lux-gold/50 hover:text-lux-gold text-gray-400 transition-all shadow-lg group uppercase tracking-[0.2em]"
-        >
-          <span className="text-lg group-hover:-translate-x-1 transition-transform opacity-70">←</span>
-          {t.home}
-        </button>
-      </div>
+      <AnimatePresence>
+        {!isLightboxOpen && (
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            className="absolute top-6 left-6 z-[60] flex flex-col items-start gap-4"
+          >
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 bg-[#0a0a0a]/60 backdrop-blur-md border border-white/10 rounded-full px-5 py-2.5 text-[10px] font-medium hover:border-lux-gold/50 hover:text-lux-gold text-gray-400 transition-all shadow-lg group uppercase tracking-[0.2em]"
+            >
+              <span className="text-lg group-hover:-translate-x-1 transition-transform opacity-70">←</span>
+              {t.home}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="w-full max-w-7xl mx-auto pt-24 pb-20">
         <div className="mb-12 flex flex-col items-center md:items-start gap-6">
@@ -474,11 +499,13 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
                     onClick={() => { 
                       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                       closeModalSafe(() => setShowMenu(false));
-                      if (cart.length > 0) {
-                        window.dispatchEvent(new CustomEvent('open-print-cart'));
-                      } else {
-                        window.dispatchEvent(new CustomEvent('start-print-selection'));
-                      }
+                      setTimeout(() => {
+                        if (cart.length > 0) {
+                          window.dispatchEvent(new CustomEvent('open-print-cart'));
+                        } else {
+                          window.dispatchEvent(new CustomEvent('start-print-selection'));
+                        }
+                      }, 50); // Задержка защищает от конфликта с history.back()
                     }}
                     className={`w-full transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5 hover:bg-white/5 ${cart.length > 0 ? 'bg-lux-gold/10 border-lux-gold/20 hover:bg-lux-gold/20' : 'bg-transparent'}`}
                   >

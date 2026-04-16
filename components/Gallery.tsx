@@ -253,8 +253,9 @@ function PhotoRowItem({
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={() => {
-        if (isSelectionMode) onToggleSelect(photo.filename);
-        else onOpen();
+        // В обычном режиме клик в любое место открывает фото.
+        // В режиме выбора родительский клик отключается (работают 50/50 зоны внутри).
+        if (!isSelectionMode) onOpen();
       }}
       className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
         isSelected ? 'border-2 border-lux-gold scale-95' : 'border border-lux-gold/10 hover:border-lux-gold/60'
@@ -293,40 +294,64 @@ function PhotoRowItem({
         } ${isSelected ? 'opacity-80' : 'group-hover:scale-105'}`}
       />
       
-      {/* ИНДИКАТОР ВЫБОРА (Apple Style Bouncing Physics) */}
+      {/* === ИНТЕРФЕЙС МУЛЬТИВЫБОРА (Apple 50/50 Split Zones) === */}
       <AnimatePresence>
         {isSelectionMode && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.2 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.2 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="absolute bottom-3 right-3 z-30 pointer-events-none"
-          >
-            <motion.div 
-              animate={{ 
-                backgroundColor: isSelected ? '#D4AF37' : 'rgba(0,0,0,0.3)',
-                borderColor: isSelected ? '#D4AF37' : 'rgba(255,255,255,0.5)',
-                scale: isSelected ? [1, 1.2, 1] : 1
-              }}
-              transition={{ type: "spring", stiffness: 300, damping: 15 }}
-              className="w-6 h-6 rounded-full border-2 flex items-center justify-center backdrop-blur-sm shadow-lg"
+          <>
+            {/* ВЕРХНЯЯ ПОЛОВИНА = ОТКРЫТЬ ФОТО */}
+            <div 
+              className="absolute top-0 left-0 right-0 h-1/2 z-30 cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onOpen(); }}
             >
-              <AnimatePresence>
-                {isSelected && (
-                  <motion.svg 
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    exit={{ opacity: 0, scale: 0 }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </motion.svg>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                className="absolute top-2 right-2 w-8 h-8 bg-black/40 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white hover:text-lux-gold hover:border-lux-gold/50 transition-colors shadow-lg"
+              >
+                <svg className="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                </svg>
+              </motion.div>
+            </div>
+
+            {/* НИЖНЯЯ ПОЛОВИНА = ВЫБРАТЬ ФОТО */}
+            <div 
+              className="absolute bottom-0 left-0 right-0 h-1/2 z-30 cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onToggleSelect(photo.filename); }}
+            >
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.2 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.2 }}
+                className="absolute bottom-3 right-3 pointer-events-none"
+              >
+                <motion.div 
+                  animate={{ 
+                    backgroundColor: isSelected ? '#D4AF37' : 'rgba(0,0,0,0.3)',
+                    borderColor: isSelected ? '#D4AF37' : 'rgba(255,255,255,0.5)',
+                    scale: isSelected ? 1.1 : 1
+                  }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="w-6 h-6 rounded-full border-2 flex items-center justify-center backdrop-blur-sm shadow-lg"
+                >
+                  <AnimatePresence>
+                    {isSelected && (
+                      <motion.svg 
+                        initial={{ pathLength: 0, opacity: 0 }}
+                        animate={{ pathLength: 1, opacity: 1 }}
+                        exit={{ opacity: 0, scale: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </motion.svg>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
 
@@ -384,7 +409,9 @@ export default function Gallery({
   // --- СТЕЙТЫ МУЛЬТИВЫБОРА И 3D TOUCH ---
   const [longPressedIndex, setLongPressedIndex] = useState<number | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectionIntent, setSelectionIntent] = useState<'general' | 'print'>('general');
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
@@ -443,11 +470,21 @@ export default function Gallery({
     // Вычисляем 80% экрана для комфортного панорамирования без улетания в бесконечность
     setPanBounds({ x: window.innerWidth * 0.8, y: window.innerHeight * 0.8 });
     
-    // Перехват команд из глобального меню
-    const handleOpenCart = () => setIsCartOpen(true);
+    // Перехват команд из глобального меню с умной историей
+    const handleOpenCart = () => {
+      if (!isCartOpen) {
+        window.history.pushState({ cart: true }, "");
+        setIsCartOpen(true);
+      }
+    };
+    
     const handleStartSelection = () => {
-      setIsSelectionMode(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Поднимаем гостя наверх к фото
+      if (!isSelectionMode) {
+        window.history.pushState({ selection: true }, "");
+        setIsSelectionMode(true);
+        setSelectionIntent('print'); // Гость пришел из меню печати
+        window.scrollTo({ top: 0, behavior: 'smooth' }); // Поднимаем гостя наверх к фото
+      }
     };
     
     window.addEventListener('open-print-cart', handleOpenCart);
@@ -457,7 +494,28 @@ export default function Gallery({
       window.removeEventListener('open-print-cart', handleOpenCart);
       window.removeEventListener('start-print-selection', handleStartSelection);
     };
-  }, []);
+  }, [isCartOpen, isSelectionMode]);
+
+  // УМНОЕ СКРЫТИЕ ИНТЕРФЕЙСА (Передаем стейт в ClientPage)
+  useEffect(() => {
+    if (setIsLightboxOpen) {
+      setIsLightboxOpen(selectedIndex !== null || isSelectionMode || isCartOpen);
+    }
+  }, [selectedIndex, isSelectionMode, isCartOpen, setIsLightboxOpen]);
+
+  // Безопасное закрытие с откатом истории
+  const closeSelectionSafe = () => {
+    if (window.history.state?.selection) window.history.back();
+    else {
+      setIsSelectionMode(false);
+      setSelectedPhotos(new Set());
+    }
+  };
+
+  const closeCartSafe = () => {
+    if (window.history.state?.cart) window.history.back();
+    else setIsCartOpen(false);
+  };
 
   // БЛОКИРОВКА СКРОЛЛА (Ghost Scrolling Fix)
   useEffect(() => {
@@ -482,6 +540,7 @@ export default function Gallery({
   const [showSizeMenu, setShowSizeMenu] = useState(false);
   const [preferredSize, setPreferredSize] = useState<PrintSize | null>(null);
   const [customCartMsg, setCustomCartMsg] = useState<string | null>(null);
+  const [showPrintSuccess, setShowPrintSuccess] = useState<string | null>(null); // <-- ПРЕМИУМ УВЕДОМЛЕНИЕ О ПЕЧАТИ
 
   useEffect(() => {
     // При загрузке галереи проверяем, выбирал ли гость размер ранее
@@ -490,8 +549,8 @@ export default function Gallery({
   }, []);
 
   // Получаем язык и корзину из глобального контекста
-  const { language: contextLanguage, cart, addToCart, updateCartItem, removeFromCart, clearCart } = useAppContext();
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { language: contextLanguage, getCartForSlug, addToCart, updateCartItem, removeFromCart, clearCart } = useAppContext();
+  const cart = getCartForSlug(slug);
   const FREE_SHIPPING_THRESHOLD = 80;
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -516,23 +575,17 @@ export default function Gallery({
       // 2. Успешная оплата заказа печати
       const printSuccess = params.get('print_success');
       if (printSuccess) {
-        if (clearCart) clearCart(); // Безопасная очистка корзины
+        if (clearCart) clearCart(slug); // Безопасная очистка корзины
         triggerVibration([50, 100, 50]); // Радостная вибрация
         
-        // Показываем премиальное сообщение
-        const msg = language === 'ru' 
-          ? `Успешно! Заказ ${printSuccess} оплачен. Мы скоро начнем сборку.` 
-          : language === 'fr' 
-          ? `Succès ! Commande ${printSuccess} payée. Nous commençons la préparation.` 
-          : `Success! Order ${printSuccess} paid. We will start processing soon.`;
+        // Вызываем премиальное модальное окно вместо системного alert
+        setTimeout(() => setShowPrintSuccess(printSuccess), 500);
         
-        setTimeout(() => alert(msg), 500);
-        
-        // Очищаем URL, чтобы сообщение не вылезало повторно
+        // Очищаем URL, чтобы окно не вылезало повторно при обновлении страницы
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-  }, [guestClusters, clearCart, language]);
+  }, [guestClusters, clearCart, language, slug]);
 
   // === HAPTIC FEEDBACK (Тактильность) ===
   const triggerVibration = (pattern: number | number[]) => {
@@ -741,13 +794,10 @@ export default function Gallery({
   };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
-    const openLightbox = (index: number) => {
+  const openLightbox = (index: number) => {
     triggerVibration(10); 
     setZoomScale(1);
     setShowLightboxGuests(false);
-    
-    // Уведомляем админку, что Lightbox открыт
-    if (setIsLightboxOpen) setIsLightboxOpen(true);
     
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
@@ -770,26 +820,33 @@ export default function Gallery({
     setSelectedIndex(null);
     setZoomScale(1);
     
-    // Уведомляем админку, что Lightbox закрыт
-    if (setIsLightboxOpen) setIsLightboxOpen(false);
-    
     if (window.history.state && window.history.state.lightbox) {
       window.history.back();
     }
   };
 
-  // Умный перехват кнопки "Назад" браузера (Lightbox + Смарт-фильтр гостей)
+  // Умный перехват кнопки "Назад" браузера (Lightbox + Смарт-фильтр гостей + Cart + Selection)
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      // 1. Проверяем Lightbox. Если мы вернулись из Меню назад в Lightbox (e.state.lightbox === true), НЕ закрываем его!
+      // 1. Проверяем Lightbox
       if (selectedIndex !== null && !(e.state && e.state.lightbox)) {
         setSelectedIndex(null);
         setZoomScale(1);
-        if (setIsLightboxOpen) setIsLightboxOpen(false);
       }
 
-      // 2. Проверяем фильтр гостя. Отключаем его, если в новом стейте нет флага фильтра (и нет открытого лайтбокса)
-      if (internalSelectedGuestId !== null && !(e.state && (e.state.guestFilter || e.state.lightbox))) {
+      // 2. Проверяем Корзину
+      if (isCartOpen && !(e.state && e.state.cart)) {
+        setIsCartOpen(false);
+      }
+
+      // 3. Проверяем Режим выбора
+      if (isSelectionMode && !(e.state && e.state.selection)) {
+        setIsSelectionMode(false);
+        setSelectedPhotos(new Set());
+      }
+
+      // 4. Проверяем фильтр гостя
+      if (internalSelectedGuestId !== null && !(e.state && (e.state.guestFilter || e.state.lightbox || e.state.cart || e.state.selection))) {
         setInternalSelectedGuestId(null);
         if (externalSetSelectedGuestId) externalSetSelectedGuestId(null);
         if (typeof window !== 'undefined') window.history.replaceState({}, '', window.location.pathname);
@@ -797,7 +854,7 @@ export default function Gallery({
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedIndex, internalSelectedGuestId, setIsLightboxOpen]);
+  }, [selectedIndex, internalSelectedGuestId, isCartOpen, isSelectionMode, externalSetSelectedGuestId]);
 
   // Обработка клавиатуры и свайпов
   useEffect(() => {
@@ -1033,80 +1090,91 @@ export default function Gallery({
           </AnimatePresence>
           {/* === ПЛАВАЮЩАЯ ПАНЕЛЬ МУЛЬТИВЫБОРА (iOS Style) === */}
         <AnimatePresence>
-          {isSelectionMode && (
+          {/* Панель прячется, если открыто окно Lightbox (selectedIndex !== null) */}
+          {isSelectionMode && selectedIndex === null && (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
-              className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-md z-[110] bg-[#111]/90 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)] flex items-center justify-between"
+              // ОПТИМИЗАЦИЯ: flex-col для Phone (друг под другом), flex-row для PC. Расширен max-w для дыхания.
+              className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] w-full z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 md:px-6 shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6"
             >
-              <div className="flex flex-col">
-                <span className="text-white font-bold text-sm">{selectedPhotos.size} {t.selected}</span>
-                <button onClick={closeSelectionMode} className="text-lux-gold text-[10px] uppercase tracking-widest text-left mt-1">
+              {/* ОПТИМИЗАЦИЯ: На мобилках текст и кнопка на одной линии, на ПК — друг под другом */}
+              <div className="flex justify-between items-center w-full md:w-auto md:flex-col md:items-start md:gap-1">
+                <span className="text-white font-bold text-sm md:text-base whitespace-nowrap">{selectedPhotos.size} {t.selected}</span>
+                <button onClick={closeSelectionSafe} className="text-lux-gold text-[10px] uppercase tracking-widest hover:text-white transition-colors">
                   {t.cancel}
                 </button>
               </div>
               
-              <div className="flex gap-2 w-full mt-3 md:w-auto md:mt-0">
-                <button 
-                  onClick={() => {
-                    const targets = photos.filter(p => selectedPhotos.has(p.filename));
-                    handleSaveAll(targets);
-                  }}
-                  disabled={selectedPhotos.size === 0 || isSaving}
-                  className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
-                >
-                  {isSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : '↓'}
-                </button>
+              {/* ОПТИМИЗАЦИЯ: Блок кнопок растягивается на 100% на мобилках, на ПК поджимается */}
+              <div className="flex gap-2 w-full md:w-auto justify-end">
+                
+                {/* Кнопки Скачать и Поделиться видны ТОЛЬКО если гость зашел НЕ через меню печати */}
+                {selectionIntent === 'general' && (
+                  <>
+                    <button 
+                      onClick={() => {
+                        const targets = photos.filter(p => selectedPhotos.has(p.filename));
+                        handleSaveAll(targets);
+                      }}
+                      disabled={selectedPhotos.size === 0 || isSaving}
+                      className="flex-1 md:flex-none bg-[#1a1a1a] border border-white/10 text-white px-5 py-3 md:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
+                    >
+                      {isSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : '↓'}
+                    </button>
 
-                <button 
-                  disabled={selectedPhotos.size === 0}
-                  onClick={async () => {
-                    triggerVibration(50);
-                    const fileNames = Array.from(selectedPhotos).join(',');
-                    const shareLink = `${window.location.origin}/weddings/${slug}?p=${fileNames}`;
-                    if (navigator.share) {
-                      try { await navigator.share({ title: 'KURGINIAN Premium', url: shareLink }); } catch (err) {}
-                    } else {
-                      navigator.clipboard.writeText(shareLink);
-                      setShowToast(true); setTimeout(() => setShowToast(false), 2000);
-                    }
-                  }}
-                  className="flex-1 md:flex-none bg-[#111] border border-white/10 text-white px-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
-                >
-                  ↗
-                </button>
+                    <button 
+                      disabled={selectedPhotos.size === 0}
+                      onClick={async () => {
+                        triggerVibration(50);
+                        const fileNames = Array.from(selectedPhotos).join(',');
+                        const shareLink = `${window.location.origin}/weddings/${slug}?p=${fileNames}`;
+                        if (navigator.share) {
+                          try { await navigator.share({ title: 'KURGINIAN Premium', url: shareLink }); } catch (err) {}
+                        } else {
+                          navigator.clipboard.writeText(shareLink);
+                          setShowToast(true); setTimeout(() => setShowToast(false), 2000);
+                        }
+                      }}
+                      className="flex-1 md:flex-none bg-[#1a1a1a] border border-white/10 text-white px-5 py-3 md:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
+                    >
+                      ↗
+                    </button>
+                  </>
+                )}
 
+                {/* Кнопка "Заказать Печать" (В режиме 'print' она растягивается на 100%) */}
                 <button 
                   disabled={selectedPhotos.size === 0}
                   onClick={() => {
                     triggerVibration([20, 40]);
                     
-                    // Умная пакетная логика: берем любимый размер, либо дефолт 10х15
                     let targetSize = preferredSize;
                     if (!targetSize) {
                       targetSize = '10x15';
+                      setPreferredSize('10x15');
                       localStorage.setItem('kurginian_pref_size', '10x15');
-                      // Компонент сам подхватит его при следующем рендере
                     }
 
                     const itemsToAdd = Array.from(selectedPhotos).map(filename => {
                       const photo = photos.find(p => p.filename === filename);
                       return { id: `${filename}_${targetSize}`, filename, thumb_url: photo?.urls.thumb || '', size: targetSize as PrintSize, quantity: 1, price: PRINT_PRICES[targetSize as PrintSize] };
                     });
-                    addToCart(itemsToAdd);
+                    addToCart(slug, itemsToAdd);
+                    
+                    // Бесшовный переход в истории: заменяем state мультивыбора на state корзины
+                    window.history.replaceState({ cart: true }, "");
                     setIsSelectionMode(false);
                     setSelectedPhotos(new Set());
-                    
-                    // Сразу открываем корзину, где они увидят пакет и могут изменить его
                     setIsCartOpen(true);
                   }}
-                  className="flex-[2] md:flex-none bg-lux-gold text-black px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-[0.98] transition-transform shadow-gold-glow flex items-center justify-center gap-2.5"
+                  className={`${selectionIntent === 'print' ? 'flex-1 md:w-auto md:px-8' : 'flex-[2] md:flex-none md:w-[160px]'} bg-lux-gold text-black py-3 md:py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-[0.98] transition-all shadow-gold-glow flex items-center justify-center gap-2`}
                 >
-                  <svg className="w-4 h-4 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-4 h-4 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                   </svg>
-                  {t.orderPrints}
+                  <span className="truncate">{t.orderPrints}</span>
                 </button>
               </div>
             </motion.div>
@@ -1162,6 +1230,8 @@ export default function Gallery({
                     <button 
                       onClick={() => {
                         triggerVibration(20);
+                        window.history.pushState({ selection: true }, "");
+                        setSelectionIntent('general'); // Гость зашел через долгое нажатие
                         setIsSelectionMode(true);
                         togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
                         setLongPressedIndex(null);
@@ -1182,25 +1252,41 @@ export default function Gallery({
         <AnimatePresence>
           {isCartOpen && (
             <>
+            {/* Фон больше не блокирует внутренние touch-события */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[160] touch-none"
+              onClick={closeCartSafe}
+              className="fixed inset-0 bg-black/80 backdrop-blur-md z-[160]"
             />
+            
+            {/* Добавлена физика свайпа вниз (drag) */}
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 z-[170] flex flex-col items-center max-h-[85vh]"
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 800 }}
+              dragElastic={0.1}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) {
+                  triggerVibration(10);
+                  closeCartSafe();
+                }
+              }}
+              className="fixed bottom-0 left-0 right-0 z-[170] flex flex-col items-center h-[85vh] md:h-[80vh]"
             >
-              <div className="w-full max-w-2xl bg-[#0a0a0a] border-t border-lux-gold/30 rounded-t-[2rem] p-6 pb-8 shadow-[0_-10px_50px_rgba(212,175,55,0.15)] flex flex-col h-full">
+              {/* Строгий h-full для контейнера, чтобы Footer всегда был видим */}
+              <div className="w-full max-w-2xl bg-[#0a0a0a] border-t border-lux-gold/30 rounded-t-[2rem] p-6 pb-6 shadow-[0_-10px_50px_rgba(212,175,55,0.15)] flex flex-col h-full overflow-hidden">
                 
-                <div className="flex justify-between items-center mb-6">
+                {/* Элегантный индикатор свайпа (Drag Pill) */}
+                <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6 shrink-0" />
+
+                <div className="flex justify-between items-center mb-6 shrink-0">
                   <h3 className="font-cinzel text-xl text-lux-gold tracking-widest uppercase">{t.cartTitle}</h3>
-                  <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-white text-2xl leading-none">✕</button>
+                  <button onClick={closeCartSafe} className="text-gray-500 hover:text-white text-2xl leading-none">✕</button>
                 </div>
 
                 {/* Прогресс-бар бесплатной доставки */}
-                <div className="mb-6 bg-[#111] border border-white/5 p-4 rounded-2xl relative overflow-hidden">
+                <div className="mb-6 bg-[#111] border border-white/5 p-4 rounded-2xl relative overflow-hidden shrink-0">
                   <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold mb-3 relative z-10">
                     <span className="text-gray-400">{amountToFreeShipping > 0 ? t.addMoreForFree.replace('{amount}', amountToFreeShipping.toFixed(2)) : '✨ ' + t.freeShipping}</span>
                     <span className="text-lux-gold">{cartTotal.toFixed(2)}€ / 80€</span>
@@ -1213,8 +1299,11 @@ export default function Gallery({
                   </div>
                 </div>
 
-                {/* Список товаров (Скроллится) */}
-                <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 mb-6">
+                {/* Список товаров: Добавлен min-h-0 для фиксации Flexbox и onPointerDownCapture для скролла */}
+                <div 
+                  onPointerDownCapture={(e) => e.stopPropagation()} 
+                  className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 mb-6 min-h-0 overscroll-contain"
+                >
                   {cart.length === 0 ? (
                     <p className="text-center text-gray-500 uppercase tracking-widest text-xs mt-10">{t.emptyCart}</p>
                   ) : (
@@ -1232,7 +1321,7 @@ export default function Gallery({
                                   onClick={() => {
                                     if (item.size !== sizeOption) {
                                       triggerVibration(10);
-                                      updateCartItem(item.id, item.quantity, sizeOption);
+                                      updateCartItem(slug, item.id, item.quantity, sizeOption);
                                     }
                                   }}
                                   className={`px-2.5 py-1 text-[10px] rounded-md font-bold transition-all ${
@@ -1245,15 +1334,15 @@ export default function Gallery({
                                 </button>
                               ))}
                             </div>
-                            <button onClick={() => removeFromCart(item.id)} className="text-gray-600 hover:text-red-500 text-xs uppercase p-1">✕</button>
+                            <button onClick={() => removeFromCart(slug, item.id)} className="text-gray-600 hover:text-red-500 text-xs uppercase p-1">✕</button>
                           </div>
 
                           <div className="flex justify-between items-center mt-1">
                             {/* Счетчик количества (Apple-style pill) */}
                             <div className="flex items-center bg-black rounded-full border border-white/10 px-1">
-                              <button onClick={() => updateCartItem(item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">-</button>
+                              <button onClick={() => updateCartItem(slug, item.id, item.quantity - 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">-</button>
                               <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
-                              <button onClick={() => updateCartItem(item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">+</button>
+                              <button onClick={() => updateCartItem(slug, item.id, item.quantity + 1)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors">+</button>
                             </div>
                             <span className="text-lux-gold font-mono font-bold">{(item.price * item.quantity).toFixed(2)}€</span>
                           </div>
@@ -1362,10 +1451,12 @@ export default function Gallery({
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     onClick={() => setIsCartOpen(true)}
-                    className="flex flex-col items-center gap-1 bg-[#111]/60 backdrop-blur-md border border-lux-gold/30 p-3 rounded-2xl shadow-lg active:scale-95 transition-all"
+                    className="flex flex-col items-center gap-1.5 bg-[#111]/60 backdrop-blur-md border border-lux-gold/30 p-3 rounded-2xl shadow-lg active:scale-95 transition-all text-lux-gold hover:text-white"
                   >
-                    <span className="text-xl">🛒</span>
-                    <span className="text-lux-gold font-bold text-[10px]">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                    </svg>
+                    <span className="font-bold text-[10px] leading-none">{cart.reduce((sum, item) => sum + item.quantity, 0)}</span>
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -1635,7 +1726,7 @@ export default function Gallery({
                                 setShowSizeMenu(false);
                                 
                                 const photo = filteredPhotos[selectedIndex];
-                                addToCart([{ id: `${photo.filename}_${size}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: size, quantity: 1, price: PRINT_PRICES[size] }]);
+                                addToCart(slug, [{ id: `${photo.filename}_${size}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: size, quantity: 1, price: PRINT_PRICES[size] }]);
                                 
                                 const msg = language === 'ru' 
                                   ? `Размер ${size} выбран. Можно изменить в корзине.` 
@@ -1657,58 +1748,121 @@ export default function Gallery({
                     )}
                   </AnimatePresence>
 
-                  {/* Основная кнопка добавления (УМНАЯ ЛОГИКА +1) */}
-                  <button
-                    onClick={() => {
-                      if (preferredSize) {
-                        triggerVibration([20, 40]);
-                        const photo = filteredPhotos[selectedIndex];
-                        addToCart([{ id: `${photo.filename}_${preferredSize}`, filename: photo.filename, thumb_url: photo.urls.thumb, size: preferredSize, quantity: 1, price: PRINT_PRICES[preferredSize] }]);
-                        
-                        setCustomCartMsg(null);
-                        setShowCartToast(true);
-                        setTimeout(() => setShowCartToast(false), 2000);
-                      } else {
-                        triggerVibration(10);
-                        setShowSizeMenu(true);
-                      }
-                    }}
-                    className={`flex-1 h-full flex items-center justify-center gap-2.5 rounded-lg transition-all active:scale-[0.98] font-bold relative ${
-                      cart.some(item => item.filename === filteredPhotos[selectedIndex]?.filename) 
-                        ? 'bg-white text-black' 
-                        : 'bg-lux-gold text-black shadow-gold-glow hover:bg-white'
-                    }`}
-                  >
-                    {/* Элегантная иконка сумки покупок */}
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                    </svg>
+                  {/* УМНАЯ ЛОГИКА ПЕЧАТИ: ДОБАВИТЬ / STEPPER */}
+                  {(() => {
+                    const currentPhoto = filteredPhotos[selectedIndex];
                     
-                    <span className="uppercase tracking-[0.2em] text-[10px] md:text-xs truncate">
-                      {cart.some(item => item.filename === filteredPhotos[selectedIndex]?.filename)
-                        ? (language === 'ru' ? 'ДОБАВИТЬ ЕЩЕ (+1)' : language === 'fr' ? 'AJOUTER PLUS (+1)' : 'ADD ANOTHER (+1)')
-                        : (preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints)}
-                    </span>
+                    // SENIOR LOGIC: Ищем в корзине конкретно тот формат, который сейчас выбран в селекторе
+                    const activeItem = currentPhoto 
+                      ? cart.find(item => item.filename === currentPhoto.filename && item.size === preferredSize) 
+                      : undefined;
                     
-                    <AnimatePresence>
-                      {cart.reduce((sum, item) => sum + item.quantity, 0) > 0 && (
-                        <motion.div 
-                          initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border border-[#0a0a0a] shadow-md"
-                        >
-                          {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </button>
+                    // Проверяем наличие других форматов этого же фото для умной индикации
+                    const hasOtherFormats = currentPhoto 
+                      ? cart.some(item => item.filename === currentPhoto.filename && item.size !== preferredSize) 
+                      : false;
 
-                  {/* Кнопка смены размера (появляется если размер уже выбран) */}
+                    // СЦЕНАРИЙ 1: ВЫБРАННЫЙ ФОРМАТ УЖЕ В КОРЗИНЕ -> ПОКАЗЫВАЕМ STEPPER
+                    if (activeItem) {
+                      return (
+                        <motion.div 
+                          layout
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="flex-1 h-full flex items-center justify-between bg-lux-gold text-black rounded-lg px-1 transition-all shadow-gold-glow border border-lux-gold relative overflow-hidden"
+                        >
+                          <button 
+                            onClick={() => { triggerVibration(10); updateCartItem(slug, activeItem!.id, activeItem!.quantity - 1); }} 
+                            className="w-12 h-full flex items-center justify-center text-2xl font-light active:scale-75 transition-transform"
+                          >−</button>
+                          
+                          <div className="flex flex-col items-center justify-center pointer-events-none select-none">
+                            <AnimatePresence mode="wait">
+                              <motion.span 
+                                key={activeItem.quantity}
+                                initial={{ y: 5, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: -5, opacity: 0 }}
+                                className="text-[10px] md:text-xs font-bold uppercase tracking-widest leading-tight"
+                              >
+                                {activeItem.quantity} {language === 'ru' ? 'В корзине' : language === 'fr' ? 'Ajouté' : 'In cart'}
+                              </motion.span>
+                            </AnimatePresence>
+                            <span className="text-[8px] font-mono opacity-80 uppercase">{activeItem.size}</span>
+                          </div>
+
+                          <button 
+                            onClick={() => { triggerVibration(10); updateCartItem(slug, activeItem!.id, activeItem!.quantity + 1); }} 
+                            className="w-12 h-full flex items-center justify-center text-xl font-light active:scale-75 transition-transform"
+                          >+</button>
+
+                          {/* APPLE HINT: Точка-индикатор, если заказаны и другие форматы этого фото */}
+                          {hasOtherFormats && (
+                            <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-black/40 rounded-full" />
+                          )}
+                        </motion.div>
+                      );
+                    }
+
+                    // СЦЕНАРИЙ 2: ЭТОГО ФОРМАТА НЕТ В КОРЗИНЕ -> ПОКАЗЫВАЕМ КНОПКУ ДОБАВИТЬ
+                    return (
+                      <motion.button
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        onClick={() => {
+                          if (preferredSize) {
+                            triggerVibration([20, 40]);
+                            addToCart(slug, [{ 
+                              id: `${currentPhoto!.filename}_${preferredSize}`, 
+                              filename: currentPhoto!.filename, 
+                              thumb_url: currentPhoto!.urls.thumb, 
+                              size: preferredSize, 
+                              quantity: 1, 
+                              price: PRINT_PRICES[preferredSize] 
+                            }]);
+                            setCustomCartMsg(null);
+                            setShowCartToast(true);
+                            setTimeout(() => setShowCartToast(false), 2000);
+                          } else {
+                            triggerVibration(10);
+                            setShowSizeMenu(true);
+                          }
+                        }}
+                        className={`flex-1 h-full flex items-center justify-center gap-2.5 rounded-lg transition-all active:scale-[0.98] font-bold relative ${
+                          cart.length > 0 
+                            ? 'bg-[#111] text-lux-gold border border-lux-gold/40 hover:bg-lux-gold hover:text-black' 
+                            : 'bg-lux-gold text-black shadow-gold-glow hover:bg-white'
+                        }`}
+                      >
+                        <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                        
+                        <span className="uppercase tracking-[0.2em] text-[10px] md:text-xs truncate">
+                          {hasOtherFormats 
+                            ? (language === 'ru' ? 'ДОБАВИТЬ ЕЩЕ' : language === 'fr' ? 'AJOUTER PLUS' : 'ADD MORE') 
+                            : (preferredSize ? (language === 'ru' ? 'ПЕЧАТЬ' : language === 'fr' ? 'IMPRIMER' : 'PRINT') : t.orderPrints)}
+                        </span>
+                      </motion.button>
+                    );
+                  })()}
+
+                  {/* Умная кнопка смены размера (Premium Dropdown) */}
                   {preferredSize && (
                     <button
                       onClick={() => setShowSizeMenu(true)}
-                      className="w-12 flex items-center justify-center bg-[#111] border border-white/10 text-lux-gold rounded-lg hover:bg-white/5 transition-colors"
+                      className="px-3 flex flex-col items-center justify-center bg-[#111] border border-white/10 text-lux-gold rounded-lg hover:bg-white/5 transition-colors group relative overflow-hidden"
                     >
-                      <span className="text-[10px] font-bold">{preferredSize}</span>
+                      <span className="text-[7px] text-gray-500 uppercase tracking-widest leading-none mb-0.5 group-hover:text-gray-300 transition-colors">
+                        Format
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold leading-none">{preferredSize}</span>
+                        <svg className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                      </div>
                     </button>
                   )}
                 </div>
@@ -1819,6 +1973,50 @@ export default function Gallery({
             </svg>
             <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Наверх' : language === 'fr' ? 'Haut' : 'Top'}</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕМИУМ-УВЕДОМЛЕНИЕ ОБ УСПЕШНОЙ ОПЛАТЕ ПЕЧАТИ === */}
+      <AnimatePresence>
+        {showPrintSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 touch-none"
+            onClick={() => setShowPrintSuccess(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="max-w-sm w-full bg-[#0a0a0a] border border-lux-gold/50 p-8 rounded-2xl shadow-gold-glow text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+              
+              <h3 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest mb-3">
+                {language === 'ru' ? 'Оплата Успешна' : language === 'fr' ? 'Paiement Réussi' : 'Payment Successful'}
+              </h3>
+              
+              <p className="text-gray-400 text-sm font-montserrat leading-relaxed mb-8">
+                {language === 'ru' ? `Заказ ${showPrintSuccess} оплачен. Мы скоро начнем сборку.` 
+                  : language === 'fr' ? `Commande ${showPrintSuccess} payée. Nous commençons la préparation.` 
+                  : `Order ${showPrintSuccess} paid. We will start processing soon.`}
+              </p>
+              
+              <button
+                onClick={() => setShowPrintSuccess(null)}
+                className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.2em] font-bold text-xs rounded-sm hover:bg-white transition-colors shadow-lg active:scale-95"
+              >
+                ОК
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

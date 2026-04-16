@@ -81,7 +81,7 @@ interface GallerySession {
 
 export default function PWAHome() {
   const router = useRouter();
-  const { language, setLanguage, sessions: galleries, refreshSessions } = useAppContext();
+  const { language, setLanguage, sessions: galleries, refreshSessions, clearCart } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
   // galleries теперь приходят из контекста автоматически
   
@@ -123,6 +123,7 @@ export default function PWAHome() {
       localStorage.removeItem(rawKey);
       localStorage.removeItem(`title_${slug}`); // Удаляем красивое имя
       localStorage.removeItem(`expires_${slug}`); // Удаляем дату сгорания
+      clearCart(slug); // <-- БЕЗОПАСНОСТЬ: Стираем корзину, чтобы не было утечек данных
       refreshSessions(); // Вызываем обновление в контексте
     }
   };
@@ -149,11 +150,29 @@ export default function PWAHome() {
     if (codeInput && codeInput.trim()) {
       triggerVibration(50);
       let cleanSlug = codeInput.trim();
-      // Защита: если юзер вставил ссылку целиком
-      if (cleanSlug.includes('/')) {
-        cleanSlug = cleanSlug.split('/').filter(Boolean).pop() || cleanSlug;
+      
+      try {
+        // 1. Если это полная ссылка (http...) - парсим безопасно через нативный URL API
+        if (cleanSlug.startsWith('http')) {
+          const url = new URL(cleanSlug);
+          const pathSegments = url.pathname.split('/').filter(Boolean);
+          cleanSlug = pathSegments.pop() || cleanSlug;
+        } else if (cleanSlug.includes('/')) {
+          // Если кусок ссылки (например, kurginian.pro/weddings/david-maria)
+          cleanSlug = cleanSlug.split('/').filter(Boolean).pop() || cleanSlug;
+        }
+        
+        // 2. Жестко отсекаем любые параметры гостя (?guest=...), UTM-метки и якоря (#)
+        cleanSlug = cleanSlug.split('?')[0].split('#')[0];
+        
+        // 3. Защита от пробелов (если гость ввел "david maria" вместо "david-maria")
+        cleanSlug = cleanSlug.replace(/\s+/g, '-').toLowerCase();
+        
+        router.push(`/weddings/${cleanSlug}`);
+      } catch (e) {
+        // Fallback: если всё сломалось, применяем базовую очистку
+        router.push(`/weddings/${cleanSlug.replace(/\s+/g, '-').toLowerCase()}`);
       }
-      router.push(`/weddings/${cleanSlug.toLowerCase()}`);
     }
   };
 

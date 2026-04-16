@@ -66,8 +66,8 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false); // <-- СТЕЙТ ЗАЩИТЫ ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
 
-  // === ЯЗЫК (Берем из Контекста) ===
-  const { language, setLanguage, refreshSessions } = useAppContext();
+  // === ЯЗЫК И СЕССИИ (Берем из Контекста) ===
+  const { language, setLanguage, refreshSessions, clearCart, isMounted } = useAppContext();
   const t = translations[language];
 
   const handleLanguageChange = (lang: 'fr' | 'en' | 'ru') => {
@@ -126,8 +126,11 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
     }
   };
 
+  // Защита от Hydration Mismatch (Мерцания языка при первой загрузке)
+  if (!isMounted) return <main className="min-h-[100dvh] bg-lux-bg" />;
+
   return (
-    <main className="min-h-screen bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative pb-20">
+    <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative pb-20">
 
       {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Языки) */}
       <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-start pointer-events-none">
@@ -211,11 +214,13 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               src={photoUrl}
               alt={filename}
               fill
-              className={`object-contain transition-opacity duration-1000 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+              className={`object-contain transition-opacity duration-1000 pointer-events-none select-none ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
               quality={95}
               priority
               onLoad={() => setIsImageLoaded(true)}
               sizes="(max-width: 1024px) 100vw, 1200px"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           </motion.div>
         </div>
@@ -229,9 +234,12 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         >
           {/* Золотая кнопка скачивания (Главный акцент) */}
           <button
-            onClick={handleDownload}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleDownload();
+            }}
             disabled={isDownloading}
-            className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold disabled:opacity-80"
+            className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold disabled:opacity-80 focus:outline-none"
           >
             {isDownloading ? (
               <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
@@ -247,8 +255,11 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           
           {/* Темная кнопка "Поделиться" */}
           <button
-            onClick={handleShare}
-            className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm transition-all active:scale-[0.98] shadow-lg"
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleShare();
+            }}
+            className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm transition-all active:scale-[0.98] shadow-lg focus:outline-none"
           >
             <span className="text-lg leading-none">↗</span>
             <span className="font-medium uppercase tracking-widest text-xs">{t.share}</span>
@@ -308,17 +319,18 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
               
               if (!confirmReset) {
-                setConfirmReset(true);
-                setTimeout(() => setConfirmReset(false), 3000); // Сбрасываем через 3 секунды
-                return;
-              }
-              
-              localStorage.removeItem(`photos_${slug}`);
-              localStorage.removeItem(`title_${slug}`);
-              localStorage.removeItem(`expires_${slug}`);
-              refreshSessions(); // <-- Обновляем дашборд!
-              router.push(`/weddings/${slug}`);
-            }}
+              setConfirmReset(true);
+              setTimeout(() => setConfirmReset(false), 3000); // Сбрасываем через 3 секунды
+              return;
+            }
+            
+            localStorage.removeItem(`photos_${slug}`);
+            localStorage.removeItem(`title_${slug}`);
+            localStorage.removeItem(`expires_${slug}`);
+            clearCart(slug); // <-- БЕЗОПАСНОСТЬ: Устраняем утечку данных корзины печати
+            refreshSessions(); // <-- Обновляем дашборд!
+            router.push(`/weddings/${slug}`);
+          }}
             className={`text-[10px] uppercase tracking-[0.2em] underline underline-offset-4 transition-colors duration-300 ${
               confirmReset 
                 ? 'text-red-500 decoration-red-500 font-bold' 

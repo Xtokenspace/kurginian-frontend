@@ -280,6 +280,7 @@ function PhotoFan({ covers }: { covers: string[] }) {
 
 export default function ClientPage({ slug, initialMeta }: { slug: string, initialMeta: WeddingMeta | null }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [isGalleryOverlayActive, setIsGalleryOverlayActive] = useState(false); // Для скрытия кнопок поверх Lightbox и шторок
   const router = useRouter();
 
   // ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО ПРОЕКТ МЕРТВ - МГНОВЕННО БЛОКИРУЕМ (Никаких камер и экранов приветствия)
@@ -289,7 +290,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const [photos, setPhotos] = useState<MatchedPhoto[]>([]);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   
-  const { language, setLanguage, refreshSessions, cart, isMounted } = useAppContext();
+  const { language, setLanguage, refreshSessions, getCartForSlug, isMounted } = useAppContext();
+  const cart = getCartForSlug(slug);
   const t = translations[language];
 
   // === ПРЕДЗАГРУЗКА ИИ (Pre-warming) ===
@@ -841,7 +843,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       
       {/* УМНЫЙ ГЛОБУС ЯЗЫКОВ (Всегда фиксирован сверху справа) */}
       <AnimatePresence>
-        {(status === 'idle' || status === 'success') && (
+        {(status === 'idle' || status === 'success') && !isGalleryOverlayActive && (
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -895,7 +897,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
       {/* КНОПКА НАЗАД (Скроллится вместе со страницей) */}
       <AnimatePresence>
-        {(status === 'idle' || status === 'success') && (
+        {(status === 'idle' || status === 'success') && !isGalleryOverlayActive && (
           <motion.div 
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
@@ -1303,7 +1305,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             </div>
             
             {/* ПЕРЕДАЕМ ДАТУ И ЯЗЫК В КОМПОНЕНТ */}
-            <Gallery photos={photos} slug={slug} expiresAt={expiresAt} currentLanguage={language} />
+            <Gallery 
+              photos={photos} 
+              slug={slug} 
+              expiresAt={expiresAt} 
+              currentLanguage={language} 
+              setIsLightboxOpen={setIsGalleryOverlayActive} 
+            />
 
             {/* ПРЕМИУМ БЛОК КОНВЕРСИИ */}
             <motion.div 
@@ -1332,21 +1340,26 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
             </motion.div>
             
             {/* МЕНЮ БУРГЕР / КРЕСТИК (Фиксировано СПРАВА СНИЗУ) */}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8, duration: 0.5, ease: "easeOut" }}
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                if (!showMenu) window.history.pushState({ overlay: 'menu' }, ""); // <-- ПУШ
-                else if (window.history.state?.overlay) window.history.back(); // <-- ОТКАТ КРЕСТИКОМ
-                setShowMenu(!showMenu);
-              }}
-              className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
-            >
-              <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
-              <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
-            </motion.button>
+            <AnimatePresence>
+              {!isGalleryOverlayActive && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  onClick={() => {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                    if (!showMenu) window.history.pushState({ overlay: 'menu' }, ""); // <-- ПУШ
+                    else if (window.history.state?.overlay) window.history.back(); // <-- ОТКАТ КРЕСТИКОМ
+                    setShowMenu(!showMenu);
+                  }}
+                  className="fixed bottom-6 right-6 z-[105] bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 w-14 h-14 rounded-full flex items-center justify-center shadow-gold-glow hover:bg-lux-gold hover:scale-105 group transition-all"
+                >
+                  <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? 'rotate-45' : '-translate-y-1.5'}`}></span>
+                  <span className={`w-6 h-0.5 bg-lux-gold group-hover:bg-black transition-all duration-300 absolute ${showMenu ? '-rotate-45' : 'translate-y-1.5'}`}></span>
+                </motion.button>
+              )}
+            </AnimatePresence>
 
             {/* МОДАЛЬНОЕ МЕНЮ (PREMIUM BOTTOM SHEET КАК В АДМИНКЕ) */}
             <AnimatePresence>
@@ -1395,11 +1408,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                           onClick={() => { 
                             if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
                             closeModalSafe(() => setShowMenu(false));
-                            if (cart.length > 0) {
-                              window.dispatchEvent(new CustomEvent('open-print-cart'));
-                            } else {
-                              window.dispatchEvent(new CustomEvent('start-print-selection'));
-                            }
+                            setTimeout(() => {
+                              if (cart.length > 0) {
+                                window.dispatchEvent(new CustomEvent('open-print-cart'));
+                              } else {
+                                window.dispatchEvent(new CustomEvent('start-print-selection'));
+                              }
+                            }, 50); // Задержка защищает от конфликта с history.back()
                           }}
                           className={`w-full transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5 hover:bg-white/5 ${cart.length > 0 ? 'bg-lux-gold/10 border-lux-gold/20 hover:bg-lux-gold/20' : 'bg-transparent'}`}
                         >
@@ -1765,46 +1780,28 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 {t.enterPassword}
               </h3>
               
-              {/* === APPLE-LEVEL PIN CODE (Native UI) === */}
-              <div className="relative flex justify-center mb-6">
-                {/* Невидимый инпут для вызова системной клавиатуры */}
+              {/* === СТАНДАРТНЫЙ ПРЕМИАЛЬНЫЙ ВВОД (Поддержка букв, цифр и вставки) === */}
+              <motion.div 
+                animate={passwordError ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
+                transition={{ duration: 0.4 }}
+                className="w-full mb-6"
+              >
                 <input
-                  type="tel"
-                  maxLength={6}
+                  type="text"
                   value={passwordInput}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setPasswordInput(val);
-                    if (val.length > passwordInput.length) triggerVibration(10); // Вибрация при вводе
-                    if (val.length === 6) setTimeout(handlePasswordSubmit, 100); // Авто-отправка
+                    setPasswordInput(e.target.value);
+                    if (e.target.value.length > passwordInput.length) triggerVibration(10);
                   }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-text z-20"
+                  placeholder="VIP2026"
+                  className={`w-full bg-[#111] border ${passwordError ? 'border-red-500' : 'border-lux-gold/30'} text-white uppercase px-4 py-4 rounded-sm text-center text-sm md:text-base focus:outline-none focus:border-lux-gold transition-colors shadow-inner`}
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  onKeyDown={(e) => e.key === 'Enter' && passwordInput.trim() && handlePasswordSubmit()}
                 />
-                
-                {/* Стеклянные кружочки с физикой Framer Motion */}
-                <motion.div 
-                  animate={passwordError ? { x: [-10, 10, -8, 8, -5, 5, 0] } : {}}
-                  transition={{ duration: 0.4 }}
-                  className="flex gap-4 pointer-events-none"
-                >
-                  {[...Array(6)].map((_, i) => {
-                    const isActive = passwordInput.length > i;
-                    return (
-                      <motion.div 
-                        key={i}
-                        animate={{ 
-                          scale: isActive ? [1, 1.2, 1] : 1,
-                          backgroundColor: isActive ? '#D4AF37' : 'transparent',
-                          borderColor: passwordError ? '#ef4444' : isActive ? '#D4AF37' : 'rgba(255,255,255,0.2)'
-                        }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                        className="w-4 h-4 md:w-5 md:h-5 rounded-full border-[1.5px] transition-colors"
-                      />
-                    );
-                  })}
-                </motion.div>
-              </div>
+              </motion.div>
               
               {/* Сообщение об ошибке */}
               <div className="h-6 mb-2">

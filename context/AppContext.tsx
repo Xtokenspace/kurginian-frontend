@@ -32,12 +32,13 @@ interface AppContextType {
   refreshSessions: () => Promise<void>;
   sessions: GallerySession[];
   isMounted: boolean;
-  // Методы корзины
-  cart: CartItem[];
-  addToCart: (items: CartItem[]) => void;
-  updateCartItem: (id: string, quantity: number, size?: PrintSize) => void;
-  removeFromCart: (id: string) => void;
-  clearCart: () => void;
+  // Методы корзины (Изолированы по проектам)
+  cart: Record<string, CartItem[]>;
+  getCartForSlug: (slug: string) => CartItem[];
+  addToCart: (slug: string, items: CartItem[]) => void;
+  updateCartItem: (slug: string, id: string, quantity: number, size?: PrintSize) => void;
+  removeFromCart: (slug: string, id: string) => void;
+  clearCart: (slug: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -54,7 +55,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [language, setLanguageState] = useState<Language>('fr');
   const [sessions, setSessions] = useState<GallerySession[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<Record<string, CartItem[]>>({});
 
   // 1. Инициализация при первом запуске (с умным авто-определением языка и загрузкой корзины)
   useEffect(() => {
@@ -154,63 +155,88 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSessions(found);
   };
 
-  // --- ЛОГИКА КОРЗИНЫ ---
+  // --- ЛОГИКА КОРЗИНЫ (Изолированная по проектам) ---
   useEffect(() => {
-    const savedCart = localStorage.getItem('kurginian_print_cart');
+    const savedCart = localStorage.getItem('kurginian_print_cart_v2');
     if (savedCart) {
       try { setCart(JSON.parse(savedCart)); } catch (e) {}
+    } else {
+      // Миграция старой плоской корзины, если она осталась (защита от потери заказов)
+      const legacyCart = localStorage.getItem('kurginian_print_cart');
+      if (legacyCart) {
+         localStorage.removeItem('kurginian_print_cart');
+      }
     }
   }, []);
 
-  const saveCart = (newCart: CartItem[]) => {
+  const saveCart = (newCart: Record<string, CartItem[]>) => {
     setCart(newCart);
-    localStorage.setItem('kurginian_print_cart', JSON.stringify(newCart));
+    localStorage.setItem('kurginian_print_cart_v2', JSON.stringify(newCart));
   };
 
-  const addToCart = (items: CartItem[]) => {
-    const newCart = [...cart];
+  const getCartForSlug = (slug: string): CartItem[] => {
+    return cart[slug] || [];
+  };
+
+  const addToCart = (slug: string, items: CartItem[]) => {
+    const newCartState = { ...cart };
+    const projectCart = [...(newCartState[slug] || [])];
+    
     items.forEach(newItem => {
-      const existingIndex = newCart.findIndex(item => item.id === newItem.id);
+      const existingIndex = projectCart.findIndex(item => item.id === newItem.id);
       if (existingIndex >= 0) {
-        newCart[existingIndex].quantity += newItem.quantity;
+        projectCart[existingIndex].quantity += newItem.quantity;
       } else {
-        newCart.push(newItem);
+        projectCart.push(newItem);
       }
     });
-    saveCart(newCart);
+    
+    newCartState[slug] = projectCart;
+    saveCart(newCartState);
   };
 
-  const updateCartItem = (id: string, quantity: number, newSize?: PrintSize) => {
-    let newCart = [...cart];
-    const index = newCart.findIndex(item => item.id === id);
+  const updateCartItem = (slug: string, id: string, quantity: number, newSize?: PrintSize) => {
+    const newCartState = { ...cart };
+    if (!newCartState[slug]) return;
+    
+    let projectCart = [...newCartState[slug]];
+    const index = projectCart.findIndex(item => item.id === id);
+    
     if (index >= 0) {
       if (quantity <= 0) {
-        newCart.splice(index, 1);
+        projectCart.splice(index, 1);
       } else {
-        newCart[index].quantity = quantity;
+        projectCart[index].quantity = quantity;
         if (newSize) {
-          // Меняем размер и пересчитываем ID и цену
-          newCart[index].size = newSize;
-          newCart[index].price = PRINT_PRICES[newSize];
-          newCart[index].id = `${newCart[index].filename}_${newSize}`;
+          projectCart[index].size = newSize;
+          projectCart[index].price = PRINT_PRICES[newSize];
+          projectCart[index].id = `${projectCart[index].filename}_${newSize}`;
           
-          // Проверяем, не слился ли он с уже существующим таким же размером
-          const duplicateIndex = newCart.findIndex((item, i) => item.id === newCart[index].id && i !== index);
+          const duplicateIndex = projectCart.findIndex((item, i) => item.id === projectCart[index].id && i !== index);
           if (duplicateIndex >= 0) {
-            newCart[duplicateIndex].quantity += newCart[index].quantity;
-            newCart.splice(index, 1);
+            projectCart[duplicateIndex].quantity += projectCart[index].quantity;
+            projectCart.splice(index, 1);
           }
         }
       }
-      saveCart(newCart);
+      newCartState[slug] = projectCart;
+      saveCart(newCartState);
     }
   };
 
-  const removeFromCart = (id: string) => {
-    saveCart(cart.filter(item => item.id !== id));
+  const removeFromCart = (slug: string, id: string) => {
+    const newCartState = { ...cart };
+    if (newCartState[slug]) {
+      newCartState[slug] = newCartState[slug].filter(item => item.id !== id);
+      saveCart(newCartState);
+    }
   };
 
-  const clearCart = () => saveCart([]);
+  const clearCart = (slug: string) => {
+    const newCartState = { ...cart };
+    newCartState[slug] = [];
+    saveCart(newCartState);
+  };
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
@@ -218,7 +244,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions, isMounted, cart, addToCart, updateCartItem, removeFromCart, clearCart }}>
+    <AppContext.Provider value={{ language, setLanguage, sessions, refreshSessions: scanSessions, isMounted, cart, getCartForSlug, addToCart, updateCartItem, removeFromCart, clearCart }}>
       {children}
     </AppContext.Provider>
   );
