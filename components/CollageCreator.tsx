@@ -70,8 +70,21 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       initial={{ opacity: 0, y: 50, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
-      className="fixed bottom-24 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden"
+      transition={{ type: "spring", damping: 25, stiffness: 300 }}
+      drag={!isGenerating ? "y" : false}
+      dragConstraints={{ top: 0, bottom: 300 }}
+      dragElastic={0.2}
+      onDragEnd={(e, info) => {
+        if (info.offset.y > 100 && !isGenerating) {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+          onClose();
+        }
+      }}
+      className="fixed bottom-24 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
     >
+      {/* Элегантный индикатор свайпа (Drag Pill) */}
+      {!isGenerating && <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />}
+
       {/* Декоративный Ambient-фон */}
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
 

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useAppContext, PrintSize, PRINT_PRICES } from '@/context/AppContext';
 import { Blurhash } from 'react-blurhash';
+import CollageCreator from './CollageCreator'; // <-- ИМПОРТ НОВОГО КОМПОНЕНТА
 
 // --- НОВЫЕ ИНТЕРФЕЙСЫ ДЛЯ ИИ ---
 export interface GuestCluster {
@@ -65,6 +66,7 @@ const translations = {
     selected: "sélectionné(s)",
     cancel: "Annuler",
     actions: "Actions avec l'image",
+    createCollage: "Créer L'Édition",
     // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
     orderPrints: "Commander tirages",
     cartTitle: "Votre Commande",
@@ -96,6 +98,7 @@ const translations = {
     selected: "selected",
     cancel: "Cancel",
     actions: "Image Actions",
+    createCollage: "Create L'Édition",
     // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
     orderPrints: "Order prints",
     cartTitle: "Your Order",
@@ -127,6 +130,7 @@ const translations = {
     selected: "выбрано",
     cancel: "Отмена",
     actions: "Действия с фото",
+    createCollage: "Создать L'Édition",
     // --- ТЕКСТЫ ДЛЯ КОРЗИНЫ И ПЕЧАТИ ---
     orderPrints: "Заказать печать",
     cartTitle: "Ваш заказ",
@@ -412,6 +416,8 @@ export default function Gallery({
   const [selectionIntent, setSelectionIntent] = useState<'general' | 'print'>('general');
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [showCollageCreator, setShowCollageCreator] = useState(false); // <-- СТЕЙТ КОЛЛАЖА
+  const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null); // <-- СТЕЙТ ПРЕВЬЮ КОЛЛАЖА
 
   const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
@@ -496,12 +502,12 @@ export default function Gallery({
     };
   }, [isCartOpen, isSelectionMode]);
 
-  // УМНОЕ СКРЫТИЕ ИНТЕРФЕЙСА (Передаем стейт в ClientPage)
+// УМНОЕ СКРЫТИЕ ИНТЕРФЕЙСА (Передаем стейт в ClientPage)
   useEffect(() => {
     if (setIsLightboxOpen) {
-      setIsLightboxOpen(selectedIndex !== null || isSelectionMode || isCartOpen);
+      setIsLightboxOpen(selectedIndex !== null || isSelectionMode || isCartOpen || showCollageCreator || generatedCollageUrl !== null);
     }
-  }, [selectedIndex, isSelectionMode, isCartOpen, setIsLightboxOpen]);
+  }, [selectedIndex, isSelectionMode, isCartOpen, showCollageCreator, generatedCollageUrl, setIsLightboxOpen]);
 
   // Безопасное закрытие с откатом истории
   const closeSelectionSafe = () => {
@@ -843,6 +849,16 @@ export default function Gallery({
       if (isSelectionMode && !(e.state && e.state.selection)) {
         setIsSelectionMode(false);
         setSelectedPhotos(new Set());
+      }
+      
+      // 3.5 Проверяем Коллаж
+      if (showCollageCreator && !(e.state && e.state.collage)) {
+        setShowCollageCreator(false);
+      }
+
+      // 3.6 Проверяем Превью Готового Коллажа
+      if (generatedCollageUrl && !(e.state && e.state.collagePreview)) {
+        setGeneratedCollageUrl(null);
       }
 
       // 4. Проверяем фильтр гостя
@@ -1955,6 +1971,150 @@ export default function Gallery({
               {cart.reduce((sum, item) => sum + item.quantity, 0)}
             </div>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* === МАГИЧЕСКАЯ ПАЛОЧКА (Floating Magic Wand Edge Tab) === */}
+      <AnimatePresence>
+        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 4 && !showCollageCreator && !generatedCollageUrl && (
+          <motion.button
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 50 }}
+            onClick={() => {
+              triggerVibration(10);
+              window.history.pushState({ collage: true }, "");
+              setShowCollageCreator(true);
+            }}
+            className="fixed right-0 top-1/3 md:top-1/2 -translate-y-1/2 z-[115] bg-[#0a0a0a]/90 backdrop-blur-xl border border-lux-gold/40 border-r-0 rounded-l-2xl p-3 md:p-4 shadow-[-10px_0_30px_rgba(212,175,55,0.15)] flex flex-col items-center gap-3 group hover:bg-[#111] transition-all"
+          >
+            <div className="relative">
+              <svg className="w-6 h-6 text-lux-gold group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+              </svg>
+              {/* Легкое мерцание сзади иконки */}
+              <div className="absolute inset-0 bg-lux-gold rounded-full blur-md opacity-40 animate-pulse pointer-events-none" />
+            </div>
+            {/* Текст развернут вертикально для элегантности */}
+            <span className="text-[10px] text-lux-gold uppercase tracking-widest font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>L'Édition</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* === КОМПОНЕНТ ГЕНЕРАЦИИ КОЛЛАЖЕЙ === */}
+      <AnimatePresence>
+        {showCollageCreator && (
+          <CollageCreator 
+            slug={slug}
+            selectedPhotos={Array.from(selectedPhotos)}
+            onClose={() => {
+              if (window.history.state?.collage) window.history.back();
+              else setShowCollageCreator(false);
+            }}
+            onSuccess={(url) => {
+              // При успехе закрываем генератор, сбрасываем выбор и ПОКАЗЫВАЕМ ПРЕВЬЮ
+              if (window.history.state?.collage) window.history.back();
+              else setShowCollageCreator(false);
+              
+              closeSelectionSafe();
+              
+              // Открываем модалку превью с историей
+              setTimeout(() => {
+                window.history.pushState({ collagePreview: true }, "");
+                setGeneratedCollageUrl(url);
+              }, 100);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕВЬЮ СГЕНЕРИРОВАННОГО КОЛЛАЖА === */}
+      <AnimatePresence>
+        {generatedCollageUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 touch-none"
+          >
+            {/* Кнопка закрытия */}
+            <button 
+              onClick={() => {
+                triggerVibration(10);
+                if (window.history.state?.collagePreview) window.history.back();
+                else setGeneratedCollageUrl(null);
+              }}
+              className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-white/50 hover:text-lux-gold transition-colors z-10"
+            >
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Картинка (Строгая пропорция 4:5 + Apple Swipe Physics) */}
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 100 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 300 }}
+              dragElastic={0.4}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 100) {
+                  triggerVibration(10);
+                  if (window.history.state?.collagePreview) window.history.back();
+                  else setGeneratedCollageUrl(null);
+                }
+              }}
+              className="relative w-full max-w-[360px] aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
+            >
+              <Image 
+                src={generatedCollageUrl} 
+                alt="L'Édition Preview" 
+                fill 
+                unoptimized 
+                draggable={false}
+                className="object-cover pointer-events-none select-none"
+              />
+            </motion.div>
+
+            {/* Панель действий под фото */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+              className="flex w-full max-w-[360px] gap-3"
+            >
+              <button 
+                onClick={() => {
+                  triggerVibration(20);
+                  handleDownload(`Edition_${slug}_${Date.now()}.jpg`, generatedCollageUrl);
+                }}
+                className="flex-[2] py-4 bg-lux-gold text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white transition-all shadow-gold-glow flex items-center justify-center gap-2 active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                {t.download}
+              </button>
+              
+              <button 
+                onClick={async () => {
+                  triggerVibration(20);
+                  if (navigator.share) {
+                    try { await navigator.share({ title: "L'Édition", url: generatedCollageUrl }); } catch (e) {}
+                  } else {
+                    navigator.clipboard.writeText(generatedCollageUrl);
+                    setShowToast(true); setTimeout(() => setShowToast(false), 2000);
+                  }
+                }}
+                className="flex-[1] py-4 bg-[#111] border border-lux-gold/30 text-lux-gold font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                </svg>
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
