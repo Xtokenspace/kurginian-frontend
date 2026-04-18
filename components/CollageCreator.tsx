@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import Image from 'next/image';
 import { useAppContext } from '@/context/AppContext';
 
@@ -24,6 +24,9 @@ interface PreviewData {
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
 function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, offsets: any, setOffsets: any }) {
+  const { language } = useAppContext();
+  const dragHint = language === 'ru' ? 'Двигать' : language === 'fr' ? 'Glisser' : 'Drag';
+
   // Текущая позиция: кастомная или дефолтная от ИИ
   const currentX = offsets[item.filename]?.x ?? item.focus_x;
   const currentY = offsets[item.filename]?.y ?? item.focus_y;
@@ -62,7 +65,7 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
       {/* Стеклянный индикатор-подсказка для гостя */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
          <div className="bg-black/60 text-lux-gold text-[9px] px-3 py-1.5 rounded-full backdrop-blur-md uppercase tracking-widest border border-lux-gold/30">
-           Двигать
+           {dragHint}
          </div>
       </div>
     </motion.div>
@@ -83,6 +86,9 @@ const STYLES = [
 ];
 
 export default function CollageCreator({ slug, selectedPhotos, onClose, onSuccess }: CollageCreatorProps) {
+  const dragControls = useDragControls(); // <-- Контроллер для изолированной зоны свайпа
+  const [isClosing, setIsClosing] = useState(false); // <-- Защита от двойных кликов
+
   const [selectedStyle, setSelectedStyle] = useState<number>(1);
   const [previews, setPreviews] = useState<Record<number, PreviewData>>({});
   const [offsets, setOffsets] = useState<Record<string, {x: number, y: number}>>({}); // <-- Храним кастомный кроп
@@ -92,8 +98,22 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
   
   const { language } = useAppContext();
 
+  // Железобетонная защита от двойного срабатывания History API
+  const handleSafeClose = () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    onClose();
+  };
+
+  // Умный ключ зависимостей для защиты от бесконечного рендера (React Infinite Loop Fix)
+  const photosKey = selectedPhotos.join(',');
+
   // 1. Мгновенная генерация 3-х вариантов превью при открытии
   useEffect(() => {
+    // Защита от 400 Bad Request во время анимации закрытия (когда массив уже пуст)
+    if (selectedPhotos.length < 2) return;
+
     const fetchPreviews = async () => {
       setIsLoadingPreviews(true);
       setError(null);
@@ -132,7 +152,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
     };
 
     fetchPreviews();
-  }, [slug, selectedPhotos, language]);
+  }, [slug, photosKey, language]); // <-- Зависим строго от текстового ключа, а не от ссылки на массив!
 
   // 2. Генерация финального HD-шедевра
   const handleGenerateFinal = async () => {
@@ -178,9 +198,9 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
   };
 
   const texts = {
-    ru: { title: "L'Édition", subtitle: "Журнальная стилизация", generate: "Создать HD шедевр", processing: "Рендеринг HD...", loading: "Генерация макетов..." },
-    fr: { title: "L'Édition", subtitle: "Stylisation Magazine", generate: "Créer en HD", processing: "Rendu HD...", loading: "Génération des maquettes..." },
-    en: { title: "L'Édition", subtitle: "Editorial Stylization", generate: "Create HD Masterpiece", processing: "HD Rendering...", loading: "Generating mockups..." }
+    ru: { title: "L'Édition", subtitle: "Журнальная стилизация", generate: "Создать HD шедевр", processing: "Рендеринг HD...", loading: "Генерация макетов...", noPreview: "Превью недоступно" },
+    fr: { title: "L'Édition", subtitle: "Stylisation Magazine", generate: "Créer en HD", processing: "Rendu HD...", loading: "Génération des maquettes...", noPreview: "Aperçu indisponible" },
+    en: { title: "L'Édition", subtitle: "Editorial Stylization", generate: "Create HD Masterpiece", processing: "HD Rendering...", loading: "Generating mockups...", noPreview: "Preview not available" }
   };
   const t = texts[language as keyof typeof texts] || texts.en;
 
@@ -193,23 +213,32 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
       drag={!isBusy ? "y" : false}
+      dragControls={dragControls}
+      dragListener={false} // <-- ОТКЛЮЧАЕМ глобальный свайп. Теперь шторка стоит намертво!
       dragConstraints={{ top: 0, bottom: 300 }}
       dragElastic={0.2}
       onDragEnd={(e, info) => {
         if (info.offset.y > 100 && !isBusy) {
-          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-          onClose();
+          handleSafeClose();
         }
       }}
-      className="fixed bottom-12 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
+      className="fixed bottom-12 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
     >
-      {!isBusy && <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />}
+      {/* --- НОВАЯ ЗОНА СВАЙПА (DRAG HANDLE) --- */}
+      <div 
+        className="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing mb-2 touch-none"
+        onPointerDown={(e) => {
+          if (!isBusy) dragControls.start(e);
+        }}
+      >
+        {!isBusy && <div className="w-14 h-1.5 bg-white/20 hover:bg-white/40 transition-colors rounded-full pointer-events-none" />}
+      </div>
 
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
 
       {!isBusy && (
         <button 
-          onClick={onClose}
+          onClick={(e) => { e.stopPropagation(); handleSafeClose(); }}
           className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2 z-20"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -266,7 +295,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
                   ))
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-red-400 text-xs text-center p-4">
-                    {error || "Preview not available"}
+                    {error || t.noPreview}
                   </div>
                 )}
               </motion.div>

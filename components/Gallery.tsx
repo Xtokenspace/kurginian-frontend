@@ -1871,7 +1871,7 @@ export default function Gallery({
                       className="px-3 flex flex-col items-center justify-center bg-[#111] border border-white/10 text-lux-gold rounded-lg hover:bg-white/5 transition-colors group relative overflow-hidden"
                     >
                       <span className="text-[7px] text-gray-500 uppercase tracking-widest leading-none mb-0.5 group-hover:text-gray-300 transition-colors">
-                        Format
+                        {t.size}
                       </span>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] font-bold leading-none">{preferredSize}</span>
