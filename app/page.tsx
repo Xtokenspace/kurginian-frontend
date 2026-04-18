@@ -123,6 +123,7 @@ export default function PWAHome() {
       localStorage.removeItem(rawKey);
       localStorage.removeItem(`title_${slug}`); // Удаляем красивое имя
       localStorage.removeItem(`expires_${slug}`); // Удаляем дату сгорания
+      localStorage.removeItem(`vip_prompt_shown_${slug}`); // <-- ФИКС: Сбрасываем стейт онбординга, чтобы при повторном входе снова был кинематографичный вопрос про VIP
       clearCart(slug); // <-- БЕЗОПАСНОСТЬ: Стираем корзину, чтобы не было утечек данных
       refreshSessions(); // Вызываем обновление в контексте
     }

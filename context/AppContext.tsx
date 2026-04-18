@@ -234,7 +234,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const clearCart = (slug: string) => {
     const newCartState = { ...cart };
-    newCartState[slug] = [];
+    delete newCartState[slug]; // <-- ПОЛНОЕ УДАЛЕНИЕ ИЗ ПАМЯТИ: убивает Phantom Leak
     saveCart(newCartState);
   };
 
