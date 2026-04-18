@@ -1,9 +1,73 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import { useAppContext } from '@/context/AppContext';
+
+// --- ИНТЕРФЕЙСЫ БЭКЕНДА (V10) ---
+interface BlueprintItem {
+  filename: string;
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  focus_x: number;
+  focus_y: number;
+}
+
+interface PreviewData {
+  blueprint: BlueprintItem[];
+  bg_color: number[];
+}
+
+// --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
+function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, offsets: any, setOffsets: any }) {
+  // Текущая позиция: кастомная или дефолтная от ИИ
+  const currentX = offsets[item.filename]?.x ?? item.focus_x;
+  const currentY = offsets[item.filename]?.y ?? item.focus_y;
+  
+  const handlePan = (e: any, info: any) => {
+    // Вычисляем смещение. Делитель 150 определяет мягкость свайпа (чуть-чуть сдвинул палец = сдвинулось фото)
+    const deltaX = -info.delta.x / 150; 
+    const deltaY = -info.delta.y / 150;
+    setOffsets((prev: any) => ({
+      ...prev,
+      [item.filename]: {
+        x: Math.max(0, Math.min(1, currentX + deltaX)),
+        y: Math.max(0, Math.min(1, currentY + deltaY))
+      }
+    }));
+  };
+
+  return (
+    <motion.div 
+      style={{
+        position: 'absolute',
+        left: `${item.x * 100}%`, top: `${item.y * 100}%`,
+        width: `${item.w * 100}%`, height: `${item.h * 100}%`,
+        overflow: 'hidden',
+        backgroundColor: '#111'
+      }}
+      className="border-2 border-transparent hover:border-lux-gold/50 transition-colors cursor-grab active:cursor-grabbing group shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+    >
+      <motion.img 
+        src={item.url}
+        className="w-full h-full object-cover pointer-events-auto"
+        draggable={false}
+        style={{ objectPosition: `${currentX * 100}% ${currentY * 100}%` }}
+        onPan={handlePan}
+      />
+      {/* Стеклянный индикатор-подсказка для гостя */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+         <div className="bg-black/60 text-lux-gold text-[9px] px-3 py-1.5 rounded-full backdrop-blur-md uppercase tracking-widest border border-lux-gold/30">
+           Двигать
+         </div>
+      </div>
+    </motion.div>
+  );
+}
 
 interface CollageCreatorProps {
   slug: string;
@@ -20,7 +84,8 @@ const STYLES = [
 
 export default function CollageCreator({ slug, selectedPhotos, onClose, onSuccess }: CollageCreatorProps) {
   const [selectedStyle, setSelectedStyle] = useState<number>(1);
-  const [previews, setPreviews] = useState<Record<number, string>>({});
+  const [previews, setPreviews] = useState<Record<number, PreviewData>>({});
+  const [offsets, setOffsets] = useState<Record<string, {x: number, y: number}>>({}); // <-- Храним кастомный кроп
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
   const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,14 +109,14 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           });
           if (response.ok) {
             const data = await response.json();
-            return { id: style.id, url: data.url };
+            return { id: style.id, data: data }; // Сохраняем математический Blueprint
           }
-          return { id: style.id, url: null };
+          return { id: style.id, data: null };
         });
 
         const results = await Promise.all(promises);
-        const newPreviews: Record<number, string> = {};
-        results.forEach(r => { if (r.url) newPreviews[r.id] = r.url; });
+        const newPreviews: Record<number, PreviewData> = {};
+        results.forEach(r => { if (r.data?.blueprint) newPreviews[r.id] = r.data; });
         
         setPreviews(newPreviews);
         
@@ -83,7 +148,8 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false }),
+        // Отправляем кастомные смещения на сервер для идеального HD рендера!
+        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets }),
       });
 
       if (!response.ok) {
@@ -161,8 +227,15 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
         </p>
 
-        {/* ПРЕВЬЮ ЗОНА (Кинематографичный 4:5 Холст) */}
-        <div className="relative w-full max-w-[200px] aspect-[4/5] mb-5 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)] bg-[#111]">
+        {/* ПРЕВЬЮ ЗОНА (Интерактивный Blueprint Canvas 4:5) */}
+        <div 
+          className="relative w-full max-w-[240px] aspect-[4/5] mb-5 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
+          style={{ 
+            backgroundColor: previews[selectedStyle]?.bg_color 
+              ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
+              : '#111' 
+          }}
+        >
           <AnimatePresence mode="wait">
             {isLoadingPreviews ? (
               <motion.div
@@ -182,14 +255,15 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
                 transition={{ duration: 0.3 }}
                 className="absolute inset-0"
               >
-                {previews[selectedStyle] ? (
-                  <Image
-                    src={previews[selectedStyle]}
-                    alt={`Style ${selectedStyle}`}
-                    fill
-                    unoptimized
-                    className="object-cover pointer-events-none select-none"
-                  />
+                {previews[selectedStyle]?.blueprint ? (
+                  previews[selectedStyle].blueprint.map((item) => (
+                    <ScrubbableFrame 
+                      key={item.filename} 
+                      item={item} 
+                      offsets={offsets} 
+                      setOffsets={setOffsets} 
+                    />
+                  ))
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-red-400 text-xs text-center p-4">
                     {error || "Preview not available"}
