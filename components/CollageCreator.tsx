@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 import { useAppContext } from '@/context/AppContext';
 
 interface CollageCreatorProps {
@@ -11,18 +12,70 @@ interface CollageCreatorProps {
   onSuccess: (url: string) => void;
 }
 
+const STYLES = [
+  { id: 1, name: "Noire" },
+  { id: 2, name: "Fine Art" },
+  { id: 3, name: "Cinematic" }
+];
+
 export default function CollageCreator({ slug, selectedPhotos, onClose, onSuccess }: CollageCreatorProps) {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<number>(1);
+  const [previews, setPreviews] = useState<Record<number, string>>({});
+  const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
+  const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const { language } = useAppContext();
 
-  const handleGenerate = async () => {
-    setIsGenerating(true);
+  // 1. Мгновенная генерация 3-х вариантов превью при открытии
+  useEffect(() => {
+    const fetchPreviews = async () => {
+      setIsLoadingPreviews(true);
+      setError(null);
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        
+        // Отправляем 3 параллельных запроса на быстрые WebP-макеты
+        const promises = STYLES.map(async (style) => {
+          const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filenames: selectedPhotos, style_id: style.id, is_preview: true }),
+          });
+          if (response.ok) {
+            const data = await response.json();
+            return { id: style.id, url: data.url };
+          }
+          return { id: style.id, url: null };
+        });
+
+        const results = await Promise.all(promises);
+        const newPreviews: Record<number, string> = {};
+        results.forEach(r => { if (r.url) newPreviews[r.id] = r.url; });
+        
+        setPreviews(newPreviews);
+        
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate(15); // Мягкий тактильный отклик о загрузке
+        }
+      } catch (err) {
+        console.error(err);
+        setError(language === 'ru' ? 'Ошибка загрузки превью' : language === 'fr' ? 'Erreur de chargement' : 'Preview error');
+      } finally {
+        setIsLoadingPreviews(false);
+      }
+    };
+
+    fetchPreviews();
+  }, [slug, selectedPhotos, language]);
+
+  // 2. Генерация финального HD-шедевра
+  const handleGenerateFinal = async () => {
+    setIsGeneratingFinal(true);
     setError(null);
     
-    // Включаем вибрацию (эмуляция начала сложного процесса)
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([30, 50, 30]);
+      navigator.vibrate([30, 50, 30]); // Эмуляция тяжелого процесса
     }
 
     try {
@@ -30,11 +83,11 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames: selectedPhotos }),
+        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate collage');
+        throw new Error('Failed to generate final HD collage');
       }
 
       const data = await response.json();
@@ -49,21 +102,23 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       }
     } catch (err) {
       console.error(err);
-      setError(language === 'ru' ? 'Ошибка генерации коллажа' : language === 'fr' ? 'Erreur de génération du collage' : 'Collage generation error');
+      setError(language === 'ru' ? 'Ошибка сборки HD' : language === 'fr' ? 'Erreur de génération HD' : 'HD Generation error');
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
         navigator.vibrate([100, 50, 100]); // Ошибка
       }
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingFinal(false);
     }
   };
 
   const texts = {
-    ru: { title: "L'Édition", subtitle: "Персональная обложка", generate: "Создать шедевр", processing: "Верстка коллажа..." },
-    fr: { title: "L'Édition", subtitle: "Couverture personnelle", generate: "Créer un chef-d'œuvre", processing: "Mise en page..." },
-    en: { title: "L'Édition", subtitle: "Personal Cover", generate: "Create Masterpiece", processing: "Layout processing..." }
+    ru: { title: "L'Édition", subtitle: "Журнальная стилизация", generate: "Создать HD шедевр", processing: "Рендеринг HD...", loading: "Генерация макетов..." },
+    fr: { title: "L'Édition", subtitle: "Stylisation Magazine", generate: "Créer en HD", processing: "Rendu HD...", loading: "Génération des maquettes..." },
+    en: { title: "L'Édition", subtitle: "Editorial Stylization", generate: "Create HD Masterpiece", processing: "HD Rendering...", loading: "Generating mockups..." }
   };
   const t = texts[language as keyof typeof texts] || texts.en;
+
+  const isBusy = isGeneratingFinal || isLoadingPreviews;
 
   return (
     <motion.div
@@ -71,28 +126,25 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      drag={!isGenerating ? "y" : false}
+      drag={!isBusy ? "y" : false}
       dragConstraints={{ top: 0, bottom: 300 }}
       dragElastic={0.2}
       onDragEnd={(e, info) => {
-        if (info.offset.y > 100 && !isGenerating) {
+        if (info.offset.y > 100 && !isBusy) {
           if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
           onClose();
         }
       }}
-      className="fixed bottom-24 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
+      className="fixed bottom-12 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
     >
-      {/* Элегантный индикатор свайпа (Drag Pill) */}
-      {!isGenerating && <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />}
+      {!isBusy && <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4" />}
 
-      {/* Декоративный Ambient-фон */}
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Кнопка закрытия (Крестик) */}
-      {!isGenerating && (
+      {!isBusy && (
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2"
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2 z-20"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -100,44 +152,98 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         </button>
       )}
 
-      <div className="flex flex-col items-center text-center relative z-10">
+      <div className="flex flex-col items-center text-center relative z-10 w-full">
         
-        {/* Премиальная иконка */}
-        <div className="w-12 h-12 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mb-4">
-          <svg className="w-5 h-5 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-          </svg>
-        </div>
-
         <h3 className="font-cinzel text-2xl text-lux-gold uppercase tracking-widest leading-none mb-1">
           {t.title}
         </h3>
-        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono mb-6">
+        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono mb-5">
           {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
         </p>
 
-        {error && (
+        {/* ПРЕВЬЮ ЗОНА (Кинематографичный 4:5 Холст) */}
+        <div className="relative w-full max-w-[200px] aspect-[4/5] mb-5 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)] bg-[#111]">
+          <AnimatePresence mode="wait">
+            {isLoadingPreviews ? (
+              <motion.div
+                key="loading"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a]"
+              >
+                <div className="w-6 h-6 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin mb-3" />
+                <span className="text-[9px] uppercase tracking-widest text-lux-gold/70 animate-pulse">{t.loading}</span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key={selectedStyle}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0"
+              >
+                {previews[selectedStyle] ? (
+                  <Image
+                    src={previews[selectedStyle]}
+                    alt={`Style ${selectedStyle}`}
+                    fill
+                    unoptimized
+                    className="object-cover pointer-events-none select-none"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-red-400 text-xs text-center p-4">
+                    {error || "Preview not available"}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ПЕРЕКЛЮЧАТЕЛИ СТИЛЕЙ (Apple Segmented Style) */}
+        <div className="flex gap-2 w-full overflow-x-auto no-scrollbar justify-center mb-6 px-1">
+          {STYLES.map(s => (
+            <button
+              key={s.id}
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setSelectedStyle(s.id);
+              }}
+              disabled={isLoadingPreviews || isGeneratingFinal}
+              className={`flex-1 px-2 py-2.5 rounded-xl border text-[9px] md:text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap disabled:opacity-50 active:scale-95 ${
+                selectedStyle === s.id
+                  ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow'
+                  : 'bg-[#111] text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+              }`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+
+        {error && !isLoadingPreviews && (
           <p className="text-red-400 text-xs mb-4">{error}</p>
         )}
 
-        {isGenerating ? (
+        {/* ГЛАВНАЯ КНОПКА */}
+        {isGeneratingFinal ? (
           <div className="w-full flex flex-col items-center">
-            {/* Анимация сканирования в стиле Face ID (Golden Sweep) */}
-            <div className="relative w-full h-2 bg-[#111] rounded-full overflow-hidden mb-4">
+            <div className="relative w-full h-2 bg-[#111] rounded-full overflow-hidden mb-4 border border-white/5">
               <motion.div 
                 animate={{ x: ['-100%', '100%'] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-lux-gold to-transparent"
               />
             </div>
-            <p className="text-lux-gold text-xs uppercase tracking-widest animate-pulse">
+            <p className="text-lux-gold text-xs uppercase tracking-widest animate-pulse font-bold">
               {t.processing}
             </p>
           </div>
         ) : (
           <button
-            onClick={handleGenerate}
-            className="w-full py-4 bg-lux-gold text-black font-bold uppercase tracking-widest rounded-xl hover:bg-white transition-all active:scale-[0.98] shadow-gold-glow flex items-center justify-center gap-2"
+            onClick={handleGenerateFinal}
+            disabled={isLoadingPreviews}
+            className="w-full py-4 bg-lux-gold text-black font-bold uppercase tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50 disabled:active:scale-100 active:scale-[0.98] shadow-gold-glow flex items-center justify-center gap-2"
           >
             {t.generate}
           </button>
