@@ -1064,7 +1064,7 @@ export default function Gallery({
                       className="flex-[2] py-3 bg-[#1a1a1a] hover:bg-[#222] border border-lux-gold/30 text-lux-gold uppercase text-[9px] md:text-[10px] font-bold tracking-widest rounded-sm transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
                     >
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                       </svg>
                       {t.shareGuest}
                     </button>
@@ -1149,7 +1149,13 @@ export default function Gallery({
                       disabled={selectedPhotos.size === 0 || isSaving}
                       className="flex-1 md:flex-none bg-[#1a1a1a] border border-white/10 text-white px-5 py-3 md:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
                     >
-                      {isSaving ? <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : '↓'}
+                      {isSaving ? (
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                        </svg>
+                      )}
                     </button>
 
                     <button 
@@ -1167,7 +1173,9 @@ export default function Gallery({
                       }}
                       className="flex-1 md:flex-none bg-[#1a1a1a] border border-white/10 text-white px-5 py-3 md:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 active:scale-95 transition-all flex items-center justify-center hover:bg-white/10"
                     >
-                      ↗
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
                     </button>
                   </>
                 )}
@@ -1242,8 +1250,11 @@ export default function Gallery({
                         handleDownload(filteredPhotos[longPressedIndex].filename, filteredPhotos[longPressedIndex].urls.web);
                         setLongPressedIndex(null);
                       }}
-                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
                     >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
                       {t.download}
                     </button>
                     <button 
@@ -1251,8 +1262,11 @@ export default function Gallery({
                         handleShare(filteredPhotos[longPressedIndex].filename);
                         setLongPressedIndex(null);
                       }}
-                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors"
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
                     >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
                       {t.share}
                     </button>
                     <button 
@@ -1264,8 +1278,11 @@ export default function Gallery({
                         togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
                         setLongPressedIndex(null);
                       }}
-                      className="w-full bg-lux-gold/10 border border-lux-gold/30 py-4 rounded-xl text-lux-gold font-bold text-xs uppercase tracking-widest mt-2 hover:bg-lux-gold hover:text-black transition-colors"
+                      className="w-full bg-lux-gold/10 border border-lux-gold/30 py-4 rounded-xl text-lux-gold font-bold text-xs uppercase tracking-widest mt-2 hover:bg-lux-gold hover:text-black transition-colors flex items-center justify-center gap-3"
                     >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
                       {t.select}
                     </button>
                   </div>
@@ -2140,7 +2157,7 @@ export default function Gallery({
                 className="flex-[1] py-4 bg-[#111] border border-lux-gold/30 text-lux-gold font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
               </button>
             </motion.div>
