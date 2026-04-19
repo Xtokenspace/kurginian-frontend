@@ -979,9 +979,12 @@ export default function Gallery({
                 exit={{ height: 0, opacity: 0 }}
                 className="w-full max-w-2xl overflow-hidden"
               >
-                <div className="flex gap-4 overflow-x-auto py-4 px-2 no-scrollbar items-center justify-start snap-x snap-mandatory">
+                <div 
+                  onPointerDownCapture={(e) => e.stopPropagation()}
+                  className="flex gap-4 overflow-x-auto py-4 px-2 no-scrollbar items-center justify-start snap-x snap-mandatory touch-pan-x overscroll-contain"
+                >
                   {Object.entries(guestClusters).map(([id, cluster]) => (
-                    <div key={id} className="snap-center">
+                    <div key={id} className="snap-center shrink-0">
                       <FaceBubble 
                         cluster={cluster} 
                         photos={photos} 
@@ -1625,7 +1628,8 @@ export default function Gallery({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        className="flex gap-3 overflow-x-auto no-scrollbar max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto"
+                        onPointerDownCapture={(e) => e.stopPropagation()}
+                        className="flex gap-3 overflow-x-auto no-scrollbar max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain"
                       >
                         {filteredPhotos[selectedIndex].cluster_ids.map(id => {
                           const cluster = guestClusters[id];
