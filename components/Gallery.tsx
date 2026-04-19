@@ -980,20 +980,22 @@ export default function Gallery({
                 className="w-full max-w-2xl overflow-hidden"
               >
                 <div 
-                  /* Изолируем касания и убиваем системный скроллбар навсегда */
                   onPointerDownCapture={(e) => e.stopPropagation()}
                   onWheel={(e) => {
-                    // Магия для ПК: превращаем вертикальный скролл колесиком мыши в горизонтальный свайп
+                    // Игнорируем скролл тачпадом (у него есть свой нативный deltaX)
+                    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                    // Плавный кинематографичный скролл для колесика мыши (Premium Desktop UX)
                     if (e.deltaY !== 0) {
-                      e.currentTarget.scrollLeft += e.deltaY;
+                      e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
                     }
                   }}
                   style={{ WebkitOverflowScrolling: 'touch' }}
-                  // Жестко скрываем скроллбар через встроенный CSS Tailwind, убираем конфликтующий scroll-smooth
-                  className="flex gap-4 overflow-x-auto py-4 px-2 items-center justify-start snap-x snap-mandatory touch-pan-x overscroll-contain [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                  // УБРАНО: snap-x и snap-mandatory (для возвращения естественной инерции пальца)
+                  // ДОБАВЛЕНО: will-change-scroll (для GPU ускорения на слабых телефонах)
+                  className="flex gap-4 overflow-x-auto py-4 px-2 items-center justify-start touch-pan-x overscroll-contain will-change-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                 >
                   {Object.entries(guestClusters).map(([id, cluster]) => (
-                    <div key={id} className="snap-center shrink-0">
+                    <div key={id} className="shrink-0">
                       <FaceBubble 
                         cluster={cluster} 
                         photos={photos} 
@@ -1662,12 +1664,13 @@ export default function Gallery({
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
                         onPointerDownCapture={(e) => e.stopPropagation()}
                         onWheel={(e) => {
+                          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
                           if (e.deltaY !== 0) {
-                            e.currentTarget.scrollLeft += e.deltaY;
+                            e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
                           }
                         }}
                         style={{ WebkitOverflowScrolling: 'touch' }}
-                        className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                        className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain will-change-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
                       >
                         {filteredPhotos[selectedIndex].cluster_ids.map(id => {
                           const cluster = guestClusters[id];
