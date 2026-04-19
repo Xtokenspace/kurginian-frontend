@@ -977,25 +977,57 @@ export default function Gallery({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="w-full max-w-2xl overflow-hidden"
+                className="w-full max-w-2xl overflow-hidden relative group"
               >
+                {/* Левая стрелка (Появляется при наведении на ПК) */}
+                <button 
+                  onClick={() => document.getElementById('main-guest-carousel')?.scrollBy({ left: -300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-white hover:text-lux-gold hover:border-lux-gold/50 transition-all opacity-0 group-hover:opacity-100 shadow-lg ml-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                  </svg>
+                </button>
+
                 <div 
-                  onPointerDownCapture={(e) => e.stopPropagation()}
-                  onWheel={(e) => {
-                    // Игнорируем скролл тачпадом (у него есть свой нативный deltaX)
-                    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-                    // Плавный кинематографичный скролл для колесика мыши (Premium Desktop UX)
-                    if (e.deltaY !== 0) {
-                      e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
+                  id="main-guest-carousel"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    const el = e.currentTarget;
+                    el.dataset.isDragging = 'true';
+                    el.dataset.dragged = 'false';
+                    el.dataset.startX = e.pageX.toString();
+                    el.dataset.scrollLeft = el.scrollLeft.toString();
+                  }}
+                  onPointerMove={(e) => {
+                    const el = e.currentTarget;
+                    if (el.dataset.isDragging !== 'true') return;
+                    e.preventDefault();
+                    const startX = parseFloat(el.dataset.startX || '0');
+                    const scrollLeft = parseFloat(el.dataset.scrollLeft || '0');
+                    const walk = (e.pageX - startX) * 1.5; // Ускоритель тяги мышью
+                    el.scrollLeft = scrollLeft - walk;
+                    if (Math.abs(walk) > 10) el.dataset.dragged = 'true'; // Защита от ложного клика
+                  }}
+                  onPointerUp={(e) => { e.currentTarget.dataset.isDragging = 'false'; }}
+                  onPointerLeave={(e) => { e.currentTarget.dataset.isDragging = 'false'; }}
+                  onClickCapture={(e) => {
+                    // Перехватываем клик, если пользователь просто тащил ленту мышкой
+                    if (e.currentTarget.dataset.dragged === 'true') {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      e.currentTarget.dataset.dragged = 'false';
                     }
                   }}
+                  onWheel={(e) => {
+                    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                    if (e.deltaY !== 0) e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
+                  }}
                   style={{ WebkitOverflowScrolling: 'touch' }}
-                  // УБРАНО: snap-x и snap-mandatory (для возвращения естественной инерции пальца)
-                  // ДОБАВЛЕНО: will-change-scroll (для GPU ускорения на слабых телефонах)
-                  className="flex gap-4 overflow-x-auto py-4 px-2 items-center justify-start touch-pan-x overscroll-contain will-change-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                  className="flex gap-4 overflow-x-auto py-4 px-2 items-center justify-start touch-pan-x overscroll-contain will-change-scroll cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative px-10 md:px-4"
                 >
                   {Object.entries(guestClusters).map(([id, cluster]) => (
-                    <div key={id} className="shrink-0">
+                    <div key={id} className="shrink-0 pointer-events-auto">
                       <FaceBubble 
                         cluster={cluster} 
                         photos={photos} 
@@ -1005,6 +1037,16 @@ export default function Gallery({
                     </div>
                   ))}
                 </div>
+
+                {/* Правая стрелка (Появляется при наведении на ПК) */}
+                <button 
+                  onClick={() => document.getElementById('main-guest-carousel')?.scrollBy({ left: 300, behavior: 'smooth' })}
+                  className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-8 h-8 items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-white hover:text-lux-gold hover:border-lux-gold/50 transition-all opacity-0 group-hover:opacity-100 shadow-lg mr-2"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
+                </button>
               </motion.div>
             )}
           </AnimatePresence>
@@ -1666,34 +1708,83 @@ export default function Gallery({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        onPointerDownCapture={(e) => e.stopPropagation()}
-                        onWheel={(e) => {
-                          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-                          if (e.deltaY !== 0) {
-                            e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
-                          }
-                        }}
-                        style={{ WebkitOverflowScrolling: 'touch' }}
-                        className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain will-change-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                        className="relative w-full max-w-2xl group mb-4"
                       >
-                        {filteredPhotos[selectedIndex].cluster_ids.map(id => {
-                          const cluster = guestClusters[id];
-                          if (!cluster) return null;
-                          return (
-                            <FaceBubble
-                              key={id}
-                              cluster={cluster}
-                              photos={photos} 
-                              isSelected={false}
-                              onClick={() => {
-                                triggerVibration([30, 50]);
-                                setShowLightboxGuests(false);
-                                closeLightbox();
-                                setTimeout(() => setSelectedGuestId(id), 300); // Даем шторке плавно закрыться
-                              }}
-                            />
-                          );
-                        })}
+                        {/* Левая стрелка */}
+                        <button 
+                          onClick={() => document.getElementById('lightbox-guest-carousel')?.scrollBy({ left: -300, behavior: 'smooth' })}
+                          className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 items-center justify-center bg-black/80 backdrop-blur-md border border-white/20 rounded-full text-white hover:text-lux-gold hover:border-lux-gold/50 transition-all opacity-0 group-hover:opacity-100 shadow-lg pointer-events-auto"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                          </svg>
+                        </button>
+
+                        <div
+                          id="lightbox-guest-carousel"
+                          onPointerDown={(e) => {
+                            e.stopPropagation();
+                            const el = e.currentTarget;
+                            el.dataset.isDragging = 'true';
+                            el.dataset.dragged = 'false';
+                            el.dataset.startX = e.pageX.toString();
+                            el.dataset.scrollLeft = el.scrollLeft.toString();
+                          }}
+                          onPointerMove={(e) => {
+                            const el = e.currentTarget;
+                            if (el.dataset.isDragging !== 'true') return;
+                            e.preventDefault();
+                            const startX = parseFloat(el.dataset.startX || '0');
+                            const scrollLeft = parseFloat(el.dataset.scrollLeft || '0');
+                            const walk = (e.pageX - startX) * 1.5; 
+                            el.scrollLeft = scrollLeft - walk;
+                            if (Math.abs(walk) > 10) el.dataset.dragged = 'true';
+                          }}
+                          onPointerUp={(e) => { e.currentTarget.dataset.isDragging = 'false'; }}
+                          onPointerLeave={(e) => { e.currentTarget.dataset.isDragging = 'false'; }}
+                          onClickCapture={(e) => {
+                            if (e.currentTarget.dataset.dragged === 'true') {
+                              e.stopPropagation(); e.preventDefault();
+                              e.currentTarget.dataset.dragged = 'false';
+                            }
+                          }}
+                          onWheel={(e) => {
+                            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+                            if (e.deltaY !== 0) e.currentTarget.scrollBy({ left: e.deltaY > 0 ? 250 : -250, behavior: 'smooth' });
+                          }}
+                          style={{ WebkitOverflowScrolling: 'touch' }}
+                          className="flex gap-3 overflow-x-auto max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain will-change-scroll cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                        >
+                          {filteredPhotos[selectedIndex].cluster_ids.map(id => {
+                            const cluster = guestClusters[id];
+                            if (!cluster) return null;
+                            return (
+                              <div key={id} className="shrink-0 pointer-events-auto">
+                                <FaceBubble
+                                  cluster={cluster}
+                                  photos={photos} 
+                                  isSelected={false}
+                                  onClick={() => {
+                                    triggerVibration([30, 50]);
+                                    setShowLightboxGuests(false);
+                                    closeLightbox();
+                                    setTimeout(() => setSelectedGuestId(id), 300);
+                                  }}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Правая стрелка */}
+                        <button 
+                          onClick={() => document.getElementById('lightbox-guest-carousel')?.scrollBy({ left: 300, behavior: 'smooth' })}
+                          className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-20 w-6 h-6 items-center justify-center bg-black/80 backdrop-blur-md border border-white/20 rounded-full text-white hover:text-lux-gold hover:border-lux-gold/50 transition-all opacity-0 group-hover:opacity-100 shadow-lg pointer-events-auto"
+                        >
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </button>
                       </motion.div>
                     )}
                   </AnimatePresence>
