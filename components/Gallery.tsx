@@ -919,65 +919,70 @@ export default function Gallery({
       {/* СЕТКА ФОТОГРАФИЙ */}
       <Suspense fallback={<div className="min-h-screen bg-lux-bg" />}>
         
-        {/* === ПРЕМИУМ ACTION HUB (Apple-style Console) === */}
-        <div className="flex flex-col items-center mb-10 px-4">
+        {/* === ПРЕМИУМ ACTION HUB (Ultra-Wide Console) === */}
+        <div className="flex flex-col items-center mb-12 px-4">
           {!selectedGuestId && (
             <motion.div 
-              initial={{ opacity: 0, y: 15 }} 
+              initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }}
-              className="w-full max-w-md flex flex-col gap-3"
+              className="w-full max-w-xl flex flex-col gap-4"
             >
-              {/* Ряд 1: Главное действие (Скачать всё) */}
+              {/* Ряд 1: Главный Hero-Action (Широкая кнопка скачивания) */}
               <button
                 onClick={() => handleSaveAll(photos)}
                 disabled={isSaving}
-                className={`w-full py-4.5 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-2xl flex items-center justify-center transition-all duration-500 relative overflow-hidden group ${
-                  isSaving ? 'bg-[#0a0a0a] text-lux-gold border border-lux-gold/20' : 'bg-lux-gold text-black shadow-[0_10px_40px_rgba(212,175,55,0.2)] hover:shadow-[0_15px_50px_rgba(212,175,55,0.4)] active:scale-[0.98]'
+                className={`w-full py-5 md:py-6 font-black uppercase tracking-[0.25em] text-[10px] md:text-xs rounded-[1.5rem] flex items-center justify-center transition-all duration-700 relative overflow-hidden group ${
+                  isSaving 
+                    ? 'bg-[#0a0a0a] text-lux-gold border border-lux-gold/20' 
+                    : 'bg-lux-gold text-black shadow-[0_20px_60px_rgba(212,175,55,0.15)] hover:shadow-[0_25px_80px_rgba(212,175,55,0.35)] hover:scale-[1.01] active:scale-[0.98]'
                 }`}
               >
                 {isSaving && (
                   <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${saveProgress}%` }}
-                    className="absolute left-0 top-0 bottom-0 bg-white/20 z-0"
+                    className="absolute left-0 top-0 bottom-0 bg-white/30 z-0"
                   />
                 )}
-                <div className="relative z-10 flex items-center gap-3">
+                <div className="relative z-10 flex items-center gap-4">
                   {isSaving ? (
-                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
                   ) : (
-                    <svg className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-6 h-6 group-hover:translate-y-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                   )}
-                  <span className="font-bold">
+                  <span className="md:text-sm">
                     {isSaving 
-                      ? `${language === 'ru' ? 'ПОДГОТОВКА АРХИВА' : language === 'fr' ? 'PRÉPARATION' : 'PREPARING'} ${saveProgress}%` 
+                      ? `${language === 'ru' ? 'СОЗДАНИЕ АРХИВА' : language === 'fr' ? 'CRÉATION ZIP' : 'PREPARING ZIP'} ${saveProgress}%` 
                       : t.saveAll}
                   </span>
                 </div>
               </button>
 
-              {/* Ряд 2: Вторичные действия (Гости + Печать) */}
-              <div className="flex gap-2 w-full">
-                {/* Кнопка SMART GUESTS */}
+              {/* Ряд 2: Вспомогательные интеллектуальные сервисы */}
+              <div className="flex gap-4 w-full">
+                {/* Кнопка AI FACE SCAN (Интеллектуальные гости) */}
                 {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
                   <button
                     onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
-                    className={`flex-1 flex items-center justify-center gap-2.5 py-4 rounded-2xl font-bold uppercase tracking-widest text-[9px] md:text-[10px] transition-all border backdrop-blur-md ${
+                    className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[1.25rem] font-bold uppercase tracking-widest text-[9px] md:text-[11px] transition-all duration-500 border backdrop-blur-xl group ${
                       showGuests 
                         ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' 
-                        : 'bg-[#111]/60 text-lux-gold border-lux-gold/30 hover:bg-lux-gold/10 hover:border-lux-gold/60'
+                        : 'bg-white/5 text-lux-gold border-lux-gold/20 hover:bg-lux-gold hover:text-black hover:border-transparent'
                     }`}
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                    </svg>
+                    <div className="relative">
+                      <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                      </svg>
+                    </div>
                     {t.guests}
                   </button>
                 )}
 
-                {/* Кнопка ПЕЧАТЬ (Прямой доступ) */}
+                {/* Кнопка ПРЯМАЯ ПЕЧАТЬ (Apple Commerce) */}
                 <button
                   onClick={() => {
                     triggerVibration(10);
@@ -989,14 +994,14 @@ export default function Gallery({
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                   }}
-                  className="flex-1 flex items-center justify-center gap-2.5 py-4 bg-[#111]/60 backdrop-blur-md border border-lux-gold/30 text-lux-gold rounded-2xl font-bold uppercase tracking-widest text-[9px] md:text-[10px] hover:bg-lux-gold/10 hover:border-lux-gold/60 transition-all active:scale-95 relative"
+                  className="flex-1 flex items-center justify-center gap-3 py-5 bg-white/5 backdrop-blur-xl border border-lux-gold/20 text-lux-gold rounded-[1.25rem] font-bold uppercase tracking-widest text-[9px] md:text-[11px] hover:bg-lux-gold hover:text-black transition-all duration-500 active:scale-95 relative group"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-5 h-5 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                   </svg>
                   {t.orderPrints}
                   {cart.length > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-lux-gold text-black text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                    <span className="absolute -top-2 -right-2 bg-lux-gold text-black text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.6)] animate-pulse">
                       {cart.length}
                     </span>
                   )}
