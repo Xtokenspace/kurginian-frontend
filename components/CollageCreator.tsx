@@ -23,7 +23,7 @@ interface PreviewData {
 }
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
-function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, offsets: any, setOffsets: any }) {
+function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item: BlueprintItem, offsets: any, setOffsets: any, styleId: number, isLast: boolean }) {
   const { language } = useAppContext();
   const dragHint = language === 'ru' ? 'Двигать' : language === 'fr' ? 'Glisser' : 'Drag';
 
@@ -40,7 +40,6 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
   };
 
   const handlePan = (e: any, info: any) => {
-    // Используем info.offset для безупречной плавности без конфликтов React-стейтов
     const deltaX = -info.offset.x / 150; 
     const deltaY = -info.offset.y / 150;
     setOffsets((prev: any) => ({
@@ -52,6 +51,11 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
     }));
   };
 
+  // === CSS МАГИЯ: Эмуляция Python-логики бэкенда ===
+  const isGrayscale = styleId === 1 && isLast; // Эффект Vogue (последнее фото ЧБ)
+  const borderColor = styleId === 2 ? 'rgba(40,40,40,1)' : 'rgba(212,175,55,1)';
+  const borderWidth = styleId === 2 ? '1px' : '2px';
+
   return (
     <motion.div 
       style={{
@@ -59,15 +63,20 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
         left: `${item.x * 100}%`, top: `${item.y * 100}%`,
         width: `${item.w * 100}%`, height: `${item.h * 100}%`,
         overflow: 'hidden',
-        backgroundColor: '#111'
+        backgroundColor: '#111',
+        border: `${borderWidth} solid ${borderColor}`,
       }}
-      className="border-2 border-transparent hover:border-lux-gold/50 transition-colors cursor-grab active:cursor-grabbing group shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+      className="hover:border-white transition-colors cursor-grab active:cursor-grabbing group shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
     >
       <motion.img 
         src={item.url}
         className="w-full h-full object-cover pointer-events-auto"
         draggable={false}
-        style={{ objectPosition: `${currentX * 100}% ${currentY * 100}%` }}
+        style={{ 
+          objectPosition: `${currentX * 100}% ${currentY * 100}%`,
+          filter: isGrayscale ? 'grayscale(100%)' : 'none',
+          transition: 'filter 0.3s ease'
+        }}
         onPanStart={handlePanStart}
         onPan={handlePan}
       />
@@ -296,14 +305,44 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
                 className="absolute inset-0"
               >
                 {previews[selectedStyle]?.blueprint ? (
-                  previews[selectedStyle].blueprint.map((item) => (
-                    <ScrubbableFrame 
-                      key={item.filename} 
-                      item={item} 
-                      offsets={offsets} 
-                      setOffsets={setOffsets} 
+                  <>
+                    {previews[selectedStyle].blueprint.map((item, idx) => (
+                      <ScrubbableFrame 
+                        key={item.filename} 
+                        item={item} 
+                        offsets={offsets} 
+                        setOffsets={setOffsets}
+                        styleId={selectedStyle}
+                        isLast={idx === previews[selectedStyle].blueprint!.length - 1}
+                      />
+                    ))}
+                    
+                    {/* === ЭМУЛЯЦИЯ ФИНАЛЬНОГО РЕНДЕРА (Cinematic Scrim & Typography) === */}
+                    <div 
+                      className={`absolute bottom-0 left-0 right-0 h-[45%] bg-gradient-to-t ${
+                        selectedStyle === 2 ? 'from-[#FAFAFA] via-[#FAFAFA]/70' : 'from-[#0C0C0C] via-[#0C0C0C]/70'
+                      } to-transparent pointer-events-none z-10`} 
                     />
-                  ))
+                    
+                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-5 z-20">
+                      <h4 className={`font-cinzel text-xl tracking-widest leading-none ${selectedStyle === 2 ? 'text-[#141414]' : 'text-[#FAFAFA]'}`}>
+                        KURGINIAN
+                      </h4>
+                      <p className={`text-[7px] uppercase tracking-[0.2em] mt-1 ${selectedStyle === 2 ? 'text-gray-500' : 'text-lux-gold'}`}>
+                        Édition Limitée
+                      </p>
+                    </div>
+
+                    {/* Индикатор "Макета" для гостя */}
+                    <div className="absolute top-3 left-0 right-0 flex justify-center pointer-events-none z-20">
+                      <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                        <span className="text-[7px] text-white/70 uppercase tracking-widest flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 bg-lux-gold rounded-full animate-pulse" />
+                          {language === 'ru' ? 'ИНТЕРАКТИВНЫЙ МАКЕТ' : language === 'fr' ? 'MAQUETTE INTERACTIVE' : 'INTERACTIVE BLUEPRINT'}
+                        </span>
+                      </div>
+                    </div>
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-red-400 text-xs text-center p-4">
                     {error || t.noPreview}
