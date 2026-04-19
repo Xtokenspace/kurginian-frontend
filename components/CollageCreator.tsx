@@ -247,9 +247,9 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      drag="y" // <-- ВАЖНО: Разрешаем свайп вниз ВСЕГДА
+      drag="y"
       dragControls={dragControls}
-      dragListener={false} // <-- ОТКЛЮЧАЕМ глобальный свайп. Теперь шторка стоит намертво!
+      dragListener={false}
       dragConstraints={{ top: 0, bottom: 300 }}
       dragElastic={0.2}
       onDragEnd={(e, info) => {
@@ -257,46 +257,53 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           handleSafeClose();
         }
       }}
-      className="fixed bottom-12 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[400px] z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden touch-none"
+      // 💎 МАГИЯ: Адаптивное центрирование для ПК (Pro Studio Layout) без конфликтов с Framer Motion
+      className="fixed bottom-12 left-4 right-4 md:inset-0 md:m-auto md:w-full md:max-w-[760px] md:h-fit z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_0_80px_rgba(0,0,0,0.9)] overflow-hidden touch-none"
     >
-      {/* --- НОВАЯ ЗОНА СВАЙПА (DRAG HANDLE) --- */}
+      {/* --- ЗОНА СВАЙПА (DRAG HANDLE) --- */}
       <div 
-        className="w-full flex justify-center py-5 -mt-2 cursor-grab active:cursor-grabbing mb-2 touch-none relative z-20"
+        className="w-full flex justify-center py-5 -mt-2 md:py-0 md:-mt-0 md:mb-0 cursor-grab active:cursor-grabbing md:cursor-default touch-none relative z-20"
         onPointerDown={(e) => dragControls.start(e)}
       >
-        <div className="w-14 h-1.5 bg-white/20 hover:bg-white/40 transition-colors rounded-full pointer-events-none" />
+        {/* Скрываем ползунок-подсказку на десктопе (так как там окно по центру) */}
+        <div className="w-14 h-1.5 bg-white/20 hover:bg-white/40 transition-colors rounded-full pointer-events-none md:hidden" />
       </div>
 
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* КРЕСТИК ТЕПЕРЬ ДОСТУПЕН ВСЕГДА (Даже во время рендера) */}
+      {/* КРЕСТИК ТЕПЕРЬ ДОСТУПЕН ВСЕГДА */}
       <button 
         onClick={(e) => { e.stopPropagation(); handleSafeClose(); }}
-        className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2 z-30"
+        className="absolute top-4 right-4 md:top-6 md:right-6 text-gray-500 hover:text-white transition-colors p-2 z-30"
       >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
-      <div className="flex flex-col items-center text-center relative z-10 w-full">
+      {/* === ДВОЙНОЙ ИНТЕРФЕЙС (Mobile Flex / Desktop Grid) === */}
+      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 md:gap-12 relative z-10 w-full items-center">
         
-        <h3 className="font-cinzel text-2xl text-lux-gold uppercase tracking-widest leading-none mb-1">
-          {t.title}
-        </h3>
-        <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono mb-5">
-          {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
-        </p>
+        {/* Мобильная шапка (Скрывается на ПК) */}
+        <div className="md:hidden flex flex-col items-center text-center w-full mb-1">
+          <h3 className="font-cinzel text-2xl text-lux-gold uppercase tracking-widest leading-none mb-1">
+            {t.title}
+          </h3>
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-mono mb-2">
+            {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
+          </p>
+        </div>
 
-        {/* ПРЕВЬЮ ЗОНА (Интерактивный Blueprint Canvas 4:5) */}
-        <div 
-          className="relative w-full max-w-[240px] aspect-[4/5] mb-5 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
-          style={{ 
-            backgroundColor: previews[selectedStyle]?.bg_color 
-              ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
-              : '#111' 
-          }}
-        >
+        {/* Левая колонка: ПРЕВЬЮ ЗОНА (Холст) */}
+        <div className="flex justify-center w-full">
+          <div 
+            className="relative w-full max-w-[240px] md:max-w-[340px] aspect-[4/5] md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
+            style={{ 
+              backgroundColor: previews[selectedStyle]?.bg_color 
+                ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
+                : '#111' 
+            }}
+          >
           <AnimatePresence mode="wait">
             {isLoadingPreviews ? (
               <motion.div
@@ -363,56 +370,73 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
         </div>
 
-        {/* ПЕРЕКЛЮЧАТЕЛИ СТИЛЕЙ (Apple Segmented Style) */}
-        <div className="flex gap-2 w-full overflow-x-auto no-scrollbar justify-center mb-6 px-1">
-          {STYLES.map(s => (
-            <button
-              key={s.id}
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                setSelectedStyle(s.id);
-              }}
-              disabled={isLoadingPreviews || isGeneratingFinal}
-              className={`flex-1 px-2 py-2.5 rounded-xl border text-[9px] md:text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap disabled:opacity-50 active:scale-95 ${
-                selectedStyle === s.id
-                  ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow'
-                  : 'bg-[#111] text-gray-400 border-white/10 hover:text-white hover:border-white/30'
-              }`}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
-
-        {error && !isLoadingPreviews && (
-          <p className="text-red-400 text-xs mb-4">{error}</p>
-        )}
-
-        {/* ГЛАВНАЯ КНОПКА */}
-        {isGeneratingFinal ? (
-          <div className="w-full flex flex-col items-center">
-            <div className="relative w-full h-2 bg-[#111] rounded-full overflow-hidden mb-4 border border-white/5">
-              <motion.div 
-                animate={{ x: ['-100%', '100%'] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-                className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-lux-gold to-transparent"
-              />
-            </div>
-            <p className="text-lux-gold text-xs uppercase tracking-widest animate-pulse font-bold">
-              {t.processing}
+        {/* Правая колонка: Управление (Стили + Кнопка) */}
+        <div className="flex flex-col items-center md:items-start text-center md:text-left w-full mt-4 md:mt-0">
+          
+          {/* Десктопная шапка (Проявляется только на ПК) */}
+          <div className="hidden md:flex flex-col mb-8">
+            <h3 className="font-cinzel text-4xl text-lux-gold uppercase tracking-widest leading-none mb-3">
+              {t.title}
+            </h3>
+            <p className="text-xs text-gray-400 uppercase tracking-widest font-mono">
+              {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
             </p>
           </div>
-        ) : (
-          <button
-            onClick={handleGenerateFinal}
-            disabled={isLoadingPreviews}
-            className="w-full py-4 bg-lux-gold text-black font-bold uppercase tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50 disabled:active:scale-100 active:scale-[0.98] shadow-gold-glow flex items-center justify-center gap-2"
-          >
-            {t.generate}
-          </button>
-        )}
+
+          {/* ПЕРЕКЛЮЧАТЕЛИ СТИЛЕЙ */}
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar justify-center md:justify-start mb-6 px-1 md:px-0">
+            {STYLES.map(s => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                  setSelectedStyle(s.id);
+                }}
+                disabled={isLoadingPreviews || isGeneratingFinal}
+                className={`flex-1 md:flex-none md:px-6 px-2 py-2.5 md:py-3 rounded-xl border text-[9px] md:text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap disabled:opacity-50 active:scale-95 ${
+                  selectedStyle === s.id
+                    ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow'
+                    : 'bg-[#111] text-gray-400 border-white/10 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+
+          {error && !isLoadingPreviews && (
+            <p className="text-red-400 text-xs mb-4 md:mb-6">{error}</p>
+          )}
+
+          {/* ГЛАВНАЯ КНОПКА */}
+          <div className="w-full max-w-sm">
+            {isGeneratingFinal ? (
+              <div className="w-full flex flex-col items-center md:items-start">
+                <div className="relative w-full h-2 bg-[#111] rounded-full overflow-hidden mb-4 border border-white/5">
+                  <motion.div 
+                    animate={{ x: ['-100%', '100%'] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                    className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-lux-gold to-transparent"
+                  />
+                </div>
+                <p className="text-lux-gold text-xs uppercase tracking-widest animate-pulse font-bold">
+                  {t.processing}
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={handleGenerateFinal}
+                disabled={isLoadingPreviews}
+                className="w-full py-4 md:py-5 bg-lux-gold text-black font-bold uppercase tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50 disabled:active:scale-100 active:scale-[0.98] shadow-gold-glow flex items-center justify-center gap-2 md:text-sm"
+              >
+                {t.generate}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </motion.div>
   );
