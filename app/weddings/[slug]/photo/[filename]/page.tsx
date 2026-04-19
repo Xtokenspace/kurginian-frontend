@@ -1,146 +1,163 @@
-// === ФАЙЛ: app\weddings\[slug]\photo\[filename]/page.tsx ===
+// === ФАЙЛ: app\weddings\\[slug]\\photo\\[filename]/page.tsx ===
 
 'use client';
 
-import { use, useState, } from 'react';
+import { use, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { useAppContext } from '@/context/AppContext';
+import { useAppContext, PrintSize, PRINT_PRICES } from '@/context/AppContext';
+import CollageCreator from '@/components/CollageCreator';
 
 const translations = {
   fr: {
-    title: "Souvenir • 1 photo",
+    title: "Souvenir",
     download: "Télécharger",
     share: "Partager",
-    backToGallery: "Retour à la galerie",
+    backToGallery: "Retour",
+    findAllMyPhotos: "Trouver toutes mes photos",
     searchAgain: "Nouvelle recherche",
-    instagram: "Suivre sur Instagram",
-    discover: "Découvrir mon univers",
-    thanks: "Merci d'avoir utilisé KURGINIAN Premium Gallery",
-    toast: "Lien copié dans le presse-papiers",
-    shareText: "Regardez cette magnifique photo dans la KURGINIAN Premium Gallery ✨",
+    instagram: "Instagram",
+    discover: "Site Web",
+    thanks: "Merci d'utiliser KURGINIAN Premium Gallery",
+    toast: "Lien copié",
+    shareText: "Regardez cette magnifique photo ✨",
     copyPrompt: "Copiez ce lien :",
-    confirmReset: "Êtes-vous sûr ? (Appuyez à nouveau)"
+    confirmReset: "Sûr ? (Appuyez à nouveau)",
+    selected: "sélectionné(s)",
+    cancel: "Annuler",
+    orderPrints: "Commander tirages",
+    createCollage: "L'Édition"
   },
   en: {
-    title: "Memory • 1 photo",
+    title: "Memory",
     download: "Download",
     share: "Share",
-    backToGallery: "Back to gallery",
+    backToGallery: "Back",
+    findAllMyPhotos: "Find all my photos",
     searchAgain: "New search",
-    instagram: "Follow on Instagram",
-    discover: "Discover my work",
+    instagram: "Instagram",
+    discover: "Website",
     thanks: "Thank you for using KURGINIAN Premium Gallery",
-    toast: "Link copied to clipboard",
-    shareText: "Take a look at this wonderful photo in the KURGINIAN Premium Gallery ✨",
+    toast: "Link copied",
+    shareText: "Take a look at this wonderful photo ✨",
     copyPrompt: "Copy this link:",
-    confirmReset: "Are you sure? (Tap again)"
+    confirmReset: "Are you sure? (Tap again)",
+    selected: "selected",
+    cancel: "Cancel",
+    orderPrints: "Order prints",
+    createCollage: "L'Édition"
   },
   ru: {
-    title: "Воспоминание • 1 фото",
+    title: "Воспоминание",
     download: "Скачать",
     share: "Поделиться",
-    backToGallery: "Назад в галерею",
+    backToGallery: "Назад",
+    findAllMyPhotos: "Найти все мои фото",
     searchAgain: "Новый поиск",
-    instagram: "Подписаться в Instagram",
-    discover: "Узнать о моих услугах",
+    instagram: "Instagram",
+    discover: "Сайт",
     thanks: "Спасибо, что воспользовались KURGINIAN Premium Gallery",
     toast: "Ссылка скопирована",
-    shareText: "Взгляните на эту замечательную фотографию в KURGINIAN Premium Gallery ✨",
+    shareText: "Взгляните на эту замечательную фотографию ✨",
     copyPrompt: "Скопируйте ссылку:",
-    confirmReset: "Уверены? (Нажмите еще раз)"
+    confirmReset: "Уверены? (Нажмите еще раз)",
+    selected: "выбрано",
+    cancel: "Отмена",
+    orderPrints: "Заказать печать",
+    createCollage: "L'Édition"
   }
 } as const;
 
 export default function SinglePhotoPage({ params }: { params: Promise<{ slug: string; filename: string }> }) {
   const resolvedParams = use(params);
-  const { slug, filename } = resolvedParams;
-
+  const { slug, filename: urlFilename } = resolvedParams;
+  const searchParams = useSearchParams();
   const router = useRouter();
-  const photoUrl = `https://cdn.kurginian.pro/${slug}/web/${filename}`;
   
-  const [showToast, setShowToast] = useState(false);
+  // 1. ЛОГИКА ПОДБОРКИ (Если в URL передано несколько файлов ?p=...)
+  const pParam = searchParams.get('p');
+  const sharedFiles = pParam ? pParam.split(',') : [urlFilename];
+  
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false); // <-- СТЕЙТ ЗАЩИТЫ ОТ СЛУЧАЙНОГО УДАЛЕНИЯ
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
-  // === ЯЗЫК И СЕССИИ (Берем из Контекста) ===
-  const { language, setLanguage, refreshSessions, clearCart, isMounted } = useAppContext();
+  // 2. СОСТОЯНИЯ ВЫБОРА И КОРЗИНЫ (Синхронизация с Gallery.tsx)
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+  const [showCollageCreator, setShowCollageCreator] = useState(false);
+  const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null);
+  
+  const { language, setLanguage, refreshSessions, clearCart, isMounted, addToCart, getCartForSlug } = useAppContext();
+  const cart = getCartForSlug(slug);
   const t = translations[language];
 
-  const handleLanguageChange = (lang: 'fr' | 'en' | 'ru') => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-    setLanguage(lang);
-    setShowLangMenu(false);
+  const triggerVibration = (pattern: number | number[]) => {
+    if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
   };
 
+  const togglePhotoSelection = (filename: string) => {
+    triggerVibration(10);
+    const newSelection = new Set(selectedPhotos);
+    if (newSelection.has(filename)) newSelection.delete(filename);
+    else newSelection.add(filename);
+    setSelectedPhotos(newSelection);
+    if (newSelection.size === 0) setIsSelectionMode(false);
+  };
+
+  const handleLongPress = () => {
+    if (isSelectionMode) return;
+    triggerVibration([15, 30]);
+    setIsSelectionMode(true);
+    togglePhotoSelection(sharedFiles[currentIndex]);
+  };
+
+  const pressTimer = useRef<NodeJS.Timeout | null>(null);
+
   const handleDownload = async () => {
-    if (isDownloading) return; // Защита от мульти-клика
+    if (isDownloading) return;
     setIsDownloading(true);
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    
+    triggerVibration(50);
+    const currentFile = sharedFiles[currentIndex];
+    const photoUrl = `https://cdn.kurginian.pro/${slug}/web/${currentFile}`;
     try {
-      const fetchUrl = `${photoUrl}?download=${Date.now()}`;
-      const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
+      const response = await fetch(`${photoUrl}?download=${Date.now()}`, { mode: 'cors', cache: 'no-cache' });
       const blob = await response.blob();
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = filename;
+      link.download = currentFile;
       link.click();
       URL.revokeObjectURL(link.href);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsDownloading(false); // Выключаем спиннер
-    }
+    } catch (err) { console.error(err); }
+    finally { setIsDownloading(false); }
   };
 
   const handleShare = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
-    
-    // Пытаемся вызвать нативную шторку iOS/Android
+    triggerVibration(50);
+    const currentFile = sharedFiles[currentIndex];
+    const shareLink = `${window.location.origin}/weddings/${slug}/photo/${currentFile}?mode=share`;
     if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'KURGINIAN Premium',
-          text: t.shareText,
-          url: shareLink,
-        });
-        return;
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') console.error(err);
-        return;
-      }
+      try { await navigator.share({ title: 'KURGINIAN Premium', text: t.shareText, url: shareLink }); return; }
+      catch (err) { if ((err as Error).name !== 'AbortError') console.error(err); return; }
     }
-
-    // Если нативный шеринг не работает (старый ПК) - просто копируем ссылку
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 2800);
-    } catch {
-      prompt(t.copyPrompt, shareLink);
-    }
+    try { await navigator.clipboard.writeText(shareLink); setShowToast(true); setTimeout(() => setShowToast(false), 2800); }
+    catch { prompt(t.copyPrompt, shareLink); }
   };
 
-  // Защита от Hydration Mismatch (Мерцания языка при первой загрузке)
   if (!isMounted) return <main className="min-h-[100dvh] bg-lux-bg" />;
 
   return (
-    <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative pb-20">
-
-      {/* ВЕРХНЯЯ ПАНЕЛЬ НАВИГАЦИИ (Домой + Языки) */}
+    <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative pb-32 overflow-x-hidden">
+      
+      {/* ВЕРХНЯЯ ПАНЕЛЬ */}
       <div className="fixed top-6 left-6 right-6 z-50 flex justify-between items-start pointer-events-none">
-        {/* Кнопка НАЗАД (Самая интуитивная кнопка в мире) */}
         <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="pointer-events-auto">
           <button
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-              router.push(`/weddings/${slug}`);
-            }}
+            onClick={() => router.push(`/weddings/${slug}`)}
             className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
           >
             <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -150,34 +167,18 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
           </button>
         </motion.div>
 
-        {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ (Умный глобус) */}
         <div className="pointer-events-auto relative">
-          <button
-            onClick={() => setShowLangMenu(!showLangMenu)}
-            className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400 group"
-          >
+          <button onClick={() => setShowLangMenu(!showLangMenu)} className="flex items-center gap-1.5 bg-[#0a0a0a]/80 backdrop-blur-md border border-white/10 hover:border-lux-gold/50 rounded-full px-3 py-1.5 text-xs font-medium shadow-lg hover:bg-lux-gold hover:text-black transition-all text-gray-400">
             <span className="uppercase tracking-widest">{language}</span>
-            <svg className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
             </svg>
           </button>
-
           <AnimatePresence>
             {showLangMenu && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-[60] overflow-hidden"
-              >
+              <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] z-[60]">
                 {(['fr', 'en', 'ru'] as const).map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => handleLanguageChange(lang)}
-                    className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
-                      language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
+                  <button key={lang} onClick={() => { setLanguage(lang); setShowLangMenu(false); }} className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10'}`}>
                     {lang}
                   </button>
                 ))}
@@ -188,183 +189,164 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       </div>
 
       <div className="w-full max-w-4xl pt-24 md:pt-20">
-        {/* Заголовок */}
-        <motion.h2 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="font-cinzel text-lg md:text-2xl text-lux-gold mb-6 text-center tracking-widest uppercase"
-        >
-          {t.title}
+        <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-cinzel text-lg md:text-2xl text-lux-gold mb-6 text-center tracking-widest uppercase">
+          {t.title} {sharedFiles.length > 1 && `• ${currentIndex + 1} / ${sharedFiles.length}`}
         </motion.h2>
 
-        {/* БОЛЬШОЕ ФОТО */}
-        <div className="relative">
+        {/* АДАПТИВНАЯ РАМКА (Adaptive Canvas) */}
+        <div className="relative w-full flex justify-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="border border-lux-gold/30 rounded-sm overflow-hidden shadow-2xl relative h-[60vh] md:h-[75vh] w-full bg-[#070707]"
+            onContextMenu={(e) => e.preventDefault()}
+            onTouchStart={() => { pressTimer.current = setTimeout(handleLongPress, 400); }}
+            onTouchEnd={() => { if (pressTimer.current) clearTimeout(pressTimer.current); }}
+            onMouseDown={() => { pressTimer.current = setTimeout(handleLongPress, 400); }}
+            onMouseUp={() => { if (pressTimer.current) clearTimeout(pressTimer.current); }}
+            className={`border border-lux-gold/30 rounded-sm overflow-hidden shadow-2xl relative max-w-full bg-[#070707] transition-all duration-500 ease-in-out ${
+              isSelectionMode && selectedPhotos.has(sharedFiles[currentIndex]) ? 'ring-4 ring-lux-gold scale-[0.98]' : ''
+            }`}
+            style={{ height: 'auto', maxHeight: '70dvh', aspectRatio: 'auto' }}
           >
-            {!isImageLoaded && (
-               <div className="absolute inset-0 flex items-center justify-center">
-                 <motion.div animate={{ opacity: [0.2, 0.6, 0.2] }} transition={{ repeat: Infinity, duration: 1.5 }} className="font-cinzel text-xs text-lux-gold/50 tracking-widest">
-                   KURGINIAN
-                 </motion.div>
-               </div>
-            )}
-            
             <Image
-              src={photoUrl}
-              alt={filename}
-              fill
-              className={`object-contain transition-opacity duration-1000 pointer-events-none select-none ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
-              quality={95}
-              priority
+              src={`https://cdn.kurginian.pro/${slug}/web/${sharedFiles[currentIndex]}`}
+              alt="Shared Memory"
+              width={1200}
+              height={1600}
+              className={`w-auto h-auto max-w-full max-h-[70dvh] object-contain transition-opacity duration-1000 select-none pointer-events-none ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setIsImageLoaded(true)}
-              sizes="(max-width: 1024px) 100vw, 1200px"
-              draggable={false}
-              onContextMenu={(e) => e.preventDefault()}
+              priority
+              unoptimized
             />
+            
+            {/* ГАЛОЧКА ВЫБОРА */}
+            <AnimatePresence>
+              {isSelectionMode && selectedPhotos.has(sharedFiles[currentIndex]) && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute top-4 right-4 bg-lux-gold rounded-full p-1 shadow-lg">
+                   <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                   </svg>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
 
-        {/* 🔥 ГЛАВНАЯ ИННОВАЦИЯ: PREMIUM ACTION BAR ПОД ФОТО 🔥 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="w-full mt-4 flex gap-3"
-        >
-          {/* Золотая кнопка скачивания (Главный акцент) */}
-          <button
-            onClick={(e) => {
-              e.currentTarget.blur();
-              handleDownload();
-            }}
-            disabled={isDownloading}
-            className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm transition-all active:scale-[0.98] shadow-gold-glow hover:bg-white font-bold disabled:opacity-80 focus:outline-none"
-          >
-            {isDownloading ? (
-              <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-            ) : (
+        {/* ОСНОВНОЙ ACTION BAR (Если не в режиме выбора) */}
+        {!isSelectionMode && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-full mt-6 flex gap-3">
+            <button onClick={handleDownload} disabled={isDownloading} className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm font-bold shadow-gold-glow active:scale-[0.98] transition-all">
+              {isDownloading ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : (
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+              )}
+              <span className="uppercase tracking-widest text-xs">{isDownloading ? '...' : t.download}</span>
+            </button>
+            <button onClick={handleShare} className="flex-[2] flex items-center justify-center gap-3 bg-[#111] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm active:scale-[0.98] transition-all">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-            )}
-            <span className="uppercase tracking-widest text-xs md:text-sm">
-              {isDownloading 
-                ? (language === 'ru' ? 'ЗАГРУЗКА...' : language === 'fr' ? 'CHARGEMENT...' : 'DOWNLOADING...') 
-                : t.download}
-            </span>
-          </button>
-          
-          {/* Темная кнопка "Поделиться" */}
-          <button
-            onClick={(e) => {
-              e.currentTarget.blur();
-              handleShare();
-            }}
-            className="flex-[2] flex items-center justify-center gap-3 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm transition-all active:scale-[0.98] shadow-lg focus:outline-none"
+              <span className="font-bold uppercase tracking-widest text-xs">{t.share}</span>
+            </button>
+          </motion.div>
+        )}
+
+        {/* КНОПКА МОСТ: НАЙТИ ВСЕ СВОИ ФОТО (Золотая конверсия) */}
+        {!isSelectionMode && (
+          <motion.button
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+            onClick={() => router.push(`/weddings/${slug}?autoScan=true`)}
+            className="w-full mt-4 py-4 bg-lux-gold/10 border border-lux-gold/30 text-lux-gold rounded-sm uppercase tracking-[0.2em] text-[10px] font-bold flex items-center justify-center gap-3 hover:bg-lux-gold hover:text-black transition-all"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
             </svg>
-            <span className="font-bold uppercase tracking-widest text-xs">{t.share}</span>
-          </button>
-        </motion.div>
+            {t.findAllMyPhotos}
+          </motion.button>
+        )}
 
-        {/* БЛОК СВЯЗИ С ФОТОГРАФОМ */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-16 border-t border-white/5 pt-12 text-center"
-        >
-          <div className="flex flex-col md:flex-row gap-4 justify-center">
-            <button
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                window.open("https://www.instagram.com/hdart26/", "_blank");
-              }}
-              className="flex-1 px-8 py-4 border border-white/10 text-gray-400 hover:border-lux-gold hover:text-lux-gold transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
-            >
-              <svg className="w-4 h-4 text-gray-400 group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
-              </svg>
-              {t.instagram}
-            </button>
-            <button
-              onClick={() => {
-                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-                window.open("https://kurginian.pro", "_blank");
-              }}
-              className="flex-1 px-8 py-4 bg-[#0a0a0a] border border-white/10 text-white hover:border-lux-gold hover:bg-[#111] transition-all flex items-center justify-center gap-3 rounded-sm text-xs uppercase tracking-widest group"
-            >
-              <svg className="w-4 h-4 text-white group-hover:text-lux-gold transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
-              </svg>
-              {t.discover}
-            </button>
+        {/* ФУТЕР */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="mt-12 text-center space-y-6">
+          <div className="flex justify-center gap-6">
+             <button onClick={() => window.open("https://instagram.com/hdart26", "_blank")} className="text-[10px] uppercase tracking-widest text-gray-500 hover:text-lux-gold transition-colors">{t.instagram}</button>
+             <button onClick={() => window.open("https://kurginian.pro", "_blank")} className="text-[10px] uppercase tracking-widest text-gray-500 hover:text-lux-gold transition-colors">{t.discover}</button>
           </div>
+          <p className="text-[9px] text-gray-700 uppercase tracking-widest">{t.thanks}</p>
         </motion.div>
-
-        {/* НИЖНИЙ КОЛОНТИТУЛ (Безопасный "Новый поиск") */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="mt-16 text-center space-y-6"
-        >
-          <p className="text-[10px] text-gray-600 uppercase tracking-widest">
-            {t.thanks}
-          </p>
-          
-          {/* Умная деструктивная кнопка (Защита от случайного клика) */}
-          <button
-            onClick={() => {
-              if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-              
-              if (!confirmReset) {
-              setConfirmReset(true);
-              setTimeout(() => setConfirmReset(false), 3000); // Сбрасываем через 3 секунды
-              return;
-            }
-            
-            localStorage.removeItem(`photos_${slug}`);
-            localStorage.removeItem(`title_${slug}`);
-            localStorage.removeItem(`expires_${slug}`);
-            clearCart(slug); // <-- БЕЗОПАСНОСТЬ: Устраняем утечку данных корзины печати
-            refreshSessions(); // <-- Обновляем дашборд!
-            router.push(`/weddings/${slug}`);
-          }}
-            className={`text-[10px] uppercase tracking-[0.2em] underline underline-offset-4 transition-colors duration-300 ${
-              confirmReset 
-                ? 'text-red-500 decoration-red-500 font-bold' 
-                : 'text-gray-500 hover:text-red-400 decoration-transparent hover:decoration-red-400/50'
-            }`}
-          >
-            {confirmReset ? t.confirmReset : t.searchAgain}
-          </button>
-        </motion.div>
-
       </div>
 
-      {/* Уведомление об успешном копировании ссылки */}
+      {/* ПЛАВАЮЩАЯ ПАНЕЛЬ МУЛЬТИВЫБОРА (iOS Style) */}
+      <AnimatePresence>
+        {isSelectionMode && (
+          <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 flex items-center justify-between shadow-2xl">
+            <div className="flex flex-col">
+              <span className="text-white font-bold text-sm">{selectedPhotos.size} {t.selected}</span>
+              <button onClick={() => { setIsSelectionMode(false); setSelectedPhotos(new Set()); }} className="text-lux-gold text-[10px] uppercase tracking-widest text-left">{t.cancel}</button>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { 
+                const items = Array.from(selectedPhotos).map(f => ({ id: `${f}_10x15`, filename: f, thumb_url: `https://cdn.kurginian.pro/${slug}/thumb/${f}`, size: '10x15' as PrintSize, quantity: 1, price: PRINT_PRICES['10x15'] }));
+                addToCart(slug, items);
+                router.push(`/weddings/${slug}?openCart=true`);
+              }} className="bg-lux-gold text-black py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider shadow-gold-glow flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                {t.orderPrints}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* МАГИЧЕСКАЯ ПАЛОЧКА (L'Édition) - Появляется ТОЛЬКО при выборе 2+ фото */}
+      <AnimatePresence>
+        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 4 && (
+          <motion.button
+            initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
+            onClick={() => { triggerVibration(10); setShowCollageCreator(true); }}
+            className="fixed right-0 top-1/2 -translate-y-1/2 z-[115] bg-[#0a0a0a]/90 backdrop-blur-xl border border-lux-gold/40 border-r-0 rounded-l-2xl p-3 flex flex-col items-center gap-3 shadow-2xl"
+          >
+            <svg className="w-6 h-6 text-lux-gold animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+            <span className="text-[10px] text-lux-gold uppercase tracking-widest font-bold" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{t.createCollage}</span>
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* КОМПОНЕНТ ГЕНЕРАЦИИ КОЛЛАЖЕЙ */}
+      <AnimatePresence>
+        {showCollageCreator && (
+          <CollageCreator 
+            slug={slug} 
+            selectedPhotos={Array.from(selectedPhotos)} 
+            onClose={() => setShowCollageCreator(false)} 
+            onSuccess={(url) => { setShowCollageCreator(false); setGeneratedCollageUrl(url); setIsSelectionMode(false); setSelectedPhotos(new Set()); }} 
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ПРЕВЬЮ КОЛЛАЖА */}
+      <AnimatePresence>
+        {generatedCollageUrl && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-6">
+             <button onClick={() => setGeneratedCollageUrl(null)} className="absolute top-6 right-6 text-white/50 hover:text-lux-gold"><svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg></button>
+             <img src={generatedCollageUrl} className="max-w-full max-h-[70dvh] rounded-xl shadow-2xl mb-8 border border-lux-gold/20" alt="Result" />
+             <button onClick={() => { const link = document.createElement('a'); link.href = generatedCollageUrl; link.download = `Edition_${Date.now()}.jpg`; link.click(); }} className="w-full max-w-[360px] py-4 bg-lux-gold text-black font-bold rounded-xl uppercase tracking-widest shadow-gold-glow">{t.download}</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TOAST */}
       <AnimatePresence>
         {showToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-24 md:bottom-12 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-sm font-bold shadow-gold-glow flex items-center gap-2 z-[200] text-xs uppercase tracking-wider"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-12 left-1/2 -translate-x-1/2 bg-lux-gold text-black px-6 py-3 rounded-sm font-bold shadow-gold-glow flex items-center gap-2 z-[200] text-xs uppercase tracking-wider">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
             {t.toast}
           </motion.div>
         )}
       </AnimatePresence>
+
     </main>
   );
 }
