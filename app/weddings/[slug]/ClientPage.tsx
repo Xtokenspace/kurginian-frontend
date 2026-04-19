@@ -29,6 +29,7 @@ export interface WeddingMeta {
   title: string;
   subtitle: string;
   covers: string[];
+  covers_data?: { url: string; focus_x: number; focus_y: number }[]; // <-- ДОБАВЛЕНО (ИИ Фокус)
   is_expired?: boolean;
   days_left?: number;
 }
@@ -205,7 +206,7 @@ const translations = {
 } as const;
 
 // === ПРЕМИАЛЬНЫЙ ВЕЕР ФОТОГРАФИЙ (WELCOME ZONE) ===
-function PhotoFan({ covers }: { covers: string[] }) {
+function PhotoFan({ coversData }: { coversData: { url: string; focus_x: number; focus_y: number }[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
@@ -243,7 +244,7 @@ function PhotoFan({ covers }: { covers: string[] }) {
 
   return (
     <div className="relative w-48 h-64 md:w-56 md:h-72 flex items-center justify-center my-8 select-none" style={{ WebkitTouchCallout: 'none', perspective: '1000px' }}>
-      {covers.map((src, i) => {
+      {coversData.map((item, i) => {
         const isActive = activeIndex === i;
         const depthFactor = i === 1 ? 0.4 : 1.2;
         
@@ -268,7 +269,14 @@ function PhotoFan({ covers }: { covers: string[] }) {
             className="absolute w-full h-full rounded-sm shadow-[0_15px_35px_rgba(0,0,0,0.6)] border border-lux-gold/20 overflow-hidden cursor-pointer bg-[#111] will-change-transform"
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
           >
-            <img src={src} alt="cover" draggable={false} className="w-full h-full object-cover opacity-90 pointer-events-none" />
+            {/* ГЕНИАЛЬНОЕ ВНЕДРЕНИЕ: ИИ-фокус кадрирования (Golden Headroom) */}
+            <img 
+              src={item.url} 
+              alt="cover" 
+              draggable={false} 
+              className="w-full h-full object-cover opacity-90 pointer-events-none" 
+              style={{ objectPosition: `${item.focus_x * 100}% ${item.focus_y * 100}%` }}
+            />
             <motion.div animate={{ opacity: isActive ? 0 : Math.max(0, 0.2 + (tilt.y * -0.01)) }} className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent pointer-events-none mix-blend-overlay" />
             <div className="absolute inset-0 shadow-[inset_0_0_30px_rgba(0,0,0,0.6)] pointer-events-none" />
           </motion.div>
@@ -945,12 +953,15 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               </span>
             </div>
 
-            {/* ВЕЕР ФОТОГРАФИЙ (Берем из API, если интернет слабый - показываем элегантные заглушки) */}
-            <PhotoFan covers={metaInfo?.covers?.length ? metaInfo.covers : [
-              "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
-              "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop"
-            ]} />
+            {/* ВЕЕР ФОТОГРАФИЙ (ИИ Фокус: Берем из API, если нет - фоллбэк на дефолт) */}
+            <PhotoFan coversData={
+              metaInfo?.covers_data?.length ? metaInfo.covers_data : 
+              (metaInfo?.covers?.length ? metaInfo.covers.map(url => ({ url, focus_x: 0.5, focus_y: 0.5 })) : [
+                { url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
+                { url: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
+                { url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 }
+              ])
+            } />
 
             {/* ИДЕНТИФИКАЦИЯ МЕРОПРИЯТИЯ (Динамические данные из базы) */}
             <div className="mt-8 mb-6 relative">

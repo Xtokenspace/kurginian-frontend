@@ -31,8 +31,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const data = metaResponse?.data;
   
   const title = data?.title ? `${data.title} | KURGINIAN` : 'KURGINIAN Premium Gallery';
-  const subtitle = data?.subtitle || 'Votre galerie de mariage privée';
-  const coverImage = data?.covers?.[0] || '/apple-touch-icon.png';
+  const subtitle = data?.subtitle || 'Votre galerie de mariage privée';
+  
+  // Умный выбор обложки для SEO: сначала ищем в новом массиве, затем в старом
+  const coverImage = data?.covers_data?.[0]?.url || data?.covers?.[0] || '/apple-touch-icon.png';
 
   return {
     title: title,
