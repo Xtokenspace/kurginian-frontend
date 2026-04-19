@@ -70,12 +70,14 @@ function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item:
     >
       <motion.img 
         src={item.url}
-        className="w-full h-full object-cover pointer-events-auto"
+        className="w-full h-full object-cover pointer-events-auto select-none"
         draggable={false}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
         style={{ 
           objectPosition: `${currentX * 100}% ${currentY * 100}%`,
           filter: isGrayscale ? 'grayscale(100%)' : 'none',
-          transition: 'filter 0.3s ease'
+          transition: 'filter 0.3s ease',
+          WebkitTouchCallout: 'none'
         }}
         onPanStart={handlePanStart}
         onPan={handlePan}
@@ -295,9 +297,9 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         </div>
 
         {/* Левая колонка: ПРЕВЬЮ ЗОНА (Холст) */}
-        <div className="flex justify-center w-full">
+        <div className="flex justify-center w-full shrink-0">
           <div 
-            className="relative w-full max-w-[240px] md:max-w-[340px] aspect-[4/5] md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
+            className="relative w-full max-w-[240px] md:max-w-[340px] min-h-[300px] md:min-h-[425px] aspect-[4/5] shrink-0 md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
             style={{ 
               backgroundColor: previews[selectedStyle]?.bg_color 
                 ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
