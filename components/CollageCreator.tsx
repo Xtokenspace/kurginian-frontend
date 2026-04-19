@@ -244,8 +244,18 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
   const isBusy = isGeneratingFinal || isLoadingPreviews;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 50, scale: 0.95 }}
+    <>
+      {/* --- КИНЕМАТОГРАФИЧНЫЙ ФОН (Затемнение галереи) --- */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={handleSafeClose}
+        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[115] touch-none"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 50, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
@@ -441,5 +451,6 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         </div>
       </div>
     </motion.div>
+    </>
   );
 }

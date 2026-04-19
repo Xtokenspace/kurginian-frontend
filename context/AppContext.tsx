@@ -9,6 +9,7 @@ export interface GallerySession {
   slug: string;
   title: string;
   cover?: string;
+  focus?: string; // <-- НОВОЕ: ИИ-фокус кадрирования (Golden Headroom)
   type: 'vip' | 'guest';
   count?: number;
   rawKey: string;
@@ -106,6 +107,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         
         let finalTitle = localStorage.getItem(`title_${slug}`) || '';
         let finalCover = localStorage.getItem(`cover_${slug}`) || '';
+        let finalFocus = localStorage.getItem(`focus_${slug}`) || '50% 50%';
 
         // Если данных нет — запрашиваем один раз
         if (!finalTitle || !finalCover) {
@@ -119,9 +121,17 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
                   finalTitle = json.data.title;
                   localStorage.setItem(`title_${slug}`, finalTitle);
                 }
-                if (json.data.covers?.[0]) {
-                  finalCover = json.data.covers[0];
+                // Проверяем наличие умных обложек (covers_data)
+                if (json.data.covers_data?.[0]) {
+                  finalCover = json.data.covers_data[0].url;
+                  finalFocus = `${json.data.covers_data[0].focus_x * 100}% ${json.data.covers_data[0].focus_y * 100}%`;
                   localStorage.setItem(`cover_${slug}`, finalCover);
+                  localStorage.setItem(`focus_${slug}`, finalFocus);
+                } else if (json.data.covers?.[0]) {
+                  finalCover = json.data.covers[0];
+                  finalFocus = '50% 50%';
+                  localStorage.setItem(`cover_${slug}`, finalCover);
+                  localStorage.setItem(`focus_${slug}`, finalFocus);
                 }
               }
             }
@@ -135,6 +145,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           slug, 
           title: finalTitle, 
           cover: finalCover || undefined,
+          focus: finalFocus, // <-- Передаем фокус в дашборд
           type: isVip ? 'vip' : 'guest', 
           rawKey: key 
         };

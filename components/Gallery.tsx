@@ -1106,8 +1106,8 @@ export default function Gallery({
           </AnimatePresence>
           {/* === ПЛАВАЮЩАЯ ПАНЕЛЬ МУЛЬТИВЫБОРА (iOS Style) === */}
         <AnimatePresence>
-          {/* Панель прячется, если открыто окно Lightbox (selectedIndex !== null) */}
-          {isSelectionMode && selectedIndex === null && (
+          {/* Панель прячется, если открыт Lightbox, Студия Коллажей или Превью */}
+          {isSelectionMode && selectedIndex === null && !showCollageCreator && !generatedCollageUrl && (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

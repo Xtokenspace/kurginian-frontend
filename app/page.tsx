@@ -296,6 +296,7 @@ export default function PWAHome() {
                           {/* 1. Элегантно размытый фон (свечение цветами самой фотографии) */}
                           <img 
                             src={session.cover} 
+                            style={{ objectPosition: session.focus || '50% 50%' }}
                             className="absolute inset-0 w-full h-full object-cover opacity-20 blur-2xl scale-125 pointer-events-none transition-opacity duration-700 group-hover:opacity-30" 
                             alt="" 
                           />
@@ -304,6 +305,7 @@ export default function PWAHome() {
                           <div className="absolute right-[18%] md:right-[15%] top-1/2 -translate-y-1/2 w-14 h-[4.5rem] md:w-[4.5rem] md:h-[5.5rem] rounded-md overflow-hidden border border-white/20 shadow-[0_10px_20px_rgba(0,0,0,0.8)] rotate-6 group-hover:rotate-0 group-hover:scale-110 transition-all duration-500 z-0">
                             <img 
                               src={session.cover} 
+                              style={{ objectPosition: session.focus || '50% 50%' }}
                               className="w-full h-full object-cover" 
                               alt="" 
                             />
