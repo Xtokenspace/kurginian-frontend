@@ -1219,9 +1219,11 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                       </h2>
                       <button 
                         onClick={() => closeModalSafe(() => setShowPayment(false))} 
-                        className="text-gray-500 hover:text-white text-2xl transition-colors leading-none"
+                        className="text-gray-500 hover:text-white transition-colors p-1"
                       >
-                        ✕
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                       </button>
                     </div>
 
@@ -1334,15 +1336,22 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
                 <button
                   onClick={() => window.open("https://www.instagram.com/hdart26/", "_blank")}
-                  className="flex-1 px-8 py-5 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-3 rounded-sm text-base"
+                  className="flex-1 px-8 py-5 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black transition-all duration-300 flex items-center justify-center gap-3 rounded-sm text-sm font-bold uppercase tracking-widest"
                 >
-                  📸 {t.contactPhotographer}
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                  </svg>
+                  {t.contactPhotographer}
                 </button>
                 <button
                   onClick={() => window.open("https://kurginian.pro", "_blank")}
-                  className="flex-1 px-8 py-5 bg-lux-gold text-black hover:bg-white transition-all duration-300 flex items-center justify-center gap-3 rounded-sm font-medium text-base"
+                  className="flex-1 px-8 py-5 bg-lux-gold text-black hover:bg-white transition-all duration-300 flex items-center justify-center gap-3 rounded-sm text-sm font-bold uppercase tracking-widest"
                 >
-                  🌐 {t.discoverServices}
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+                  </svg>
+                  {t.discoverServices}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-12">
@@ -1430,7 +1439,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                           className={`w-full transition-colors flex items-center justify-between px-5 py-4 group border-b border-white/5 hover:bg-white/5 ${cart.length > 0 ? 'bg-lux-gold/10 border-lux-gold/20 hover:bg-lux-gold/20' : 'bg-transparent'}`}
                         >
                           <div className="flex items-center gap-4">
-                            <span className="text-xl grayscale group-hover:grayscale-0 transition-all">🛒</span>
+                            <svg className={`w-5 h-5 transition-colors ${cart.length > 0 ? 'text-lux-gold' : 'text-gray-400 group-hover:text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                            </svg>
                             <span className={`${cart.length > 0 ? 'text-lux-gold' : 'text-gray-300'} group-hover:text-white transition-colors text-xs uppercase tracking-widest font-bold`}>
                               {language === 'ru' ? 'Заказать печать' : language === 'fr' ? 'Commander l\'impression' : 'Order Prints'}
                             </span>

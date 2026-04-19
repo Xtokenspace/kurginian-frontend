@@ -143,7 +143,9 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             }}
             className="flex items-center gap-2 bg-lux-card/90 backdrop-blur-md border border-lux-gold/30 rounded-3xl px-5 py-2.5 text-sm font-medium shadow-gold-glow hover:bg-lux-gold hover:text-black transition-all text-gray-300 group"
           >
-            <span className="text-lg group-hover:-translate-x-1 transition-transform">←</span>
+            <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
             <span className="hidden md:inline uppercase tracking-widest">{t.backToGallery}</span>
           </button>
         </motion.div>
@@ -244,7 +246,9 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             {isDownloading ? (
               <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
             ) : (
-              <span className="text-xl leading-none">↓</span>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
             )}
             <span className="uppercase tracking-widest text-xs md:text-sm">
               {isDownloading 
@@ -259,10 +263,12 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               e.currentTarget.blur();
               handleShare();
             }}
-            className="flex-[2] flex items-center justify-center gap-2 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm transition-all active:scale-[0.98] shadow-lg focus:outline-none"
+            className="flex-[2] flex items-center justify-center gap-3 bg-[#111] hover:bg-[#1a1a1a] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm transition-all active:scale-[0.98] shadow-lg focus:outline-none"
           >
-            <span className="text-lg leading-none">↗</span>
-            <span className="font-medium uppercase tracking-widest text-xs">{t.share}</span>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            <span className="font-bold uppercase tracking-widest text-xs">{t.share}</span>
           </button>
         </motion.div>
 
