@@ -870,7 +870,7 @@ export default function Gallery({
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedIndex, internalSelectedGuestId, isCartOpen, isSelectionMode, externalSetSelectedGuestId]);
+  }, [selectedIndex, internalSelectedGuestId, isCartOpen, isSelectionMode, externalSetSelectedGuestId, showCollageCreator, generatedCollageUrl]);
 
   // Обработка клавиатуры и свайпов
   useEffect(() => {
@@ -2008,17 +2008,19 @@ export default function Gallery({
             slug={slug}
             selectedPhotos={Array.from(selectedPhotos)}
             onClose={() => {
+              // Гарантированное мгновенное закрытие UI
+              setShowCollageCreator(false);
+              // Очистка истории браузера на фоне
               if (window.history.state?.collage) window.history.back();
-              else setShowCollageCreator(false);
             }}
             onSuccess={(url) => {
-              // При успехе закрываем генератор, сбрасываем выбор и ПОКАЗЫВАЕМ ПРЕВЬЮ
+              // Мгновенное закрытие конструктора
+              setShowCollageCreator(false);
               if (window.history.state?.collage) window.history.back();
-              else setShowCollageCreator(false);
               
               closeSelectionSafe();
               
-              // Открываем модалку превью с историей
+              // Открываем модалку превью с задержкой для плавности анимаций
               setTimeout(() => {
                 window.history.pushState({ collagePreview: true }, "");
                 setGeneratedCollageUrl(url);
@@ -2041,8 +2043,8 @@ export default function Gallery({
             <button 
               onClick={() => {
                 triggerVibration(10);
+                setGeneratedCollageUrl(null); // Мгновенная реакция UI
                 if (window.history.state?.collagePreview) window.history.back();
-                else setGeneratedCollageUrl(null);
               }}
               className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center text-white/50 hover:text-lux-gold transition-colors z-10"
             >
@@ -2063,8 +2065,8 @@ export default function Gallery({
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   triggerVibration(10);
+                  setGeneratedCollageUrl(null); // Мгновенная реакция UI
                   if (window.history.state?.collagePreview) window.history.back();
-                  else setGeneratedCollageUrl(null);
                 }
               }}
               className="relative w-full max-w-[360px] aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
