@@ -31,15 +31,23 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
   const currentX = offsets[item.filename]?.x ?? item.focus_x;
   const currentY = offsets[item.filename]?.y ?? item.focus_y;
   
+  const startX = useRef(currentX);
+  const startY = useRef(currentY);
+
+  const handlePanStart = () => {
+    startX.current = offsets[item.filename]?.x ?? item.focus_x;
+    startY.current = offsets[item.filename]?.y ?? item.focus_y;
+  };
+
   const handlePan = (e: any, info: any) => {
-    // Вычисляем смещение. Делитель 150 определяет мягкость свайпа (чуть-чуть сдвинул палец = сдвинулось фото)
-    const deltaX = -info.delta.x / 150; 
-    const deltaY = -info.delta.y / 150;
+    // Используем info.offset для безупречной плавности без конфликтов React-стейтов
+    const deltaX = -info.offset.x / 150; 
+    const deltaY = -info.offset.y / 150;
     setOffsets((prev: any) => ({
       ...prev,
       [item.filename]: {
-        x: Math.max(0, Math.min(1, currentX + deltaX)),
-        y: Math.max(0, Math.min(1, currentY + deltaY))
+        x: Math.max(0, Math.min(1, startX.current + deltaX)),
+        y: Math.max(0, Math.min(1, startY.current + deltaY))
       }
     }));
   };
@@ -60,6 +68,7 @@ function ScrubbableFrame({ item, offsets, setOffsets }: { item: BlueprintItem, o
         className="w-full h-full object-cover pointer-events-auto"
         draggable={false}
         style={{ objectPosition: `${currentX * 100}% ${currentY * 100}%` }}
+        onPanStart={handlePanStart}
         onPan={handlePan}
       />
       {/* Стеклянный индикатор-подсказка для гостя */}
@@ -88,6 +97,7 @@ const STYLES = [
 export default function CollageCreator({ slug, selectedPhotos, onClose, onSuccess }: CollageCreatorProps) {
   const dragControls = useDragControls(); // <-- Контроллер для изолированной зоны свайпа
   const [isClosing, setIsClosing] = useState(false); // <-- Защита от двойных кликов
+  const abortRef = useRef(false); // <-- Защита от всплывающего превью, если гость отменил генерацию
 
   const [selectedStyle, setSelectedStyle] = useState<number>(1);
   const [previews, setPreviews] = useState<Record<number, PreviewData>>({});
@@ -102,6 +112,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
   const handleSafeClose = () => {
     if (isClosing) return;
     setIsClosing(true);
+    abortRef.current = true;
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
     onClose();
   };
@@ -178,6 +189,8 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
 
       const data = await response.json();
       
+      if (abortRef.current) return; // <-- Тихий выход, если гость уже закрыл окно свайпом
+      
       if (data.status === 'success' && data.url) {
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate([50, 100, 50]); // Успех
@@ -187,6 +200,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         throw new Error('Invalid response from server');
       }
     } catch (err) {
+      if (abortRef.current) return; // <-- Защита от вывода ошибок отмененного запроса
       console.error(err);
       setError(language === 'ru' ? 'Ошибка сборки HD' : language === 'fr' ? 'Erreur de génération HD' : 'HD Generation error');
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
@@ -212,13 +226,13 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 50, scale: 0.95 }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      drag={!isBusy ? "y" : false}
+      drag="y" // <-- ВАЖНО: Разрешаем свайп вниз ВСЕГДА
       dragControls={dragControls}
       dragListener={false} // <-- ОТКЛЮЧАЕМ глобальный свайп. Теперь шторка стоит намертво!
       dragConstraints={{ top: 0, bottom: 300 }}
       dragElastic={0.2}
       onDragEnd={(e, info) => {
-        if (info.offset.y > 100 && !isBusy) {
+        if (info.offset.y > 100) {
           handleSafeClose();
         }
       }}
@@ -226,26 +240,23 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
     >
       {/* --- НОВАЯ ЗОНА СВАЙПА (DRAG HANDLE) --- */}
       <div 
-        className="w-full flex justify-center py-4 cursor-grab active:cursor-grabbing mb-2 touch-none"
-        onPointerDown={(e) => {
-          if (!isBusy) dragControls.start(e);
-        }}
+        className="w-full flex justify-center py-5 -mt-2 cursor-grab active:cursor-grabbing mb-2 touch-none relative z-20"
+        onPointerDown={(e) => dragControls.start(e)}
       >
-        {!isBusy && <div className="w-14 h-1.5 bg-white/20 hover:bg-white/40 transition-colors rounded-full pointer-events-none" />}
+        <div className="w-14 h-1.5 bg-white/20 hover:bg-white/40 transition-colors rounded-full pointer-events-none" />
       </div>
 
       <div className="absolute -top-20 -right-20 w-40 h-40 bg-lux-gold/10 rounded-full blur-3xl pointer-events-none" />
 
-      {!isBusy && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); handleSafeClose(); }}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2 z-20"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      )}
+      {/* КРЕСТИК ТЕПЕРЬ ДОСТУПЕН ВСЕГДА (Даже во время рендера) */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); handleSafeClose(); }}
+        className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors p-2 z-30"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
 
       <div className="flex flex-col items-center text-center relative z-10 w-full">
         
