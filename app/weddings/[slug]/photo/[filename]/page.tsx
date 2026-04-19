@@ -279,10 +279,38 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       {/* ПЛАВАЮЩАЯ ПАНЕЛЬ МУЛЬТИВЫБОРА (iOS Style) */}
       <AnimatePresence>
         {isSelectionMode && (
-          <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 flex items-center justify-between shadow-2xl">
-            <div className="flex flex-col">
-              <span className="text-white font-bold text-sm">{selectedPhotos.size} {t.selected}</span>
-              <button onClick={() => { setIsSelectionMode(false); setSelectedPhotos(new Set()); }} className="text-lux-gold text-[10px] uppercase tracking-widest text-left">{t.cancel}</button>
+          <motion.div 
+            initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} 
+            // --- APPLE GENIUS PHYSICS ---
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0.05, bottom: 0.6 }}
+            onDragEnd={(e, info) => {
+              if (info.offset.y > 60) {
+                triggerVibration(10);
+                setIsSelectionMode(false);
+                setSelectedPhotos(new Set());
+              }
+            }}
+            className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 pt-6 md:pt-4 flex items-center justify-between shadow-2xl touch-none"
+          >
+            {/* Элегантная ручка для свайпа (Drag Pill) */}
+            <div className="md:hidden absolute top-2.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 rounded-full" />
+
+            <div className="flex items-center md:items-start gap-4 md:flex-col md:gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">{selectedPhotos.size} {t.selected}</span>
+                {/* Крестик отмены */}
+                <button 
+                  onClick={() => { setIsSelectionMode(false); setSelectedPhotos(new Set()); }}
+                  className="md:hidden p-1 bg-white/5 rounded-full text-gray-400"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <button onClick={() => { setIsSelectionMode(false); setSelectedPhotos(new Set()); }} className="hidden md:block text-lux-gold text-[10px] uppercase tracking-widest text-left">{t.cancel}</button>
             </div>
             <div className="flex gap-2">
               <button onClick={() => { 

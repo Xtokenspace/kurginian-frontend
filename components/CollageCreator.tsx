@@ -399,7 +399,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           </div>
 
           {/* ПЕРЕКЛЮЧАТЕЛИ СТИЛЕЙ */}
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto no-scrollbar justify-center md:justify-start mb-6 px-1 md:px-0">
+          <div className="flex w-full max-w-sm gap-2 mb-6">
             {STYLES.map(s => (
               <button
                 key={s.id}
@@ -408,7 +408,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
                   setSelectedStyle(s.id);
                 }}
                 disabled={isLoadingPreviews || isGeneratingFinal}
-                className={`flex-1 md:flex-none md:px-6 px-2 py-2.5 md:py-3 rounded-xl border text-[9px] md:text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap disabled:opacity-50 active:scale-95 ${
+                className={`flex-1 px-1 py-3 rounded-xl border text-[9px] md:text-[10px] font-bold uppercase tracking-wider transition-all truncate disabled:opacity-50 active:scale-95 ${
                   selectedStyle === s.id
                     ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow'
                     : 'bg-[#111] text-gray-400 border-white/10 hover:text-white hover:border-white/30'

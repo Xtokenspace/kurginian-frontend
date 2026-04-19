@@ -1168,13 +1168,37 @@ export default function Gallery({
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
+              // --- APPLE GENIUS PHYSICS ---
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0.05, bottom: 0.6 }}
+              onDragEnd={(e, info) => {
+                if (info.offset.y > 60) {
+                  triggerVibration(10);
+                  closeSelectionSafe();
+                }
+              }}
               // ОПТИМИЗАЦИЯ: flex-col для Phone (друг под другом), flex-row для PC. Расширен max-w для дыхания.
-              className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] w-full z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 md:px-6 shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6"
+              className="fixed bottom-6 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:max-w-[600px] w-full z-[110] bg-[#111]/95 backdrop-blur-xl border border-lux-gold/30 rounded-2xl p-4 md:px-6 pt-6 md:pt-4 shadow-[0_10px_40px_rgba(0,0,0,0.6)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 touch-none"
             >
+              {/* Элегантная ручка для свайпа (Drag Pill) - только на мобильных */}
+              <div className="md:hidden absolute top-2.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/10 rounded-full" />
+
               {/* ОПТИМИЗАЦИЯ: На мобилках текст и кнопка на одной линии, на ПК — друг под другом */}
               <div className="flex justify-between items-center w-full md:w-auto md:flex-col md:items-start md:gap-1">
-                <span className="text-white font-bold text-sm md:text-base whitespace-nowrap">{selectedPhotos.size} {t.selected}</span>
-                <button onClick={closeSelectionSafe} className="text-lux-gold text-[10px] uppercase tracking-widest hover:text-white transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-bold text-sm md:text-base whitespace-nowrap">{selectedPhotos.size} {t.selected}</span>
+                  {/* Крестик отмены для быстрого тапа (Geniux Apple UX) - только на мобильных */}
+                  <button 
+                    onClick={closeSelectionSafe}
+                    className="md:hidden p-1 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <button onClick={closeSelectionSafe} className="hidden md:block text-lux-gold text-[10px] uppercase tracking-widest hover:text-white transition-colors">
                   {t.cancel}
                 </button>
               </div>
