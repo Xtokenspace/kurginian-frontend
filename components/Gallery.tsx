@@ -980,8 +980,10 @@ export default function Gallery({
                 className="w-full max-w-2xl overflow-hidden"
               >
                 <div 
+                  /* Изолируем касания, чтобы родительская шторка не перехватывала свайп */
                   onPointerDownCapture={(e) => e.stopPropagation()}
-                  className="flex gap-4 overflow-x-auto py-4 px-2 no-scrollbar items-center justify-start snap-x snap-mandatory touch-pan-x overscroll-contain"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                  className="flex gap-4 overflow-x-auto py-4 px-2 no-scrollbar items-center justify-start snap-x snap-mandatory touch-pan-x overscroll-contain scroll-smooth"
                 >
                   {Object.entries(guestClusters).map(([id, cluster]) => (
                     <div key={id} className="snap-center shrink-0">
@@ -1321,14 +1323,20 @@ export default function Gallery({
                 {/* Список товаров: Добавлен min-h-0 для фиксации Flexbox и onPointerDownCapture для скролла */}
                 <div 
                   onPointerDownCapture={(e) => e.stopPropagation()} 
-                  className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 mb-6 min-h-0 overscroll-contain"
+                  className="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-4 mb-6 min-h-0 overscroll-contain touch-pan-y"
                 >
                   {cart.length === 0 ? (
                     <p className="text-center text-gray-500 uppercase tracking-widest text-xs mt-10">{t.emptyCart}</p>
                   ) : (
                     cart.map((item) => (
                       <div key={item.id} className="flex gap-4 items-center bg-[#111] p-3 rounded-2xl border border-white/5">
-                        <img src={item.thumb_url} alt="print" className="w-16 h-20 object-cover rounded-lg" />
+                        <img 
+                          src={item.thumb_url} 
+                          alt="print" 
+                          draggable={false}
+                          onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          className="w-16 h-20 object-cover rounded-lg pointer-events-none select-none" 
+                        />
                         <div className="flex-1 flex flex-col gap-2">
                           
                           <div className="flex justify-between items-center mb-1">
@@ -1628,8 +1636,10 @@ export default function Gallery({
                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        /* Полная изоляция от свайпов лайтбокса */
                         onPointerDownCapture={(e) => e.stopPropagation()}
-                        className="flex gap-3 overflow-x-auto no-scrollbar max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain"
+                        style={{ WebkitOverflowScrolling: 'touch' }}
+                        className="flex gap-3 overflow-x-auto no-scrollbar max-w-full p-3 bg-[#050505]/80 backdrop-blur-xl border border-lux-gold/30 rounded-2xl mb-4 shadow-[0_0_30px_rgba(212,175,55,0.15)] pointer-events-auto touch-pan-x overscroll-contain scroll-smooth"
                       >
                         {filteredPhotos[selectedIndex].cluster_ids.map(id => {
                           const cluster = guestClusters[id];
@@ -2185,6 +2195,27 @@ export default function Gallery({
                 ОК
               </button>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === ГЛОБАЛЬНЫЕ TOAST УВЕДОМЛЕНИЯ (Для действий вне Lightbox) === */}
+      <AnimatePresence>
+        {(showToast || showCartToast) && selectedIndex === null && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-28 md:bottom-12 left-1/2 -translate-x-1/2 z-[115] bg-lux-gold text-black px-5 py-3.5 rounded-xl font-bold shadow-[0_10px_40px_rgba(212,175,55,0.3)] text-[10px] md:text-xs uppercase tracking-wider flex items-center gap-2 text-center max-w-[90%] md:max-w-md pointer-events-none"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            <span>
+              {showCartToast 
+                ? (customCartMsg || (language === 'ru' ? 'ДОБАВЛЕНО В КОРЗИНУ' : language === 'fr' ? 'AJOUTÉ AU PANIER' : 'ADDED TO CART')) 
+                : t.copied}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
