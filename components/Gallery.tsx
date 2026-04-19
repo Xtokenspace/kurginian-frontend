@@ -919,54 +919,89 @@ export default function Gallery({
       {/* СЕТКА ФОТОГРАФИЙ */}
       <Suspense fallback={<div className="min-h-screen bg-lux-bg" />}>
         
-        {/* === БЛОК КНОПОК И SMART SEARCH === */}
-        <div className="flex flex-col items-center mb-8 px-4 gap-3">
-          
-          {/* Главные кнопки (Сохранить всё + Гости) */}
+        {/* === ПРЕМИУМ ACTION HUB (Apple-style Console) === */}
+        <div className="flex flex-col items-center mb-10 px-4">
           {!selectedGuestId && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex w-full max-w-sm gap-2">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }} 
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md flex flex-col gap-3"
+            >
+              {/* Ряд 1: Главное действие (Скачать всё) */}
               <button
                 onClick={() => handleSaveAll(photos)}
                 disabled={isSaving}
-                className={`flex-[2] py-4 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-sm flex items-center justify-center transition-all duration-300 relative overflow-hidden ${
-                  isSaving ? 'bg-[#111] text-lux-gold border border-lux-gold/30' : 'bg-lux-gold text-black shadow-gold-glow active:scale-[0.98]'
+                className={`w-full py-4.5 font-bold uppercase tracking-[0.2em] text-[10px] md:text-xs rounded-2xl flex items-center justify-center transition-all duration-500 relative overflow-hidden group ${
+                  isSaving ? 'bg-[#0a0a0a] text-lux-gold border border-lux-gold/20' : 'bg-lux-gold text-black shadow-[0_10px_40px_rgba(212,175,55,0.2)] hover:shadow-[0_15px_50px_rgba(212,175,55,0.4)] active:scale-[0.98]'
                 }`}
               >
-                {/* 🔥 ПОЛЗУНОК ПРОГРЕССА (Заполняет кнопку золотым фоном) */}
                 {isSaving && (
-                  <div 
-                    className="absolute left-0 top-0 bottom-0 bg-lux-gold/20 transition-all duration-300 ease-out"
-                    style={{ width: `${saveProgress}%` }}
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${saveProgress}%` }}
+                    className="absolute left-0 top-0 bottom-0 bg-white/20 z-0"
                   />
                 )}
-
-                <div className="relative z-10 flex items-center gap-2">
+                <div className="relative z-10 flex items-center gap-3">
                   {isSaving ? (
-                    <div className="w-4 h-4 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin" />
                   ) : (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-5 h-5 group-hover:translate-y-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                   )}
-                  <span>
+                  <span className="font-bold">
                     {isSaving 
-                      ? `${language === 'ru' ? 'АРХИВАЦИЯ' : language === 'fr' ? 'ARCHIVAGE' : 'ARCHIVING'} ${saveProgress}%` 
+                      ? `${language === 'ru' ? 'ПОДГОТОВКА АРХИВА' : language === 'fr' ? 'PRÉPARATION' : 'PREPARING'} ${saveProgress}%` 
                       : t.saveAll}
                   </span>
                 </div>
               </button>
 
-              {/* Кнопка "Гости" только для VIP */}
-              {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
+              {/* Ряд 2: Вторичные действия (Гости + Печать) */}
+              <div className="flex gap-2 w-full">
+                {/* Кнопка SMART GUESTS */}
+                {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
+                  <button
+                    onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
+                    className={`flex-1 flex items-center justify-center gap-2.5 py-4 rounded-2xl font-bold uppercase tracking-widest text-[9px] md:text-[10px] transition-all border backdrop-blur-md ${
+                      showGuests 
+                        ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' 
+                        : 'bg-[#111]/60 text-lux-gold border-lux-gold/30 hover:bg-lux-gold/10 hover:border-lux-gold/60'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                    </svg>
+                    {t.guests}
+                  </button>
+                )}
+
+                {/* Кнопка ПЕЧАТЬ (Прямой доступ) */}
                 <button
-                  onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
-                  className={`flex-[1] flex items-center justify-center gap-2 py-4 font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-sm transition-all border ${
-                    showGuests ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' : 'bg-[#111] text-lux-gold border-lux-gold/30 hover:bg-white/5'
-                  }`}
+                  onClick={() => {
+                    triggerVibration(10);
+                    if (cart.length > 0) setIsCartOpen(true);
+                    else {
+                      window.history.pushState({ selection: true }, "");
+                      setIsSelectionMode(true);
+                      setSelectionIntent('print');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2.5 py-4 bg-[#111]/60 backdrop-blur-md border border-lux-gold/30 text-lux-gold rounded-2xl font-bold uppercase tracking-widest text-[9px] md:text-[10px] hover:bg-lux-gold/10 hover:border-lux-gold/60 transition-all active:scale-95 relative"
                 >
-                  ✨ {t.guests}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                  {t.orderPrints}
+                  {cart.length > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-lux-gold text-black text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+                      {cart.length}
+                    </span>
+                  )}
                 </button>
-              )}
+              </div>
             </motion.div>
           )}
 
@@ -1055,11 +1090,27 @@ export default function Gallery({
           <AnimatePresence>
             {selectedGuestId && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-sm bg-[#111] border border-lux-gold/30 rounded-xl p-5 flex flex-col items-center gap-5 shadow-lg relative overflow-hidden"
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                // --- flick-to-reset physics ---
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 0 }}
+                dragElastic={{ top: 0.6, bottom: 0.05 }}
+                onDragEnd={(e, info) => {
+                  if (info.offset.y < -60) { // Свайп вверх — сброс фильтра
+                    triggerVibration(10);
+                    if (window.history.state && window.history.state.guestFilter) {
+                      window.history.back();
+                    } else {
+                      setSelectedGuestId(null);
+                    }
+                  }
+                }}
+                className="w-full max-w-sm bg-[#111] border border-lux-gold/30 rounded-xl p-5 flex flex-col items-center gap-5 shadow-lg relative overflow-hidden touch-none"
               >
+                {/* Подсказка свайпа вверх */}
+                <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/5 rounded-full" />
                 {/* Шапка с аватаркой и счетчиком */}
                 <div className="flex items-center gap-5 w-full">
                   <FaceBubble cluster={guestClusters![selectedGuestId]} photos={photos} isSelected={true} onClick={() => {}} />
