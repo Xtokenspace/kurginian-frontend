@@ -1569,8 +1569,9 @@ export default function Gallery({
                     }
                   }
                 }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 className="relative w-full h-full flex items-center justify-center z-[102]"
-                style={{ cursor: zoomScale > 1 ? 'move' : 'grab' }}
+                style={{ cursor: zoomScale > 1 ? 'move' : 'grab', WebkitTouchCallout: 'none' }}
               >
                 <Image
                   src={filteredPhotos[selectedIndex].urls.web}
@@ -2062,6 +2063,8 @@ export default function Gallery({
               drag="y"
               dragConstraints={{ top: 0, bottom: 300 }}
               dragElastic={0.4}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              style={{ WebkitTouchCallout: 'none' }}
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   triggerVibration(10);
@@ -2069,7 +2072,7 @@ export default function Gallery({
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              className="relative w-full max-w-[360px] aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
+              className="relative w-full max-w-[360px] min-h-[450px] shrink-0 aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
             >
               <Image 
                 src={generatedCollageUrl} 

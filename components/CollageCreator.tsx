@@ -260,7 +260,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         }
       }}
       // 💎 МАГИЯ: Адаптивное центрирование для ПК (Pro Studio Layout) без конфликтов с Framer Motion
-      className="fixed bottom-12 left-4 right-4 md:inset-0 md:m-auto md:w-full md:max-w-[760px] md:h-fit z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_0_80px_rgba(0,0,0,0.9)] overflow-hidden touch-none"
+      className="fixed bottom-12 left-4 right-4 md:inset-0 md:m-auto md:w-full md:max-w-[760px] md:h-fit z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_0_80px_rgba(0,0,0,0.9)] touch-none"
     >
       {/* --- ЗОНА СВАЙПА (DRAG HANDLE) --- */}
       <div 
@@ -376,7 +376,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         </div>
 
         {/* Правая колонка: Управление (Стили + Кнопка) */}
-        <div className="flex flex-col items-center md:items-start text-center md:text-left w-full mt-4 md:mt-0">
+        <div className="flex flex-col items-center md:items-start text-center md:text-left w-full mt-4 md:mt-0 min-w-0">
           
           {/* Десктопная шапка (Проявляется только на ПК) */}
           <div className="hidden md:flex flex-col mb-8">
