@@ -117,6 +117,18 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
   
   const { language } = useAppContext();
 
+  // --- HAPTIC HEARTBEAT (Эмоциональная инженерия) ---
+  // Пока сервер собирает HD-коллаж, телефон гостя пульсирует как бьющееся сердце
+  useEffect(() => {
+    let heartbeat: NodeJS.Timeout;
+    if (isGeneratingFinal && typeof navigator !== 'undefined' && navigator.vibrate) {
+      heartbeat = setInterval(() => {
+        navigator.vibrate([20, 150, 30]); // Ритм: "Тук-тук..."
+      }, 1200);
+    }
+    return () => clearInterval(heartbeat);
+  }, [isGeneratingFinal]);
+
   // Железобетонная защита от двойного срабатывания History API
   const handleSafeClose = () => {
     if (isClosing) return;
