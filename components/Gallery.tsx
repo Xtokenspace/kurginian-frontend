@@ -242,7 +242,6 @@ function PhotoRowItem({
 
   return (
     <motion.div
-      layout 
       id={`photo-card-${index}`}
       variants={brickVariants}
       initial="hidden"
@@ -1197,7 +1196,6 @@ export default function Gallery({
         </div>
 
         <motion.div 
-          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
