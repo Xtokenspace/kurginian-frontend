@@ -214,7 +214,7 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
   );
 }
 
-// --- КОМПОНЕНТ ОДНОГО ФОТО (Zero-OOM Memoization) ---
+// --- КОМПОНЕНТ ОДНОГО ФОТО ---
 const PhotoRowItem = memo(function PhotoRowItem({ 
   photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
 }: { 
@@ -222,8 +222,6 @@ const PhotoRowItem = memo(function PhotoRowItem({
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
-  // Premium Apple UX: Динамическая базовая высота строки (100px на mobile -> 250px на desktop)
-  // Это 100% CSS решение: спасает от Layout Shift и не требует JS слушателей (Zero-RAM)
   const responsiveBaseHeight = "clamp(100px, 25vw, 250px)"; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
@@ -242,6 +240,7 @@ const PhotoRowItem = memo(function PhotoRowItem({
 
   return (
     <motion.div
+      layout 
       id={`photo-card-${index}`}
       variants={brickVariants}
       initial="hidden"
@@ -258,8 +257,6 @@ const PhotoRowItem = memo(function PhotoRowItem({
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={() => {
-        // В обычном режиме клик в любое место открывает фото.
-        // В режиме выбора родительский клик отключается (работают 50/50 зоны внутри).
         if (!isSelectionMode) onOpen();
       }}
       className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
@@ -273,11 +270,9 @@ const PhotoRowItem = memo(function PhotoRowItem({
     >
       {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН */}
       {!isLoaded && (
-        // Zero-OOM Hack: content-visibility-auto запрещает GPU рендерить невидимые канвасы
-        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]" style={{ contentVisibility: 'auto' }}>
+        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
           {photo.blurhash ? (
-            // CPU Hack: resolution 16x16 снижает нагрузку на процессор в 4 раза без потери качества размытия.
-            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={16} resolutionY={16} punch={1} />
+            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
           ) : (
             <motion.div 
               animate={{ x: ['-100%', '200%'] }}
@@ -366,8 +361,6 @@ const PhotoRowItem = memo(function PhotoRowItem({
     </motion.div>
   );
 }, (prevProps, nextProps) => {
-  // Strict React.memo: Перерисовываем карточку ТОЛЬКО если ее выделили галочкой. 
-  // Спасает от рендера 300+ узлов при открытии Lightbox.
   return prevProps.isSelected === nextProps.isSelected && 
          prevProps.isSelectionMode === nextProps.isSelectionMode;
 });
@@ -1203,6 +1196,7 @@ export default function Gallery({
         </div>
 
         <motion.div 
+          layout
           initial="hidden"
           animate="visible"
           variants={containerVariants}
@@ -1616,8 +1610,7 @@ export default function Gallery({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            // Zero-OOM & 60FPS Hack: Убрали backdrop-blur-xl, добавили will-change для аппаратного ускорения
-            className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center select-none touch-none overflow-hidden will-change-[opacity]"
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center select-none touch-none overflow-hidden"
           >
             {/* Кнопка закрытия (Справа) */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] flex flex-col items-center gap-2">
