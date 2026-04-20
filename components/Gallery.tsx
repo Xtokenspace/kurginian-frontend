@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -208,31 +208,45 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
 }
 
 // --- КОМПОНЕНТ ОДНОГО ФОТО ---
-function PhotoRowItem({ 
+const PhotoRowItem = React.memo(function PhotoRowItem({ 
   photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
 }: { 
-  photo: MatchedPhoto; index: number; onOpen: () => void; 
+  photo: MatchedPhoto; index: number; onOpen: (index: number) => void; 
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPos = useRef<{x: number, y: number} | null>(null);
 
-  // Логика кастомного 3D-Touch
-  const startPress = () => {
-    if (isSelectionMode) return; // Если уже выбираем, долгий тап не нужен
+  // Логика кастомного 3D-Touch с защитой от микро-движений (Apple Physics)
+  const startPress = (e: React.TouchEvent | React.MouseEvent) => {
+    if (isSelectionMode) return; 
+    if ('touches' in e) {
+      touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
     pressTimer.current = setTimeout(() => {
       onLongPress(index);
-    }, 400); // 400мс удержания = 3D Touch
+    }, 400); 
   };
 
   const cancelPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
+    touchStartPos.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPos.current) return;
+    const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+    const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+    // Отменяем долгий тап только если палец сдвинулся больше чем на 10 пикселей (свайп)
+    if (dx > 10 || dy > 10) {
+      cancelPress();
+    }
   };
 
   return (
     <motion.div
-      layout 
       id={`photo-card-${index}`}
       exit={{ opacity: 0, scale: 0.8 }}
       whileHover={{ scale: 1.015, zIndex: 1 }}
@@ -241,14 +255,14 @@ function PhotoRowItem({
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
-      onTouchMove={cancelPress}
+      onTouchMove={handleTouchMove}
       onMouseDown={startPress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={() => {
         // В обычном режиме клик в любое место открывает фото.
         // В режиме выбора родительский клик отключается (работают 50/50 зоны внутри).
-        if (!isSelectionMode) onOpen();
+        if (!isSelectionMode) onOpen(index);
       }}
       className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
         isSelected ? 'border-2 border-lux-gold scale-95' : 'border border-lux-gold/10 hover:border-lux-gold/60'
@@ -297,7 +311,7 @@ function PhotoRowItem({
             {/* ВЕРХНЯЯ ПОЛОВИНА = ОТКРЫТЬ ФОТО */}
             <div 
               className="absolute top-0 left-0 right-0 h-1/2 z-30 cursor-pointer"
-              onClick={(e) => { e.stopPropagation(); onOpen(); }}
+              onClick={(e) => { e.stopPropagation(); onOpen(index); }}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
@@ -354,7 +368,12 @@ function PhotoRowItem({
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
-}
+}, (prevProps, nextProps) => {
+  return prevProps.isSelectionMode === nextProps.isSelectionMode &&
+         prevProps.isSelected === nextProps.isSelected &&
+         prevProps.photo.filename === nextProps.photo.filename &&
+         prevProps.index === nextProps.index;
+});
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
 export default function Gallery({ 
@@ -411,18 +430,20 @@ export default function Gallery({
   const [showCollageCreator, setShowCollageCreator] = useState(false); // <-- СТЕЙТ КОЛЛАЖА
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null); // <-- СТЕЙТ ПРЕВЬЮ КОЛЛАЖА
 
-  const handleLongPress = (index: number) => {
+  const handleLongPress = useCallback((index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
     setLongPressedIndex(index);
-  };
+  }, []);
 
-  const togglePhotoSelection = (filename: string) => {
+  const togglePhotoSelection = useCallback((filename: string) => {
     triggerVibration(10);
-    const newSelection = new Set(selectedPhotos);
-    if (newSelection.has(filename)) newSelection.delete(filename);
-    else newSelection.add(filename);
-    setSelectedPhotos(newSelection);
-  };
+    setSelectedPhotos(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(filename)) newSelection.delete(filename);
+      else newSelection.add(filename);
+      return newSelection;
+    });
+  }, []);
 
   const closeSelectionMode = () => {
     setIsSelectionMode(false);
@@ -792,14 +813,14 @@ export default function Gallery({
   };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
-  const openLightbox = (index: number) => {
+  const openLightbox = useCallback((index: number) => {
     triggerVibration(10); 
     setZoomScale(1);
     setShowLightboxGuests(false);
     
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
-  };
+  }, []);
 
   const closeLightbox = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
@@ -1187,7 +1208,6 @@ export default function Gallery({
         </div>
 
         <motion.div 
-          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
@@ -1200,7 +1220,7 @@ export default function Gallery({
                 key={photo.filename} 
                 photo={photo} 
                 index={index} 
-                onOpen={() => openLightbox(index)} 
+                onOpen={openLightbox} 
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedPhotos.has(photo.filename)}
                 onToggleSelect={togglePhotoSelection}
