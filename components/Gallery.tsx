@@ -423,6 +423,7 @@ export default function Gallery({
 
   const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
+    window.history.pushState({ longPress: true }, ""); // <-- ПУШ ИСТОРИИ ДЛЯ ШТОРКИ
     setLongPressedIndex(index);
   };
 
@@ -523,6 +524,11 @@ export default function Gallery({
   const closeCartSafe = () => {
     if (window.history.state?.cart) window.history.back();
     else setIsCartOpen(false);
+  };
+
+  const closeLongPressSafe = () => {
+    if (window.history.state?.longPress) window.history.back();
+    else setLongPressedIndex(null);
   };
 
   // БЛОКИРОВКА СКРОЛЛА (Ghost Scrolling Fix)
@@ -833,9 +839,14 @@ export default function Gallery({
     }
   };
 
-  // Умный перехват кнопки "Назад" браузера (Lightbox + Смарт-фильтр гостей + Cart + Selection)
+  // Умный перехват кнопки "Назад" браузера (Lightbox + Смарт-фильтр гостей + Cart + Selection + LongPress)
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      // 0. Проверяем меню 3D Touch (Шторка действий)
+      if (longPressedIndex !== null && !(e.state && e.state.longPress)) {
+        setLongPressedIndex(null);
+      }
+
       // 1. Проверяем Lightbox
       if (selectedIndex !== null && !(e.state && e.state.lightbox)) {
         setSelectedIndex(null);
@@ -864,7 +875,7 @@ export default function Gallery({
       }
 
       // 4. Проверяем фильтр гостя
-      if (internalSelectedGuestId !== null && !(e.state && (e.state.guestFilter || e.state.lightbox || e.state.cart || e.state.selection))) {
+      if (internalSelectedGuestId !== null && !(e.state && (e.state.guestFilter || e.state.lightbox || e.state.cart || e.state.selection || e.state.longPress))) {
         setInternalSelectedGuestId(null);
         if (externalSetSelectedGuestId) externalSetSelectedGuestId(null);
         if (typeof window !== 'undefined') window.history.replaceState({}, '', window.location.pathname);
@@ -872,19 +883,36 @@ export default function Gallery({
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedIndex, internalSelectedGuestId, isCartOpen, isSelectionMode, externalSetSelectedGuestId, showCollageCreator, generatedCollageUrl]);
+  }, [longPressedIndex, selectedIndex, internalSelectedGuestId, isCartOpen, isSelectionMode, externalSetSelectedGuestId, showCollageCreator, generatedCollageUrl]);
 
-  // Обработка клавиатуры и свайпов
+  // Обработка клавиатуры (Escape глобально + Стрелки для Lightbox)
   useEffect(() => {
-    if (selectedIndex === null) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeLightbox();
-      if (e.key === 'ArrowRight') goToNext();
-      if (e.key === 'ArrowLeft') goToPrev();
+      if (e.key === 'Escape') {
+        if (selectedIndex !== null) closeLightbox();
+        else if (isSelectionMode) closeSelectionSafe();
+        else if (isCartOpen) closeCartSafe();
+        else if (showCollageCreator) {
+          setShowCollageCreator(false);
+          if (window.history.state?.collage) window.history.back();
+        }
+        else if (generatedCollageUrl) {
+          setGeneratedCollageUrl(null);
+          if (window.history.state?.collagePreview) window.history.back();
+        }
+        else if (longPressedIndex !== null) {
+          closeLongPressSafe();
+        }
+      }
+      
+      if (selectedIndex !== null) {
+        if (e.key === 'ArrowRight') goToNext();
+        if (e.key === 'ArrowLeft') goToPrev();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIndex, filteredPhotos.length, zoomScale]);
+  }, [selectedIndex, filteredPhotos.length, zoomScale, isSelectionMode, isCartOpen, longPressedIndex, showCollageCreator, generatedCollageUrl]);
 
   const goToNext = () => {
     if (zoomScale > 1) setZoomScale(1); // Сброс зума при перелистывании
@@ -1349,7 +1377,7 @@ export default function Gallery({
             <>
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setLongPressedIndex(null)}
+                onClick={closeLongPressSafe}
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140] touch-none"
               />
               <motion.div
@@ -1360,7 +1388,7 @@ export default function Gallery({
                 dragElastic={0.2}
                 onDragEnd={(e, info) => {
                   if (info.offset.y > 50) {
-                    setLongPressedIndex(null);
+                    closeLongPressSafe();
                   }
                 }}
                 className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center touch-none will-change-transform"
@@ -1374,7 +1402,7 @@ export default function Gallery({
                     <button 
                       onClick={() => {
                         handleDownload(filteredPhotos[longPressedIndex].filename, filteredPhotos[longPressedIndex].urls.web);
-                        setLongPressedIndex(null);
+                        closeLongPressSafe();
                       }}
                       className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
                     >
@@ -1386,7 +1414,7 @@ export default function Gallery({
                     <button 
                       onClick={() => {
                         handleShare(filteredPhotos[longPressedIndex].filename);
-                        setLongPressedIndex(null);
+                        closeLongPressSafe();
                       }}
                       className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
                     >
@@ -1398,7 +1426,9 @@ export default function Gallery({
                     <button 
                       onClick={() => {
                         triggerVibration(20);
-                        window.history.pushState({ selection: true }, "");
+                        // ИСПОЛЬЗУЕМ REPLACE ВМЕСТО PUSH: меняем стейт шторки на стейт выбора, 
+                        // чтобы не делать двойной бэк при отмене
+                        window.history.replaceState({ selection: true }, "");
                         setSelectionIntent('general'); // Гость зашел через долгое нажатие
                         setIsSelectionMode(true);
                         togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
