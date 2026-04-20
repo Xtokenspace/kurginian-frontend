@@ -224,7 +224,7 @@ function PhotoRowItem({
   const flexGrow = photo.width / photo.height;
   // Premium Apple UX: Динамическая базовая высота строки (100px на mobile -> 250px на desktop)
   // Это 100% CSS решение: спасает от Layout Shift и не требует JS слушателей (Zero-RAM)
-  const responsiveBaseHeight = "150px"; 
+  const responsiveBaseHeight = "clamp(100px, 25vw, 250px)"; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -242,7 +242,6 @@ function PhotoRowItem({
 
   return (
     <motion.div
-      layout 
       id={`photo-card-${index}`}
       variants={brickVariants}
       initial="hidden"
@@ -1197,11 +1196,9 @@ export default function Gallery({
         </div>
 
         <motion.div 
-          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          // Premium Apple UX: Edge-to-edge на мобилках (-mx-6 компенсирует p-6 из ClientPage) с нативным микро-зазором
           className="flex flex-wrap justify-center gap-[2px] md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999] -mx-6 px-[2px] md:mx-0 md:px-0"
         >
           {/* Оборачиваем элементы сетки в AnimatePresence для плавного исчезновения */}
@@ -1612,7 +1609,8 @@ export default function Gallery({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center select-none touch-none overflow-hidden"
+            // Zero-OOM & 60FPS Hack: Убрали backdrop-blur-xl, добавили will-change для аппаратного ускорения
+            className="fixed inset-0 z-[100] bg-black/98 flex flex-col items-center justify-center select-none touch-none overflow-hidden will-change-[opacity]"
           >
             {/* Кнопка закрытия (Справа) */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[120] flex flex-col items-center gap-2">
