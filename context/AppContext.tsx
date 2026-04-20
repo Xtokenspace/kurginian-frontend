@@ -97,13 +97,27 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
     const found: GallerySession[] = [];
     
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      
+    // ИСПРАВЛЕНИЕ 1: Собираем статический слепок ключей. 
+    // Динамическая итерация (localStorage.length) ломается при удалении элементов внутри цикла!
+    const storageKeys = Object.keys(localStorage);
+    
+    for (const key of storageKeys) {
       if (key.startsWith('vip_code_') || key.startsWith('photos_')) {
         const isVip = key.startsWith('vip_code_');
         const slug = key.replace(isVip ? 'vip_code_' : 'photos_', '');
+        
+        // --- THE REAPER (Локальная очистка): Превентивное удаление мертвых сессий ---
+        const finalExpires = localStorage.getItem(`expires_${slug}`);
+        if (finalExpires && new Date(finalExpires).getTime() < Date.now()) {
+          localStorage.removeItem(`vip_code_${slug}`);
+          localStorage.removeItem(`photos_${slug}`);
+          localStorage.removeItem(`title_${slug}`);
+          localStorage.removeItem(`cover_${slug}`);
+          localStorage.removeItem(`focus_${slug}`);
+          localStorage.removeItem(`expires_${slug}`);
+          localStorage.removeItem(`vip_prompt_shown_${slug}`);
+          continue; // Блокируем показ на дашборде
+        }
         
         let finalTitle = localStorage.getItem(`title_${slug}`) || '';
         let finalCover = localStorage.getItem(`cover_${slug}`) || '';
@@ -116,6 +130,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
             const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
             if (res.ok) {
               const json = await res.json();
+              
+              // --- THE REAPER (Сетевая очистка): Защита от ручного удаления на бэкенде ---
+              if (json.status === 'expired') {
+                localStorage.removeItem(`vip_code_${slug}`);
+                localStorage.removeItem(`photos_${slug}`);
+                continue; // Блокируем показ на дашборде
+              }
+
               if (json.status === 'success') {
                 if (json.data.title) {
                   finalTitle = json.data.title;
@@ -145,7 +167,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           slug, 
           title: finalTitle, 
           cover: finalCover || undefined,
-          focus: finalFocus, // <-- Передаем фокус в дашборд
+          focus: finalFocus, // <-- Передаем ИИ-фокус в карточки дашборда
           type: isVip ? 'vip' : 'guest', 
           rawKey: key 
         };

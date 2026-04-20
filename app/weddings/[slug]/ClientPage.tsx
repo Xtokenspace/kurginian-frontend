@@ -418,6 +418,18 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     return () => window.removeEventListener('popstate', handlePopState);
   }, [showMenu, showPasswordModal, showPayment, showChoiceModal, isCameraActive, status, photos.length]);
 
+  // === ЗАЩИТА ОТ ПРИЗРАЧНОГО СКРОЛЛА (Apple UX Standards) ===
+  // Аппаратно блокируем скролл заднего фона, когда открыта любая шторка или камера
+  useEffect(() => {
+    const isOverlayOpen = showMenu || showChoiceModal || showPasswordModal || showPayment || isCameraActive;
+    if (isOverlayOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [showMenu, showChoiceModal, showPasswordModal, showPayment, isCameraActive]);
+
   // Универсальная функция для безопасного закрытия окон
   const closeModalSafe = (closeFn: () => void) => {
     closeFn();
@@ -759,18 +771,27 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const handleSelfieUpload = async (file: File) => {
     setStatus('loading');
     try {
-      // 1. Сначала вырезаем идеальный квадрат с лицом (MediaPipe)
-      const croppedFile = await cropFaceFromImage(file);
+      // 1. ПРЕВЕНТИВНОЕ СЖАТИЕ (Zero-OOM защита)
+      // Если гость выбрал тяжелое 4K-фото из галереи, попытка скормить его MediaPipe
+      // вызовет краш оперативной памяти на старых iPhone. Сжимаем ДО нейросети!
+      const safeFile = await imageCompression(file, {
+        maxSizeMB: 1.5,
+        maxWidthOrHeight: 1200, 
+        useWebWorker: true,
+      });
 
-      // 2. Затем сжимаем результат (Страховка на случай старых телефонов или фолбэка)
-      const compressedFile = await imageCompression(croppedFile, {
-        maxSizeMB: 1,
+      // 2. ИИ-Кроппинг (MediaPipe теперь работает с легким файлом без утечек RAM)
+      const croppedFile = await cropFaceFromImage(safeFile);
+
+      // 3. Финальная оптимизация для быстрой отправки по сети
+      const finalPayload = await imageCompression(croppedFile, {
+        maxSizeMB: 0.8,
         maxWidthOrHeight: 800,
         useWebWorker: true,
       });
 
       const formData = new FormData();
-      formData.append('selfie', compressedFile);
+      formData.append('selfie', finalPayload);
 
       // === УМНОЕ СНИЖЕНИЕ ПОРОГА ===
       // 1 попытка: 0.5 | 2 попытка: 0.4 | 3 и далее попытки: 0.3
