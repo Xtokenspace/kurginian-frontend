@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense, useRef, useCallback } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -143,19 +143,26 @@ const translations = {
   }
 } as const;
 
-// --- ВАРИАНТЫ АНИМАЦИИ (Apple Monolithic Entrance) ---
+// --- ВАРИАНТЫ АНИМАЦИИ ---
 const containerVariants: Variants = {
-  hidden: { opacity: 0, scale: 0.98, filter: 'blur(10px)' },
+  hidden: { opacity: 1 },
   visible: {
     opacity: 1,
-    scale: 1,
-    filter: 'blur(0px)',
-    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }, // Премиальная кривая Apple
+    transition: {
+      staggerChildren: 0.05, 
+    },
   },
 };
 
-// Удалены прыжки по оси Y, так как они вызывают Layout Thrashing при вычислении flexBasis
-const brickVariants: Variants = {};
+const brickVariants: Variants = {
+  hidden: { opacity: 0, y: 15, scale: 0.98 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    scale: 1,
+    transition: { type: "spring", stiffness: 100, damping: 15 }
+  },
+};
 
 // --- КОМПОНЕНТ АВАТАРА ГОСТЯ (CSS МАГИЯ КРОПА ЛИЦА) ---
 function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCluster, photos: MatchedPhoto[], isSelected: boolean, onClick: () => void }) {
@@ -208,46 +215,36 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
 }
 
 // --- КОМПОНЕНТ ОДНОГО ФОТО ---
-const PhotoRowItem = React.memo(function PhotoRowItem({ 
+function PhotoRowItem({ 
   photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
 }: { 
-  photo: MatchedPhoto; index: number; onOpen: (index: number) => void; 
+  photo: MatchedPhoto; index: number; onOpen: () => void; 
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
+  const flexBasis = flexGrow * 250; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
-  const touchStartPos = useRef<{x: number, y: number} | null>(null);
 
-  // Логика кастомного 3D-Touch с защитой от микро-движений (Apple Physics)
-  const startPress = (e: React.TouchEvent | React.MouseEvent) => {
-    if (isSelectionMode) return; 
-    if ('touches' in e) {
-      touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    }
+  // Логика кастомного 3D-Touch
+  const startPress = () => {
+    if (isSelectionMode) return; // Если уже выбираем, долгий тап не нужен
     pressTimer.current = setTimeout(() => {
       onLongPress(index);
-    }, 400); 
+    }, 400); // 400мс удержания = 3D Touch
   };
 
   const cancelPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
-    touchStartPos.current = null;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartPos.current) return;
-    const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
-    const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
-    // Отменяем долгий тап только если палец сдвинулся больше чем на 10 пикселей (свайп)
-    if (dx > 10 || dy > 10) {
-      cancelPress();
-    }
   };
 
   return (
     <motion.div
+      layout 
       id={`photo-card-${index}`}
+      variants={brickVariants}
+      initial="hidden"
+      animate="visible"
       exit={{ opacity: 0, scale: 0.8 }}
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
@@ -255,41 +252,38 @@ const PhotoRowItem = React.memo(function PhotoRowItem({
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onTouchStart={startPress}
       onTouchEnd={cancelPress}
-      onTouchMove={handleTouchMove}
+      onTouchMove={cancelPress}
       onMouseDown={startPress}
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={() => {
         // В обычном режиме клик в любое место открывает фото.
         // В режиме выбора родительский клик отключается (работают 50/50 зоны внутри).
-        if (!isSelectionMode) onOpen(index);
+        if (!isSelectionMode) onOpen();
       }}
       className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
         isSelected ? 'border-2 border-lux-gold scale-95' : 'border border-lux-gold/10 hover:border-lux-gold/60'
       }`}
       style={{
         flexGrow: flexGrow,
-        // 💎 ГЕНИАЛЬНЫЙ CSS HACK: Адаптивная высота (Mobile: ~120px, Tablet: 20vw, Desktop: 250px)
-        flexBasis: `calc(clamp(120px, 20vw, 250px) * ${flexGrow})`,
+        flexBasis: `${flexBasis}px`,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
-      {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН (Плавный CSS-кроссфейд) */}
-      <div 
-        className={`absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a] transition-opacity duration-700 ease-out ${
-          isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
-        }`}
-      >
-        {photo.blurhash ? (
-          <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
-        ) : (
-          <motion.div 
-            animate={{ x: ['-100%', '200%'] }}
-            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-            className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
-          />
-        )}
-      </div>
+      {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН */}
+      {!isLoaded && (
+        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
+          {photo.blurhash ? (
+            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
+          ) : (
+            <motion.div 
+              animate={{ x: ['-100%', '200%'] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
+            />
+          )}
+        </div>
+      )}
 
       <Image
         src={photo.urls.thumb}
@@ -311,7 +305,7 @@ const PhotoRowItem = React.memo(function PhotoRowItem({
             {/* ВЕРХНЯЯ ПОЛОВИНА = ОТКРЫТЬ ФОТО */}
             <div 
               className="absolute top-0 left-0 right-0 h-1/2 z-30 cursor-pointer"
-              onClick={(e) => { e.stopPropagation(); onOpen(index); }}
+              onClick={(e) => { e.stopPropagation(); onOpen(); }}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.5 }}
@@ -368,12 +362,7 @@ const PhotoRowItem = React.memo(function PhotoRowItem({
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
-}, (prevProps, nextProps) => {
-  return prevProps.isSelectionMode === nextProps.isSelectionMode &&
-         prevProps.isSelected === nextProps.isSelected &&
-         prevProps.photo.filename === nextProps.photo.filename &&
-         prevProps.index === nextProps.index;
-});
+}
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
 export default function Gallery({ 
@@ -430,20 +419,18 @@ export default function Gallery({
   const [showCollageCreator, setShowCollageCreator] = useState(false); // <-- СТЕЙТ КОЛЛАЖА
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null); // <-- СТЕЙТ ПРЕВЬЮ КОЛЛАЖА
 
-  const handleLongPress = useCallback((index: number) => {
+  const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
     setLongPressedIndex(index);
-  }, []);
+  };
 
-  const togglePhotoSelection = useCallback((filename: string) => {
+  const togglePhotoSelection = (filename: string) => {
     triggerVibration(10);
-    setSelectedPhotos(prev => {
-      const newSelection = new Set(prev);
-      if (newSelection.has(filename)) newSelection.delete(filename);
-      else newSelection.add(filename);
-      return newSelection;
-    });
-  }, []);
+    const newSelection = new Set(selectedPhotos);
+    if (newSelection.has(filename)) newSelection.delete(filename);
+    else newSelection.add(filename);
+    setSelectedPhotos(newSelection);
+  };
 
   const closeSelectionMode = () => {
     setIsSelectionMode(false);
@@ -813,14 +800,14 @@ export default function Gallery({
   };
 
   // === HISTORY API: Умный перехват кнопки Назад ===
-  const openLightbox = useCallback((index: number) => {
+  const openLightbox = (index: number) => {
     triggerVibration(10); 
     setZoomScale(1);
     setShowLightboxGuests(false);
     
     window.history.pushState({ lightbox: true }, "");
     setSelectedIndex(index);
-  }, []);
+  };
 
   const closeLightbox = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
@@ -1208,6 +1195,7 @@ export default function Gallery({
         </div>
 
         <motion.div 
+          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
@@ -1220,7 +1208,7 @@ export default function Gallery({
                 key={photo.filename} 
                 photo={photo} 
                 index={index} 
-                onOpen={openLightbox} 
+                onOpen={() => openLightbox(index)} 
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedPhotos.has(photo.filename)}
                 onToggleSelect={togglePhotoSelection}
@@ -1356,81 +1344,75 @@ export default function Gallery({
         {/* === ШТОРКА ДЕЙСТВИЙ ИЗ 3D-TOUCH (Long Press) === */}
         <AnimatePresence>
           {longPressedIndex !== null && (
-            <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center p-6 touch-none">
+            <>
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setLongPressedIndex(null)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-xl"
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[140] touch-none"
               />
-              
               <motion.div
-                initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.8, opacity: 0, y: 20 }}
+                initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
                 transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                className="relative z-10 flex flex-col items-center w-full max-w-[320px]"
+                drag="y"
+                dragConstraints={{ top: 0, bottom: 500 }}
+                dragElastic={0.2}
+                onDragEnd={(e, info) => {
+                  if (info.offset.y > 50) {
+                    setLongPressedIndex(null);
+                  }
+                }}
+                className="fixed bottom-0 left-0 right-0 z-[150] flex flex-col items-center touch-none will-change-transform"
               >
-                {/* Имитация "вырванной" фотографии с сохранением её пропорций */}
-                <div 
-                  className="relative w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] mb-4 border border-white/10 bg-[#050505]"
-                  style={{ aspectRatio: `${filteredPhotos[longPressedIndex].width} / ${filteredPhotos[longPressedIndex].height}` }}
-                >
-                  <Image 
-                    src={filteredPhotos[longPressedIndex].urls.web}
-                    alt="Context Preview"
-                    fill
-                    className="object-cover pointer-events-none"
-                    unoptimized
-                  />
-                </div>
-
-                {/* Стеклянное меню действий */}
-                <div className="w-full bg-[#111]/80 backdrop-blur-2xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl flex flex-col divide-y divide-white/5">
-                  <button 
-                    onClick={() => {
-                      handleDownload(filteredPhotos[longPressedIndex].filename, filteredPhotos[longPressedIndex].urls.web);
-                      setLongPressedIndex(null);
-                    }}
-                    className="w-full py-4 text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-between px-6 active:bg-white/20"
-                  >
-                    <span>{t.download}</span>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      handleShare(filteredPhotos[longPressedIndex].filename);
-                      setLongPressedIndex(null);
-                    }}
-                    className="w-full py-4 text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-between px-6 active:bg-white/20"
-                  >
-                    <span>{t.share}</span>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                    </svg>
-                  </button>
-
-                  <button 
-                    onClick={() => {
-                      triggerVibration(20);
-                      window.history.pushState({ selection: true }, "");
-                      setSelectionIntent('general');
-                      setIsSelectionMode(true);
-                      togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
-                      setLongPressedIndex(null);
-                    }}
-                    className="w-full py-4 text-lux-gold font-bold text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-between px-6 active:bg-white/20 bg-lux-gold/5"
-                  >
-                    <span>{t.select}</span>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </button>
+                <div className="w-full max-w-md bg-[#0a0a0a] border-t border-white/10 rounded-t-3xl p-6 pb-10 shadow-2xl relative">
+                  <div className="w-12 h-1 bg-white/20 rounded-full mx-auto mb-6" />
+                  
+                  <h3 className="text-center font-cinzel text-lux-gold mb-6 uppercase tracking-widest text-sm">{t.actions}</h3>
+                  
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={() => {
+                        handleDownload(filteredPhotos[longPressedIndex].filename, filteredPhotos[longPressedIndex].urls.web);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                      {t.download}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleShare(filteredPhotos[longPressedIndex].filename);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-[#111] border border-white/5 py-4 rounded-xl text-white text-xs uppercase tracking-widest hover:bg-white/10 transition-colors flex items-center justify-center gap-3"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                      </svg>
+                      {t.share}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        triggerVibration(20);
+                        window.history.pushState({ selection: true }, "");
+                        setSelectionIntent('general'); // Гость зашел через долгое нажатие
+                        setIsSelectionMode(true);
+                        togglePhotoSelection(filteredPhotos[longPressedIndex].filename);
+                        setLongPressedIndex(null);
+                      }}
+                      className="w-full bg-lux-gold/10 border border-lux-gold/30 py-4 rounded-xl text-lux-gold font-bold text-xs uppercase tracking-widest mt-2 hover:bg-lux-gold hover:text-black transition-colors flex items-center justify-center gap-3"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {t.select}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
-            </div>
+            </>
           )}
         </AnimatePresence>
         </motion.div>
@@ -1754,15 +1736,6 @@ export default function Gallery({
                 className="relative w-full h-full flex items-center justify-center z-[102]"
                 style={{ cursor: zoomScale > 1 ? 'move' : 'grab', WebkitTouchCallout: 'none' }}
               >
-                {/* Мгновенная подложка, пока Next.js думает над HD-картинкой */}
-                <div className="absolute inset-0 z-0 flex items-center justify-center">
-                  <img 
-                    src={filteredPhotos[selectedIndex].urls.thumb} 
-                    className="w-full h-full object-contain blur-xl opacity-40 scale-105 pointer-events-none" 
-                    alt="blur"
-                  />
-                </div>
-
                 <Image
                   src={filteredPhotos[selectedIndex].urls.web}
                   alt="Full view"
@@ -2270,19 +2243,17 @@ export default function Gallery({
               if (window.history.state?.collage) window.history.back();
             }}
             onSuccess={(url) => {
-              // 1. Мгновенно скрываем UI Коллажа и Мультивыбора
+              // Мгновенное закрытие конструктора
               setShowCollageCreator(false);
-              setIsSelectionMode(false);
-              setSelectedPhotos(new Set());
+              if (window.history.state?.collage) window.history.back();
               
-              // 2. Откатываем историю браузера на 2 шага (убиваем стейты collage и selection)
-              window.history.go(-2);
+              closeSelectionSafe();
               
-              // 3. Через безопасную микро-паузу пушим новый стейт превью
+              // Открываем модалку превью с задержкой для плавности анимаций
               setTimeout(() => {
                 window.history.pushState({ collagePreview: true }, "");
                 setGeneratedCollageUrl(url);
-              }, 150);
+              }, 100);
             }}
           />
         )}
@@ -2311,7 +2282,7 @@ export default function Gallery({
               </svg>
             </button>
 
-            {/* Картинка (Адаптивная пропорция + Apple Swipe Physics) */}
+            {/* Картинка (Строгая пропорция 4:5 + Apple Swipe Physics) */}
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
@@ -2329,15 +2300,15 @@ export default function Gallery({
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              // 💎 УБРАЛИ жесткую высоту h-[60vh]. Теперь контейнер гибкий (h-auto)
-              className="relative w-full max-w-[400px] max-h-[70vh] h-auto shrink-0 rounded-xl shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-[#050505] overflow-hidden"
+              className="relative w-full max-w-[360px] min-h-[450px] shrink-0 aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
             >
-              {/* 💎 object-contain гарантирует, что 5:4 разворот не обрежется по краям */}
-              <img 
+              <Image 
                 src={generatedCollageUrl} 
                 alt="L'Édition Preview" 
+                fill 
+                unoptimized 
                 draggable={false}
-                className="w-full h-full max-h-[70vh] object-contain pointer-events-none select-none"
+                className="object-cover pointer-events-none select-none"
               />
             </motion.div>
 
