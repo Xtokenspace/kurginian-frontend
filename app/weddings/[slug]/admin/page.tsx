@@ -191,15 +191,30 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         });
 
         if (response.ok) {
-          const data = await response.json();
-          const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
-            a.filename.localeCompare(b.filename)
-          );
-          setPhotos(sortedPhotos);
-          setExpiresAt(data.expires_at);
-          setGuestClusters(data.guest_clusters);
+          const data = await response.json();
+          
+          // === 🛡 ФИКС БЕЗОПАСНОСТИ: ПЕРЕХВАТ ЭКРАНА БЛОКИРОВКИ ===
+          // Если срок вышел, очищаем VIP-сессию и выкидываем на ClientPage, где сработает The Reaper Lock Screen
+          if (data.status === 'expired') {
+            localStorage.removeItem(`vip_code_${slug}`);
+            router.replace(`/weddings/${slug}`);
+            return;
+          }
 
-          // Аналитика отключена для разгрузки сервера (Dashboard скрыт в UI)
+          const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
+            a.filename.localeCompare(b.filename)
+          );
+          setPhotos(sortedPhotos);
+          setExpiresAt(data.expires_at);
+          setGuestClusters(data.guest_clusters);
+
+          // === 🛡 ФИКС GHOST LOCK: СИНХРОНИЗАЦИЯ LOCALSTORAGE ===
+          // Обновляем дату в памяти после Stripe Webhook, чтобы сборщик мусора не удалил проект!
+          if (data.expires_at) {
+            localStorage.setItem(`expires_${slug}`, data.expires_at);
+          }
+
+          // Аналитика отключена для разгрузки сервера (Dashboard скрыт в UI)
         } else {
           localStorage.removeItem(`vip_code_${slug}`);
           router.replace(`/weddings/${slug}`);

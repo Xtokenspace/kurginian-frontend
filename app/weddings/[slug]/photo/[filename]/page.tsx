@@ -91,10 +91,36 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [showCollageCreator, setShowCollageCreator] = useState(false);
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null);
+
+  // --- НОВОЕ: СТЕЙТЫ ПЕЧАТИ И ОТЗЫВА ---
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<PrintSize>('10x15');
+  const [quantity, setQuantity] = useState(1);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   const { language, setLanguage, refreshSessions, clearCart, isMounted, addToCart, getCartForSlug } = useAppContext();
   const cart = getCartForSlug(slug);
   const t = translations[language];
+
+  // --- THE REAPER: ЗАЩИТА ИЗОЛИРОВАННОГО РОУТА (BACKDOOR FIX) ---
+  useEffect(() => {
+    const checkExpiry = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+        const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.is_expired) {
+            // Проект мертв. Выкидываем гостя на главную страницу для блокировки.
+            router.replace(`/weddings/${slug}`);
+          }
+        }
+      } catch (e) {
+        console.error("Expiry check failed", e);
+      }
+    };
+    checkExpiry();
+  }, [slug, router]);
 
   const triggerVibration = (pattern: number | number[]) => {
     if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate(pattern);
@@ -132,8 +158,34 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       link.download = currentFile;
       link.click();
       URL.revokeObjectURL(link.href);
+      
+      // Эмоциональный UX: Спрашиваем отзыв через 1.5 секунды после успешного скачивания
+      setTimeout(() => {
+        setShowFeedbackModal(true);
+        triggerVibration([10, 30, 10]);
+      }, 1500);
+
     } catch (err) { console.error(err); }
     finally { setIsDownloading(false); }
+  };
+
+  const handleAddToCartFlow = () => {
+    const currentFile = sharedFiles[currentIndex];
+    const photoUrl = `https://cdn.kurginian.pro/${slug}/web/${currentFile}`;
+    const item = {
+      id: `${currentFile}_${selectedSize}`,
+      filename: currentFile,
+      thumb_url: photoUrl,
+      size: selectedSize,
+      quantity,
+      price: PRINT_PRICES[selectedSize]
+    };
+    addToCart(slug, [item]);
+    setShowPrintModal(false);
+    triggerVibration(10);
+    // Уведомление гостю
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   const handleShare = async () => {
@@ -234,20 +286,30 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
 
         {/* ОСНОВНОЙ ACTION BAR (Если не в режиме выбора) */}
         {!isSelectionMode && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-full mt-6 flex gap-3">
-            <button onClick={handleDownload} disabled={isDownloading} className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm font-bold shadow-gold-glow active:scale-[0.98] transition-all">
-              {isDownloading ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-full mt-6 flex flex-col gap-3">
+            <div className="flex gap-3 w-full">
+              <button onClick={handleDownload} disabled={isDownloading} className="flex-[3] flex items-center justify-center gap-3 bg-lux-gold text-black px-6 py-4 rounded-sm font-bold shadow-gold-glow active:scale-[0.98] transition-all">
+                {isDownloading ? <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" /> : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                )}
+                <span className="uppercase tracking-widest text-xs">{isDownloading ? '...' : t.download}</span>
+              </button>
+              <button onClick={handleShare} className="flex-[2] flex items-center justify-center gap-3 bg-[#111] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm active:scale-[0.98] transition-all">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
-              )}
-              <span className="uppercase tracking-widest text-xs">{isDownloading ? '...' : t.download}</span>
-            </button>
-            <button onClick={handleShare} className="flex-[2] flex items-center justify-center gap-3 bg-[#111] border border-lux-gold/30 text-lux-gold px-4 py-4 rounded-sm active:scale-[0.98] transition-all">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                <span className="font-bold uppercase tracking-widest text-xs">{t.share}</span>
+              </button>
+            </div>
+            
+            {/* APPLE-STYLE PRINT UPSALE BUTTON */}
+            <button onClick={() => { setShowPrintModal(true); triggerVibration(5); }} className="w-full flex items-center justify-center gap-3 bg-[#111] border border-white/10 text-white px-4 py-4 rounded-sm active:scale-[0.98] transition-all hover:bg-white/5">
+              <svg className="w-5 h-5 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              <span className="font-bold uppercase tracking-widest text-xs">{t.share}</span>
+              <span className="font-bold uppercase tracking-widest text-xs">{t.orderPrints}</span>
             </button>
           </motion.div>
         )}
@@ -372,6 +434,66 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
             {t.toast}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- PRINT MODAL (BOTTOM SHEET) --- */}
+      <AnimatePresence>
+        {showPrintModal && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowPrintModal(false)} className="fixed inset-0 bg-black/80 z-[120] backdrop-blur-sm" />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} 
+              drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={{ top: 0.05, bottom: 0.6 }}
+              onDragEnd={(e, info) => { if (info.offset.y > 60) setShowPrintModal(false); }}
+              className="fixed bottom-0 left-0 right-0 bg-[#0c0c0c] border-t border-white/10 rounded-t-[32px] p-8 pb-12 z-[130] flex flex-col items-center touch-none"
+            >
+              <div className="w-12 h-1.5 bg-white/10 rounded-full mb-8" />
+              <h3 className="font-cinzel text-xl text-lux-gold tracking-widest uppercase mb-6">{t.orderPrints}</h3>
+              
+              <div className="w-full flex flex-wrap justify-center gap-3 mb-8">
+                {(Object.keys(PRINT_PRICES) as PrintSize[]).map(size => (
+                  <button key={size} onClick={() => { setSelectedSize(size); triggerVibration(2); }} className={`px-4 py-3 rounded-xl border transition-all ${selectedSize === size ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow' : 'bg-white/5 border-white/10 text-white'}`}>
+                    <div className="text-xs font-bold uppercase">{size}</div>
+                    <div className="text-[10px] opacity-60">{PRINT_PRICES[size].toFixed(2)} €</div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-6 mb-10">
+                <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-xl hover:bg-white/5 active:scale-95 transition-all">-</button>
+                <span className="text-2xl font-cinzel text-lux-gold w-8 text-center">{quantity}</span>
+                <button onClick={() => setQuantity(quantity + 1)} className="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-xl hover:bg-white/5 active:scale-95 transition-all">+</button>
+              </div>
+
+              <button onClick={handleAddToCartFlow} className="w-full py-4 bg-white text-black font-bold rounded-sm uppercase tracking-widest shadow-xl active:scale-95 transition-transform">
+                {language === 'fr' ? 'Ajouter' : language === 'ru' ? 'В корзину' : 'Add to cart'} — {(PRINT_PRICES[selectedSize] * quantity).toFixed(2)} €
+              </button>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* --- FEEDBACK MODAL (EMOTIONAL UX) --- */}
+      <AnimatePresence>
+        {showFeedbackModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowFeedbackModal(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-[#0a0a0a] border border-lux-gold/30 p-10 rounded-sm text-center max-w-sm shadow-2xl">
+              <div className="text-4xl mb-6">✨</div>
+              <p className="text-white text-lg font-cinzel mb-8 leading-relaxed">
+                {language === 'fr' ? "Une petite seconde... Votre avis nous est précieux." : language === 'ru' ? "Секундочку... Нам очень важен ваш отзыв." : "Just a second... Your feedback means a lot to us."}
+              </p>
+              <div className="flex flex-col gap-4">
+                <button onClick={() => { window.open('https://instagram.com/kurginian.pro', '_blank'); setShowFeedbackModal(false); }} className="py-4 bg-lux-gold text-black font-bold rounded-sm uppercase tracking-tighter shadow-gold-glow">
+                  {language === 'fr' ? 'Laissez un avis' : language === 'ru' ? 'Оставить отзыв' : 'Leave a review'}
+                </button>
+                <button onClick={() => setShowFeedbackModal(false)} className="py-4 text-white/40 uppercase text-xs tracking-widest hover:text-white transition-colors">
+                  {language === 'fr' ? 'Plus tard' : language === 'ru' ? 'Позже' : 'Later'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

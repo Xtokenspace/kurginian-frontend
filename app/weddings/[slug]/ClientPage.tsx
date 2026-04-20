@@ -483,6 +483,22 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   // === ДИНАМИЧЕСКИЕ ДАННЫЕ МЕРОПРИЯТИЯ (ПРИШЛИ С СЕРВЕРА БЕЗ МЕРЦАНИЯ) ===
   const [metaInfo, setMetaInfo] = useState<WeddingMeta | null>(initialMeta);
 
+  // === ЗАЩИТА СЕССИИ: ОЧИСТКА МАГИЧЕСКИХ ССЫЛОК ===
+  // Если гость перешел по чужой ссылке, но потом сделал СВОЕ селфи,
+  // мы незаметно стираем ?guest= из URL, чтобы при обновлении страницы он не потерял свои фото.
+  useEffect(() => {
+    if (status === 'success' && typeof window !== 'undefined') {
+      const hasLocalPhotos = localStorage.getItem(`photos_${slug}`);
+      const url = new URL(window.location.href);
+      
+      if (hasLocalPhotos && (url.searchParams.has('guest') || url.searchParams.has('p'))) {
+        url.searchParams.delete('guest');
+        url.searchParams.delete('p');
+        window.history.replaceState({}, '', url.pathname); // Чистим URL без перезагрузки
+      }
+    }
+  }, [status, slug]);
+
   // === ОФФЛАЙН И ТАКТИЛЬНОСТЬ ===
 
   const triggerVibration = (pattern: number | number[]) => {
@@ -513,8 +529,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           return;
         }
 
-        // СОХРАНЯЕМ ПАРОЛЬ И КРАСИВОЕ ИМЯ
+        // СОХРАНЯЕМ ПАРОЛЬ, ДАТУ ОКОНЧАНИЯ И КРАСИВОЕ ИМЯ
         localStorage.setItem(`vip_code_${slug}`, passwordInput);
+        if (data.expires_at) localStorage.setItem(`expires_${slug}`, data.expires_at); // <-- 🛡 ФИКС GHOST LOCK
         if (metaInfo?.title) localStorage.setItem(`title_${slug}`, metaInfo.title);
         refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
         setShowPasswordModal(false);
