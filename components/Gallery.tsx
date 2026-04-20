@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef, memo } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -215,14 +215,14 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
 }
 
 // --- КОМПОНЕНТ ОДНОГО ФОТО ---
-const PhotoRowItem = memo(function PhotoRowItem({ 
+function PhotoRowItem({ 
   photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
 }: { 
   photo: MatchedPhoto; index: number; onOpen: () => void; 
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
-  const responsiveBaseHeight = "clamp(100px, 25vw, 250px)"; 
+  const flexBasis = flexGrow * 250; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -257,6 +257,8 @@ const PhotoRowItem = memo(function PhotoRowItem({
       onMouseUp={cancelPress}
       onMouseLeave={cancelPress}
       onClick={() => {
+        // В обычном режиме клик в любое место открывает фото.
+        // В режиме выбора родительский клик отключается (работают 50/50 зоны внутри).
         if (!isSelectionMode) onOpen();
       }}
       className={`relative overflow-hidden group transition-colors shadow-lg active:shadow-gold-glow cursor-pointer bg-lux-card ${
@@ -264,7 +266,7 @@ const PhotoRowItem = memo(function PhotoRowItem({
       }`}
       style={{
         flexGrow: flexGrow,
-        flexBasis: `calc(${responsiveBaseHeight} * ${flexGrow})`,
+        flexBasis: `${flexBasis}px`,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
@@ -360,15 +362,7 @@ const PhotoRowItem = memo(function PhotoRowItem({
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
-}, (prevProps, nextProps) => {
-  // SENIOR FIX: Обязательно проверяем index и filename. 
-  // Иначе при AI-фильтрации гостей карточки не перерисуются, сохранят старые индексы, 
-  // и Lightbox будет открывать случайные фотографии (или падать).
-  return prevProps.isSelected === nextProps.isSelected && 
-         prevProps.isSelectionMode === nextProps.isSelectionMode &&
-         prevProps.index === nextProps.index &&
-         prevProps.photo.filename === nextProps.photo.filename;
-});
+}
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
 export default function Gallery({ 
@@ -1201,12 +1195,11 @@ export default function Gallery({
         </div>
 
         <motion.div 
-          layout
+          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          // SENIOR FIX: Заменен -mx-6 на -mx-4 (соответствует px-4 вверху) для идеального Edge-to-Edge без горизонтального скролла на iOS
-          className="flex flex-wrap justify-center gap-[2px] md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999] -mx-4 w-[calc(100%+2rem)] px-[2px] md:mx-0 md:w-full md:px-0"
+          className="flex flex-wrap justify-center gap-2 md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999]"
         >
           {/* Оборачиваем элементы сетки в AnimatePresence для плавного исчезновения */}
           <AnimatePresence>
