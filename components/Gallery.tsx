@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense, useRef, memo } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
@@ -214,8 +214,8 @@ function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCl
   );
 }
 
-// --- КОМПОНЕНТ ОДНОГО ФОТО ---
-function PhotoRowItem({ 
+// --- КОМПОНЕНТ ОДНОГО ФОТО (Zero-OOM Memoization) ---
+const PhotoRowItem = memo(function PhotoRowItem({ 
   photo, index, onOpen, isSelectionMode, isSelected, onToggleSelect, onLongPress 
 }: { 
   photo: MatchedPhoto; index: number; onOpen: () => void; 
@@ -273,9 +273,11 @@ function PhotoRowItem({
     >
       {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН */}
       {!isLoaded && (
-        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
+        // Zero-OOM Hack: content-visibility-auto запрещает GPU рендерить невидимые канвасы
+        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]" style={{ contentVisibility: 'auto' }}>
           {photo.blurhash ? (
-            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
+            // CPU Hack: resolution 16x16 снижает нагрузку на процессор в 4 раза без потери качества размытия.
+            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={16} resolutionY={16} punch={1} />
           ) : (
             <motion.div 
               animate={{ x: ['-100%', '200%'] }}
@@ -363,7 +365,12 @@ function PhotoRowItem({
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20 pointer-events-none" />
     </motion.div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Strict React.memo: Перерисовываем карточку ТОЛЬКО если ее выделили галочкой. 
+  // Спасает от рендера 300+ узлов при открытии Lightbox.
+  return prevProps.isSelected === nextProps.isSelected && 
+         prevProps.isSelectionMode === nextProps.isSelectionMode;
+});
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
 export default function Gallery({ 
