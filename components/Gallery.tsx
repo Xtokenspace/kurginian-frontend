@@ -222,7 +222,9 @@ function PhotoRowItem({
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
-  const flexBasis = flexGrow * 250; 
+  // Premium Apple UX: Динамическая базовая высота строки (100px на mobile -> 250px на desktop)
+  // Это 100% CSS решение: спасает от Layout Shift и не требует JS слушателей (Zero-RAM)
+  const responsiveBaseHeight = "clamp(100px, 25vw, 250px)"; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -266,7 +268,7 @@ function PhotoRowItem({
       }`}
       style={{
         flexGrow: flexGrow,
-        flexBasis: `${flexBasis}px`,
+        flexBasis: `calc(${responsiveBaseHeight} * ${flexGrow})`,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
@@ -1199,7 +1201,8 @@ export default function Gallery({
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          className="flex flex-wrap justify-center gap-2 md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999]"
+          // Premium Apple UX: Edge-to-edge на мобилках (-mx-6 компенсирует p-6 из ClientPage) с нативным микро-зазором
+          className="flex flex-wrap justify-center gap-[2px] md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999] -mx-6 px-[2px] md:mx-0 md:px-0"
         >
           {/* Оборачиваем элементы сетки в AnimatePresence для плавного исчезновения */}
           <AnimatePresence>
