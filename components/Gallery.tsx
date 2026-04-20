@@ -222,7 +222,9 @@ function PhotoRowItem({
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
-  const flexBasis = flexGrow * 250; 
+  // Нативный CSS clamp для отзывчивой высоты строки (Zero-JS layout shift protection).
+  // На мобильных базовая высота ~120px (2-3 фото в ряд), на десктопе - 250px.
+  const flexBasisTemplate = `calc(${flexGrow} * clamp(120px, 25vw, 250px))`;
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -266,7 +268,7 @@ function PhotoRowItem({
       }`}
       style={{
         flexGrow: flexGrow,
-        flexBasis: `${flexBasis}px`,
+        flexBasis: flexBasisTemplate,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
