@@ -224,7 +224,7 @@ function PhotoRowItem({
   const flexGrow = photo.width / photo.height;
   // Premium Apple UX: Динамическая базовая высота строки (100px на mobile -> 250px на desktop)
   // Это 100% CSS решение: спасает от Layout Shift и не требует JS слушателей (Zero-RAM)
-  const responsiveBaseHeight = "clamp(100px, 25vw, 250px)"; 
+  const responsiveBaseHeight = "150px"; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -242,6 +242,7 @@ function PhotoRowItem({
 
   return (
     <motion.div
+      layout 
       id={`photo-card-${index}`}
       variants={brickVariants}
       initial="hidden"
@@ -1196,6 +1197,7 @@ export default function Gallery({
         </div>
 
         <motion.div 
+          layout // <-- Добавлено для плавной анимации фильтрации сетки
           initial="hidden"
           animate="visible"
           variants={containerVariants}
