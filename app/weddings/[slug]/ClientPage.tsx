@@ -1302,9 +1302,9 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         {status === 'success' && (
           <motion.div 
             key="success"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
             className="w-full max-w-7xl pt-10 relative"
           >
             {/* ПРЕМИАЛЬНЫЙ ЗАГОЛОВОК ГАЛЕРЕИ */}

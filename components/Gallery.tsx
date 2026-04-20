@@ -143,26 +143,19 @@ const translations = {
   }
 } as const;
 
-// --- ВАРИАНТЫ АНИМАЦИИ ---
+// --- ВАРИАНТЫ АНИМАЦИИ (Apple Monolithic Entrance) ---
 const containerVariants: Variants = {
-  hidden: { opacity: 1 },
+  hidden: { opacity: 0, scale: 0.98, filter: 'blur(10px)' },
   visible: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.05, 
-    },
+    scale: 1,
+    filter: 'blur(0px)',
+    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }, // Премиальная кривая Apple
   },
 };
 
-const brickVariants: Variants = {
-  hidden: { opacity: 0, y: 15, scale: 0.98 },
-  visible: { 
-    opacity: 1, 
-    y: 0, 
-    scale: 1,
-    transition: { type: "spring", stiffness: 100, damping: 15 }
-  },
-};
+// Удалены прыжки по оси Y, так как они вызывают Layout Thrashing при вычислении flexBasis
+const brickVariants: Variants = {};
 
 // --- КОМПОНЕНТ АВАТАРА ГОСТЯ (CSS МАГИЯ КРОПА ЛИЦА) ---
 function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCluster, photos: MatchedPhoto[], isSelected: boolean, onClick: () => void }) {
@@ -241,9 +234,6 @@ function PhotoRowItem({
     <motion.div
       layout 
       id={`photo-card-${index}`}
-      variants={brickVariants}
-      initial="hidden"
-      animate="visible"
       exit={{ opacity: 0, scale: 0.8 }}
       whileHover={{ scale: 1.015, zIndex: 1 }}
       whileTap={{ scale: 0.985 }}
@@ -2293,7 +2283,7 @@ export default function Gallery({
               </svg>
             </button>
 
-            {/* Картинка (Строгая пропорция 4:5 + Apple Swipe Physics) */}
+            {/* Картинка (Адаптивная пропорция + Apple Swipe Physics) */}
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
@@ -2311,15 +2301,15 @@ export default function Gallery({
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              className="relative w-full max-w-[360px] min-h-[450px] shrink-0 aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
+              // 💎 УБРАЛИ жесткую высоту h-[60vh]. Теперь контейнер гибкий (h-auto)
+              className="relative w-full max-w-[400px] max-h-[70vh] h-auto shrink-0 rounded-xl shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center bg-[#050505] overflow-hidden"
             >
-              <Image 
+              {/* 💎 object-contain гарантирует, что 5:4 разворот не обрежется по краям */}
+              <img 
                 src={generatedCollageUrl} 
                 alt="L'Édition Preview" 
-                fill 
-                unoptimized 
                 draggable={false}
-                className="object-cover pointer-events-none select-none"
+                className="w-full h-full max-h-[70vh] object-contain pointer-events-none select-none"
               />
             </motion.div>
 

@@ -20,6 +20,7 @@ interface BlueprintItem {
 interface PreviewData {
   blueprint: BlueprintItem[];
   bg_color: number[];
+  canvas_ratio?: number; // <-- ИИ Пропорции холста с бэкенда
 }
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
@@ -309,11 +310,13 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         {/* Левая колонка: ПРЕВЬЮ ЗОНА (Холст) */}
         <div className="flex justify-center w-full shrink-0">
           <div 
-            className="relative w-full max-w-[240px] md:max-w-[340px] min-h-[300px] md:min-h-[425px] aspect-[4/5] shrink-0 md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
+            className="relative w-full max-w-[280px] md:max-w-[360px] shrink-0 md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ 
               backgroundColor: previews[selectedStyle]?.bg_color 
                 ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
-                : '#111' 
+                : '#111',
+              // 💎 Холст сам перестраивается в горизонталь/вертикаль!
+              aspectRatio: previews[selectedStyle]?.canvas_ratio || 0.8
             }}
           >
           <AnimatePresence mode="wait">
