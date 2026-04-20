@@ -361,8 +361,13 @@ const PhotoRowItem = memo(function PhotoRowItem({
     </motion.div>
   );
 }, (prevProps, nextProps) => {
+  // SENIOR FIX: Обязательно проверяем index и filename. 
+  // Иначе при AI-фильтрации гостей карточки не перерисуются, сохранят старые индексы, 
+  // и Lightbox будет открывать случайные фотографии (или падать).
   return prevProps.isSelected === nextProps.isSelected && 
-         prevProps.isSelectionMode === nextProps.isSelectionMode;
+         prevProps.isSelectionMode === nextProps.isSelectionMode &&
+         prevProps.index === nextProps.index &&
+         prevProps.photo.filename === nextProps.photo.filename;
 });
 
 // --- ОСНОВНАЯ ГАЛЕРЕЯ ---
@@ -1200,7 +1205,8 @@ export default function Gallery({
           initial="hidden"
           animate="visible"
           variants={containerVariants}
-          className="flex flex-wrap justify-center gap-[2px] md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999] -mx-6 px-[2px] md:mx-0 md:px-0"
+          // SENIOR FIX: Заменен -mx-6 на -mx-4 (соответствует px-4 вверху) для идеального Edge-to-Edge без горизонтального скролла на iOS
+          className="flex flex-wrap justify-center gap-[2px] md:gap-4 pt-4 pb-20 after:content-[''] after:flex-grow-[999] -mx-4 w-[calc(100%+2rem)] px-[2px] md:mx-0 md:w-full md:px-0"
         >
           {/* Оборачиваем элементы сетки в AnimatePresence для плавного исчезновения */}
           <AnimatePresence>
