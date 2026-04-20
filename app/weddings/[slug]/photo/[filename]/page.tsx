@@ -201,18 +201,31 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
       quantity,
       price: PRINT_PRICES[selectedSize]
     };
+    
+    // Эмоциональный отклик перед переходом
+    triggerVibration([20, 40]);
+    
+    // Добавляем в глобальный стейт
     addToCart(slug, [item]);
+    
+    // Закрываем шторку
     setShowPrintModal(false);
-    triggerVibration(10);
-    // Уведомление гостю
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    if (window.history.state?.overlay) window.history.back();
+    
+    // Apple-level бесшовный редирект в главную галерею с открытием кассы
+    router.push(`/weddings/${slug}?openCart=true`);
   };
 
   const handleShare = async () => {
     triggerVibration(50);
-    const currentFile = sharedFiles[currentIndex];
-    const shareLink = `${window.location.origin}/weddings/${slug}/photo/${currentFile}?mode=share`;
+    
+    // === APPLE LEVEL FIX: SINGLE SOURCE OF TRUTH ===
+    // Вместо генерации локальной ссылки (/photo/), мы ВСЕГДА отдаем 
+    // единую Магическую ссылку (?p=), чтобы затягивать трафик обратно в главный PWA хаб.
+    // Если гость листает подборку из нескольких фото, делимся сразу всем массивом.
+    const itemsToShare = sharedFiles.length > 1 ? sharedFiles.join(',') : sharedFiles[currentIndex];
+    const shareLink = `${window.location.origin}/weddings/${slug}?p=${itemsToShare}`;
+    
     if (navigator.share) {
       try { await navigator.share({ title: 'KURGINIAN Premium', text: t.shareText, url: shareLink }); return; }
       catch (err) { if ((err as Error).name !== 'AbortError') console.error(err); return; }
