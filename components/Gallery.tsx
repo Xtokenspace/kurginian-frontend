@@ -222,7 +222,6 @@ function PhotoRowItem({
   isSelectionMode: boolean; isSelected: boolean; onToggleSelect: (filename: string) => void; onLongPress: (index: number) => void;
 }) {
   const flexGrow = photo.width / photo.height;
-  const flexBasis = flexGrow * 250; 
   const [isLoaded, setIsLoaded] = useState(false);
   const pressTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -266,24 +265,27 @@ function PhotoRowItem({
       }`}
       style={{
         flexGrow: flexGrow,
-        flexBasis: `${flexBasis}px`,
+        // 💎 ГЕНИАЛЬНЫЙ CSS HACK: Адаптивная высота (Mobile: ~120px, Tablet: 20vw, Desktop: 250px)
+        flexBasis: `calc(clamp(120px, 20vw, 250px) * ${flexGrow})`,
         aspectRatio: `${photo.width} / ${photo.height}`,
       }}
     >
-      {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН */}
-      {!isLoaded && (
-        <div className="absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a]">
-          {photo.blurhash ? (
-            <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
-          ) : (
-            <motion.div 
-              animate={{ x: ['-100%', '200%'] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
-              className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
-            />
-          )}
-        </div>
-      )}
+      {/* ПРЕМИАЛЬНЫЙ BLURHASH ИЛИ СКЕЛЕТОН (Плавный CSS-кроссфейд) */}
+      <div 
+        className={`absolute inset-0 z-10 overflow-hidden bg-[#0a0a0a] transition-opacity duration-700 ease-out ${
+          isLoaded ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+      >
+        {photo.blurhash ? (
+          <Blurhash hash={photo.blurhash} width="100%" height="100%" resolutionX={32} resolutionY={32} punch={1} />
+        ) : (
+          <motion.div 
+            animate={{ x: ['-100%', '200%'] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+            className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12"
+          />
+        )}
+      </div>
 
       <Image
         src={photo.urls.thumb}
@@ -1736,6 +1738,15 @@ export default function Gallery({
                 className="relative w-full h-full flex items-center justify-center z-[102]"
                 style={{ cursor: zoomScale > 1 ? 'move' : 'grab', WebkitTouchCallout: 'none' }}
               >
+                {/* Мгновенная подложка, пока Next.js думает над HD-картинкой */}
+                <div className="absolute inset-0 z-0 flex items-center justify-center">
+                  <img 
+                    src={filteredPhotos[selectedIndex].urls.thumb} 
+                    className="w-full h-full object-contain blur-xl opacity-40 scale-105 pointer-events-none" 
+                    alt="blur"
+                  />
+                </div>
+
                 <Image
                   src={filteredPhotos[selectedIndex].urls.web}
                   alt="Full view"

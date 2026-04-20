@@ -931,7 +931,8 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         className="hidden"
       />
 
-      <AnimatePresence mode="wait">
+      {/* Убрали mode="wait", чтобы экраны плавно перетекали друг в друга без черных дыр в DOM */}
+      <AnimatePresence>
         
         {/* ЭКРАН ПРИВЕТСТВИЯ (DIGITAL INVITATION) */}
         {status === 'idle' && photos.length === 0 && (
