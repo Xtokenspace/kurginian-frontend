@@ -656,7 +656,7 @@ export default function Gallery({
   const handleShare = async (filename: string) => {
     triggerVibration(50);
     trackAction('share', filename); 
-    const shareLink = `${window.location.origin}/weddings/${slug}/photo/${filename}?mode=share`;
+    const shareLink = `${window.location.origin}/weddings/${slug}?p=${filename}`;
     
     if (navigator.share) {
       try {
