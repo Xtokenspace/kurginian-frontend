@@ -31,23 +31,36 @@ function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item:
   const currentX = offsets[item.filename]?.x ?? item.focus_x;
   const currentY = offsets[item.filename]?.y ?? item.focus_y;
   
+  // ПРЕМИУМ-ОПТИМИЗАЦИЯ: Локальный стейт для 60FPS без рендера всего модального окна
+  const [localPos, setLocalPos] = useState({ x: currentX, y: currentY });
+  
   const startX = useRef(currentX);
   const startY = useRef(currentY);
 
+  // Синхронизируем локальный стейт, если ИИ-фокус изменился извне
+  useEffect(() => {
+    setLocalPos({ x: currentX, y: currentY });
+  }, [currentX, currentY]);
+
   const handlePanStart = () => {
-    startX.current = offsets[item.filename]?.x ?? item.focus_x;
-    startY.current = offsets[item.filename]?.y ?? item.focus_y;
+    startX.current = localPos.x;
+    startY.current = localPos.y;
   };
 
   const handlePan = (e: any, info: any) => {
     const deltaX = -info.offset.x / 150; 
     const deltaY = -info.offset.y / 150;
+    setLocalPos({
+      x: Math.max(0, Math.min(1, startX.current + deltaX)),
+      y: Math.max(0, Math.min(1, startY.current + deltaY))
+    });
+  };
+
+  const handlePanEnd = () => {
+    // Отправляем финальные координаты в глобальный стейт ТОЛЬКО когда палец отпущен
     setOffsets((prev: any) => ({
       ...prev,
-      [item.filename]: {
-        x: Math.max(0, Math.min(1, startX.current + deltaX)),
-        y: Math.max(0, Math.min(1, startY.current + deltaY))
-      }
+      [item.filename]: localPos
     }));
   };
 
@@ -74,13 +87,14 @@ function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item:
         draggable={false}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
         style={{ 
-          objectPosition: `${currentX * 100}% ${currentY * 100}%`,
+          objectPosition: `${localPos.x * 100}% ${localPos.y * 100}%`,
           filter: isGrayscale ? 'grayscale(100%)' : 'none',
           transition: 'filter 0.3s ease',
           WebkitTouchCallout: 'none'
         }}
         onPanStart={handlePanStart}
         onPan={handlePan}
+        onPanEnd={handlePanEnd}
       />
       {/* Стеклянный индикатор-подсказка для гостя */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -148,6 +162,8 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
     // Защита от 400 Bad Request во время анимации закрытия (когда массив уже пуст)
     if (selectedPhotos.length < 2) return;
 
+    let isMounted = true; // ПРЕМИУМ-ЗАЩИТА: Предотвращение Memory Leak
+
     const fetchPreviews = async () => {
       setIsLoadingPreviews(true);
       setError(null);
@@ -169,6 +185,8 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         });
 
         const results = await Promise.all(promises);
+        if (!isMounted) return; // Прерываем стейт-апдейты, если компонент уже закрыт
+
         const newPreviews: Record<number, PreviewData> = {};
         results.forEach(r => { if (r.data?.blueprint) newPreviews[r.id] = r.data; });
         
@@ -178,14 +196,19 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           navigator.vibrate(15); // Мягкий тактильный отклик о загрузке
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error(err);
         setError(language === 'ru' ? 'Ошибка загрузки превью' : language === 'fr' ? 'Erreur de chargement' : 'Preview error');
       } finally {
-        setIsLoadingPreviews(false);
+        if (isMounted) setIsLoadingPreviews(false);
       }
     };
 
     fetchPreviews();
+
+    return () => {
+      isMounted = false; // Очистка при размонтировании
+    };
   }, [slug, photosKey, language]); // <-- Зависим строго от текстового ключа, а не от ссылки на массив!
 
   // 2. Генерация финального HD-шедевра
