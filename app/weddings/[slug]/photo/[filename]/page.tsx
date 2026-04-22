@@ -85,6 +85,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [isDownloading, setIsDownloading] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [isCheckingExpiry, setIsCheckingExpiry] = useState(true);
 
   // 2. СОСТОЯНИЯ ВЫБОРА И КОРЗИНЫ (Синхронизация с Gallery.tsx)
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -97,6 +98,15 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [selectedSize, setSelectedSize] = useState<PrintSize>('10x15');
   const [quantity, setQuantity] = useState(1);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+
+  // 💎 ZERO-OOM FIX: Глобальный сборщик мусора для превью коллажей при уходе со страницы
+  useEffect(() => {
+    return () => {
+      if (generatedCollageUrl) {
+        URL.revokeObjectURL(generatedCollageUrl);
+      }
+    };
+  }, [generatedCollageUrl]);
   
   const { language, setLanguage, refreshSessions, clearCart, isMounted, addToCart, getCartForSlug } = useAppContext();
   const cart = getCartForSlug(slug);
@@ -123,7 +133,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
     return () => window.removeEventListener('popstate', handlePopState);
   }, [showPrintModal, isSelectionMode, showCollageCreator, generatedCollageUrl]);
 
-  // --- THE REAPER: ЗАЩИТА ИЗОЛИРОВАННОГО РОУТА (BACKDOOR FIX) ---
+  // --- 💎 THE REAPER V2: ЖЕСТКАЯ БЛОКИРОВКА АСИНХРОННОГО РЕНДЕРА ---
   useEffect(() => {
     const checkExpiry = async () => {
       try {
@@ -132,13 +142,14 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         if (res.ok) {
           const json = await res.json();
           if (json.data?.is_expired) {
-            // Проект мертв. Выкидываем гостя на главную страницу для блокировки.
             router.replace(`/weddings/${slug}`);
+            return; // Оставляем isCheckingExpiry = true навсегда, UI так и не покажется
           }
         }
       } catch (e) {
         console.error("Expiry check failed", e);
       }
+      setIsCheckingExpiry(false); // Разрешаем рендер только если проект жив
     };
     checkExpiry();
   }, [slug, router]);
@@ -234,7 +245,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
     catch { prompt(t.copyPrompt, shareLink); }
   };
 
-  if (!isMounted) return <main className="min-h-[100dvh] bg-lux-bg" />;
+  if (!isMounted || isCheckingExpiry) return <main className="min-h-[100dvh] bg-lux-bg" />;
 
   return (
     <main className="min-h-[100dvh] bg-lux-bg text-lux-text font-montserrat p-6 flex flex-col items-center relative pb-32 overflow-x-hidden">
@@ -507,15 +518,16 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
         )}
       </AnimatePresence>
 
-      {/* МАГИЧЕСКАЯ ПАЛОЧКА (L'Édition) - Появляется ТОЛЬКО при выборе 2+ фото */}
+      {/* МАГИЧЕСКАЯ ПАЛОЧКА (L'Édition) - Появляется ТОЛЬКО при выборе 2+ фото (до 6 кадров) */}
       <AnimatePresence>
-        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 4 && !showCollageCreator && !generatedCollageUrl && (
+        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 6 && !showCollageCreator && !generatedCollageUrl && (
           <motion.button
             initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
-            onClick={() => { 
+            onClick={(e) => { 
+              e.currentTarget.blur(); // 💎 Защита от залипания (Sticky Hover)
               triggerVibration(10); 
               window.history.pushState({ collage: true }, ""); 
-              setShowCollageCreator(true); 
+              setTimeout(() => setShowCollageCreator(true), 50); // 💎 Защита от гонки потоков History API
             }}
             className="fixed right-0 top-1/3 md:top-1/2 -translate-y-1/2 z-[115] bg-[#0a0a0a]/90 backdrop-blur-xl border border-lux-gold/40 border-r-0 rounded-l-2xl p-3 md:p-4 shadow-[-10px_0_30px_rgba(212,175,55,0.15)] flex flex-col items-center gap-3 group hover:bg-[#111] transition-all"
           >
@@ -563,6 +575,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
             <button 
               onClick={() => {
                 triggerVibration(10);
+                if (generatedCollageUrl) URL.revokeObjectURL(generatedCollageUrl); // 💎 Очистка памяти!
                 setGeneratedCollageUrl(null);
                 if (window.history.state?.collagePreview) window.history.back();
               }}
@@ -580,6 +593,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               onDragEnd={(e, info) => {
                 if (info.offset.y > 100) {
                   triggerVibration(10);
+                  if (generatedCollageUrl) URL.revokeObjectURL(generatedCollageUrl); // 💎 Очистка памяти!
                   setGeneratedCollageUrl(null);
                   if (window.history.state?.collagePreview) window.history.back();
                 }

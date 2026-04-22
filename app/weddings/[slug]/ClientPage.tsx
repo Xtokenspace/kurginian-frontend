@@ -732,14 +732,20 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
       const img = document.createElement("img");
       const objectUrl = URL.createObjectURL(file);
       img.src = objectUrl;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-      });
-
-      // 3. Ищем лицо
-      const detections = faceDetectorRef.current.detect(img);
-      URL.revokeObjectURL(objectUrl); // Очищаем память
+      
+      let detections;
+      try {
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = reject;
+        });
+        // 3. Ищем лицо
+        detections = faceDetectorRef.current.detect(img);
+      } finally {
+        // 💎 ZERO-OOM FIX: Гарантированная очистка Blob URI 
+        // Спасает оперативную память даже если Promise отклонен или MediaPipe упал
+        URL.revokeObjectURL(objectUrl);
+      }
 
       // Если лицо не найдено фронтендом — отдаем оригинал (Пусть мощный бэкенд перепроверит)
       if (detections.detections.length === 0) return file; 

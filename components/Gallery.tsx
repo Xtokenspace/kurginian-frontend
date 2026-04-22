@@ -1782,19 +1782,19 @@ export default function Gallery({
                 />
               </motion.div>
 
-              {/* 🔥 ТИХАЯ ПРЕДЗАГРУЗКА СОСЕДНИХ ФОТО 🔥 */}
-              <div className="hidden">
-                <Image 
-                  src={filteredPhotos[(selectedIndex + 1) % filteredPhotos.length].urls.web} 
-                  alt="preload next" 
-                  width={1} height={1} priority 
-                />
-                <Image 
-                  src={filteredPhotos[(selectedIndex - 1 + filteredPhotos.length) % filteredPhotos.length].urls.web} 
-                  alt="preload prev" 
-                  width={1} height={1} priority 
-                />
-              </div>
+              {/* 💎 ПРЕМИАЛЬНАЯ ПРЕДЗАГРУЗКА: Используем нативный DOM Image для нулевого влияния на React Tree и предотвращения утечек памяти */}
+              <img 
+                src={filteredPhotos[(selectedIndex + 1) % filteredPhotos.length].urls.web} 
+                className="hidden" 
+                aria-hidden="true" 
+                alt="" 
+              />
+              <img 
+                src={filteredPhotos[(selectedIndex - 1 + filteredPhotos.length) % filteredPhotos.length].urls.web} 
+                className="hidden" 
+                aria-hidden="true" 
+                alt="" 
+              />
 
               {/* Стрелки по бокам (Только для ПК) */}
               <button onClick={(e) => { e.stopPropagation(); goToPrev(); }} className="hidden md:block absolute left-8 p-4 text-white/30 hover:text-lux-gold transition-all select-none z-[105]">
