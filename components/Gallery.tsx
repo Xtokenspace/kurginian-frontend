@@ -420,6 +420,7 @@ export default function Gallery({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showCollageCreator, setShowCollageCreator] = useState(false); // <-- СТЕЙТ КОЛЛАЖА
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null); // <-- СТЕЙТ ПРЕВЬЮ КОЛЛАЖА
+  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape">("portrait"); // <-- СТЕЙТ ФОРМЫ ХОЛСТА
 
   const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
@@ -2237,7 +2238,7 @@ export default function Gallery({
 
       {/* === МАГИЧЕСКАЯ ПАЛОЧКА (Floating Magic Wand Edge Tab) === */}
       <AnimatePresence>
-        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 4 && !showCollageCreator && !generatedCollageUrl && (
+        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 6 && !showCollageCreator && !generatedCollageUrl && (
           <motion.button
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
@@ -2268,13 +2269,19 @@ export default function Gallery({
           <CollageCreator 
             slug={slug}
             selectedPhotos={Array.from(selectedPhotos)}
+            // 💎 АБСОЛЮТНАЯ ИСТИНА: Передаем физические пропорции в обход базы данных
+            trueAspectRatios={Array.from(selectedPhotos).reduce<Record<string, number>>((acc, fname) => {
+              const p = photos.find(x => x.filename === fname);
+              if (p && p.height > 0) acc[fname] = p.width / p.height;
+              return acc;
+            }, {})}
             onClose={() => {
               // Гарантированное мгновенное закрытие UI
               setShowCollageCreator(false);
               // Очистка истории браузера на фоне
               if (window.history.state?.collage) window.history.back();
             }}
-            onSuccess={(url) => {
+            onSuccess={(url, aspect) => {
               // Мгновенное закрытие конструктора
               setShowCollageCreator(false);
               if (window.history.state?.collage) window.history.back();
@@ -2285,6 +2292,7 @@ export default function Gallery({
               setTimeout(() => {
                 window.history.pushState({ collagePreview: true }, "");
                 setGeneratedCollageUrl(url);
+                setGeneratedCollageAspect(aspect || "portrait"); // <-- Запоминаем форму!
               }, 100);
             }}
           />
@@ -2332,7 +2340,11 @@ export default function Gallery({
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              className="relative w-full max-w-[360px] min-h-[450px] shrink-0 aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
+              className={`relative w-full shrink-0 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                generatedCollageAspect === "landscape"
+                  ? "max-w-[420px] md:max-w-[500px] min-h-[336px] md:min-h-[400px] aspect-[5/4]"
+                  : "max-w-[360px] min-h-[450px] aspect-[4/5]"
+              }`}
             >
               <Image 
                 src={generatedCollageUrl} 

@@ -20,6 +20,7 @@ interface BlueprintItem {
 interface PreviewData {
   blueprint: BlueprintItem[];
   bg_color: number[];
+  canvas_aspect?: "portrait" | "landscape"; // <-- Ловим форму холста
 }
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
@@ -109,8 +110,9 @@ function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item:
 interface CollageCreatorProps {
   slug: string;
   selectedPhotos: string[];
+  trueAspectRatios?: Record<string, number>; // <-- 💎 ЗАЩИТА АРХИТЕКТУРЫ
   onClose: () => void;
-  onSuccess: (url: string) => void;
+  onSuccess: (url: string, aspect?: "portrait" | "landscape") => void;
 }
 
 const STYLES = [
@@ -119,7 +121,7 @@ const STYLES = [
   { id: 3, name: "Cinematic" }
 ];
 
-export default function CollageCreator({ slug, selectedPhotos, onClose, onSuccess }: CollageCreatorProps) {
+export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios, onClose, onSuccess }: CollageCreatorProps) {
   const dragControls = useDragControls(); // <-- Контроллер для изолированной зоны свайпа
   const [isClosing, setIsClosing] = useState(false); // <-- Защита от двойных кликов
   const abortRef = useRef(false); // <-- Защита от всплывающего превью, если гость отменил генерацию
@@ -175,7 +177,7 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
           const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filenames: selectedPhotos, style_id: style.id, is_preview: true }),
+            body: JSON.stringify({ filenames: selectedPhotos, style_id: style.id, is_preview: true, aspect_ratios: trueAspectRatios }),
           });
           if (response.ok) {
             const data = await response.json();
@@ -225,8 +227,8 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Отправляем кастомные смещения на сервер для идеального HD рендера!
-        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets }),
+        // Отправляем кастомные смещения и ИСТИННЫЕ пропорции на сервер!
+        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets, aspect_ratios: trueAspectRatios }),
       });
 
       if (!response.ok) {
@@ -241,7 +243,9 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
           navigator.vibrate([50, 100, 50]); // Успех
         }
-        onSuccess(data.url);
+        // Передаем ориентацию текущего стиля наверх для красивой отрисовки
+        const currentAspect = previews[selectedStyle]?.canvas_aspect || "portrait";
+        onSuccess(data.url, currentAspect);
       } else {
         throw new Error('Invalid response from server');
       }
@@ -330,13 +334,20 @@ export default function CollageCreator({ slug, selectedPhotos, onClose, onSucces
         </div>
 
         {/* Левая колонка: ПРЕВЬЮ ЗОНА (Холст) */}
-        <div className="flex justify-center w-full shrink-0">
+        {/* Обертка с min-h защищает верстку от схлопывания во время анимации */}
+        <div className="flex justify-center items-center w-full min-h-[350px] md:min-h-[450px] shrink-0 px-2 md:px-0">
           <div 
-            className="relative w-full max-w-[240px] md:max-w-[340px] min-h-[300px] md:min-h-[425px] aspect-[4/5] shrink-0 md:mb-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none"
+            className="relative shrink-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ 
               backgroundColor: previews[selectedStyle]?.bg_color 
                 ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
-                : '#111' 
+                : '#111',
+              // 💎 ЖЕЛЕЗОБЕТОННАЯ МАТЕМАТИКА CSS (Обход багов Tailwind JIT):
+              width: '100%',
+              maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '480px' : '340px',
+              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5',
+              // Гарантийная защита от схлопывания (Fallback Height):
+              minHeight: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '380px'
             }}
           >
           <AnimatePresence mode="wait">
