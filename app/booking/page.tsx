@@ -1,8 +1,10 @@
-import BookingClient from './BookingClient';
+import nextDynamic from 'next/dynamic';
 
-// THE REAPER / ZERO-OOM CLOUDFLARE HACK:
-// Принудительно отключаем генерацию Edge Worker для этого роута.
-// Страница соберется как статический HTML, что мгновенно освободит ~1.4 MiB веса приложения.
+// 1. Полностью отсекаем серверный рендеринг (SSR) для хука useSearchParams
+const BookingClient = nextDynamic(() => import('./BookingClient'), { ssr: false });
+
+// 2. ЖЕСТКОЕ ПЕРЕОПРЕДЕЛЕНИЕ: Сбрасываем глобальный edge runtime из layout.tsx
+export const runtime = 'nodejs';
 export const dynamic = 'force-static';
 
 export default function BookingPage() {
