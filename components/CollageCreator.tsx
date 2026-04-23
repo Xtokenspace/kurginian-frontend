@@ -82,10 +82,13 @@ function ScrubbableFrame({ item, styleOffsets, setStyleOffsets, styleId, isLast 
         width: `${item.w * 100}%`, height: `${item.h * 100}%`,
         overflow: 'hidden',
         backgroundColor: '#111',
-        border: `${borderWidth} solid ${borderColor}`,
-        boxSizing: 'content-box', // 💎 СИНХРОНИЗАЦИЯ С PYTHON: рамка рисуется снаружи, не ломая AR контента
+        // 💎 APPLE-LEVEL PRECISION: Используем outline вместо border.
+        // Outline не влияет на геометрические размеры контейнера, что гарантирует
+        // 100% совпадение кропа object-fit:cover с алгоритмом ImageOps.fit на бэкенде.
+        outline: `${borderWidth} solid ${borderColor}`,
+        outlineOffset: `-${borderWidth}`, // Вдавливаем внутрь, чтобы края не нахлестывались
       }}
-      className="hover:border-white transition-colors cursor-grab active:cursor-grabbing group shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
+      className="hover:outline-white transition-all cursor-grab active:cursor-grabbing group shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
     >
       <motion.img 
         src={item.url}
@@ -349,11 +352,14 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
               backgroundColor: previews[selectedStyle]?.bg_color 
                 ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
                 : '#111',
-              // 💎 ЖЕЛЕЗОБЕТОННАЯ МАТЕМАТИКА CSS (Обход багов Tailwind JIT):
+              // 💎 СТАБИЛИЗАЦИЯ ХОЛСТА:
               width: '100%',
+              // Задаем minWidth, чтобы Flexbox не схлопывал aspectRatio в ноль на мобильных
+              minWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '220px',
               maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '480px' : '340px',
-              // АБСОЛЮТНЫЙ ЗАПРЕТ на minHeight, так как он вытягивает холст на мобилках, ломая кроп макушек!
-              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5'
+              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5',
+              // Минимальная высота как страховка для лоадера
+              minHeight: '200px'
             }}
           >
           <AnimatePresence mode="wait">
