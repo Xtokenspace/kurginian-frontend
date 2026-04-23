@@ -83,6 +83,7 @@ function ScrubbableFrame({ item, styleOffsets, setStyleOffsets, styleId, isLast 
         overflow: 'hidden',
         backgroundColor: '#111',
         border: `${borderWidth} solid ${borderColor}`,
+        boxSizing: 'content-box', // 💎 СИНХРОНИЗАЦИЯ С PYTHON: рамка рисуется снаружи, не ломая AR контента
       }}
       className="hover:border-white transition-colors cursor-grab active:cursor-grabbing group shadow-[0_5px_15px_rgba(0,0,0,0.5)]"
     >
@@ -351,9 +352,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
               // 💎 ЖЕЛЕЗОБЕТОННАЯ МАТЕМАТИКА CSS (Обход багов Tailwind JIT):
               width: '100%',
               maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '480px' : '340px',
-              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5',
-              // Гарантийная защита от схлопывания (Fallback Height):
-              minHeight: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '380px'
+              // АБСОЛЮТНЫЙ ЗАПРЕТ на minHeight, так как он вытягивает холст на мобилках, ломая кроп макушек!
+              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5'
             }}
           >
           <AnimatePresence mode="wait">
