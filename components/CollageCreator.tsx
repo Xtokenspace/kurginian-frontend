@@ -24,13 +24,14 @@ interface PreviewData {
 }
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
-function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item: BlueprintItem, offsets: any, setOffsets: any, styleId: number, isLast: boolean }) {
+function ScrubbableFrame({ item, styleOffsets, setStyleOffsets, styleId, isLast }: { item: BlueprintItem, styleOffsets: Record<number, Record<string, {x: number, y: number}>>, setStyleOffsets: any, styleId: number, isLast: boolean }) {
   const { language } = useAppContext();
   const dragHint = language === 'ru' ? 'Двигать' : language === 'fr' ? 'Glisser' : 'Drag';
 
-  // Текущая позиция: кастомная или дефолтная от ИИ
-  const currentX = offsets[item.filename]?.x ?? item.focus_x;
-  const currentY = offsets[item.filename]?.y ?? item.focus_y;
+  // Текущая позиция: изолированная кастомная для текущего стиля или дефолтная от ИИ
+  const currentOffsets = styleOffsets[styleId] || {};
+  const currentX = currentOffsets[item.filename]?.x ?? item.focus_x;
+  const currentY = currentOffsets[item.filename]?.y ?? item.focus_y;
   
   // ПРЕМИУМ-ОПТИМИЗАЦИЯ: Локальный стейт для 60FPS без рендера всего модального окна
   const [localPos, setLocalPos] = useState({ x: currentX, y: currentY });
@@ -58,10 +59,13 @@ function ScrubbableFrame({ item, offsets, setOffsets, styleId, isLast }: { item:
   };
 
   const handlePanEnd = () => {
-    // Отправляем финальные координаты в глобальный стейт ТОЛЬКО когда палец отпущен
-    setOffsets((prev: any) => ({
+    // Изолируем сохранение координат строго в рамках текущего styleId
+    setStyleOffsets((prev: any) => ({
       ...prev,
-      [item.filename]: localPos
+      [styleId]: {
+        ...(prev[styleId] || {}),
+        [item.filename]: localPos
+      }
     }));
   };
 
@@ -128,7 +132,9 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
 
   const [selectedStyle, setSelectedStyle] = useState<number>(1);
   const [previews, setPreviews] = useState<Record<number, PreviewData>>({});
-  const [offsets, setOffsets] = useState<Record<string, {x: number, y: number}>>({}); // <-- Храним кастомный кроп
+  // 💎 ПРЕМИУМ-ИЗОЛЯЦИЯ: Храним кроп отдельно для каждой сетки стиля (id),
+  // чтобы свайп в Noire не сломал пропорции в Fine Art.
+  const [styleOffsets, setStyleOffsets] = useState<Record<number, Record<string, {x: number, y: number}>>>({});
   const [isLoadingPreviews, setIsLoadingPreviews] = useState(true);
   const [isGeneratingFinal, setIsGeneratingFinal] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -227,8 +233,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Отправляем кастомные смещения и ИСТИННЫЕ пропорции на сервер!
-        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets, aspect_ratios: trueAspectRatios }),
+        // Отправляем кастомные смещения строго для выбранного стиля и ИСТИННЫЕ пропорции!
+        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets: styleOffsets[selectedStyle] || {}, aspect_ratios: trueAspectRatios }),
       });
 
       if (!response.ok) {
@@ -375,8 +381,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
                       <ScrubbableFrame 
                         key={item.filename} 
                         item={item} 
-                        offsets={offsets} 
-                        setOffsets={setOffsets}
+                        styleOffsets={styleOffsets} 
+                        setStyleOffsets={setStyleOffsets}
                         styleId={selectedStyle}
                         isLast={idx === previews[selectedStyle].blueprint!.length - 1}
                       />
