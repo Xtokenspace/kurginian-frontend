@@ -1,8 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/context/AppContext';
 
 const translations = {
@@ -63,7 +62,6 @@ const forfaits = ['1', '2', '3', '4', '5', '6'];
 
 function BookingContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { language } = useAppContext();
   const t = translations[language];
 
@@ -75,6 +73,7 @@ function BookingContent() {
 
   const [selectedForfait, setSelectedForfait] = useState<string>('decide_later');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false); // Для CSS-анимаций
 
   // === HAPTIC FEEDBACK ===
   const triggerVibration = (pattern: number | number[]) => {
@@ -84,9 +83,12 @@ function BookingContent() {
   };
 
   useEffect(() => {
+    // Запускаем CSS анимацию появления сразу после монтирования компонента
+    const timer = setTimeout(() => setIsMounted(true), 100);
     if (isSuccess) {
-      triggerVibration([100, 50, 100, 50, 200]); // Haptic Heartbeat успеха
+      triggerVibration([100, 50, 100, 50, 200]);
     }
+    return () => clearTimeout(timer);
   }, [isSuccess]);
 
   const handleCheckout = async () => {
@@ -126,13 +128,13 @@ function BookingContent() {
     window.open(`https://wa.me/33743300000?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  // ЭКРАН УСПЕХА
   if (isSuccess) {
     return (
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="flex flex-col items-center justify-center text-center p-6 min-h-[60vh]"
+      <div 
+        className={`flex flex-col items-center justify-center text-center p-6 min-h-[60vh] transition-all duration-1000 transform ${
+          isMounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        }`}
       >
         <div className="w-20 h-20 bg-lux-gold/10 rounded-full flex items-center justify-center mb-8 shadow-gold-glow">
           <svg className="w-10 h-10 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -150,27 +152,24 @@ function BookingContent() {
           </svg>
           {t.whatsappBtn}
         </button>
-      </motion.div>
+      </div>
     );
   }
 
+  // ОСНОВНАЯ ФОРМА БРОНИРОВАНИЯ
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8 }}
-      className="w-full max-w-md mx-auto px-6 py-12"
+    <div 
+      className={`w-full max-w-md mx-auto px-6 py-12 transition-all duration-1000 transform ${
+        isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}
     >
-      {/* ЛОГОТИП С АНИМАЦИЕЙ ЛЕВИТАЦИИ */}
+      {/* ЛОГОТИП (Анимация переведена на чистый CSS Tailwind) */}
       <div className="flex justify-center mb-10 mt-6">
-        <motion.img
+        <img
           src="/logo.png"
           alt="Kurginian Logo"
-          animate={{ y: [0, -8, 0], opacity: [0.9, 1, 0.9] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          className="w-32 h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)]"
+          className="w-32 h-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.3)] animate-[pulse_4s_ease-in-out_infinite]"
           onError={(e) => {
-             // Fallback если логотипа нет: текстовый вариант
              e.currentTarget.style.display = 'none';
              document.getElementById('fallback-logo')!.style.display = 'block';
           }}
@@ -198,7 +197,7 @@ function BookingContent() {
         </div>
       </div>
 
-      {/* ВЫБОР ТАРИФА (SEGMENTED PICKER) */}
+      {/* ВЫБОР ТАРИФА */}
       <div className="mb-10">
         <h3 className="text-[10px] text-gray-500 uppercase tracking-[0.2em] text-center mb-4">{t.forfaitLabel}</h3>
         <div className="grid grid-cols-3 gap-3 mb-4">
@@ -250,15 +249,15 @@ function BookingContent() {
         </svg>
         <span className="text-[10px] uppercase tracking-widest">Secured by Stripe</span>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
+// === КОРНЕВОЙ КОМПОНЕНТ СТРАНИЦЫ ===
 export default function BookingPage() {
   const { language, setLanguage } = useAppContext();
   const [showLangMenu, setShowLangMenu] = useState(false);
 
-  // === HAPTIC FEEDBACK ===
   const triggerVibration = (pattern: number | number[]) => {
     if (typeof window !== 'undefined' && navigator.vibrate) {
       try { navigator.vibrate(pattern); } catch (e) {}
@@ -268,7 +267,7 @@ export default function BookingPage() {
   return (
     <main className="min-h-screen relative bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-lux-gold/5 via-lux-bg to-lux-bg flex flex-col items-center justify-center py-10">
       
-      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ (Глобальный для страницы) */}
+      {/* ПЕРЕКЛЮЧАТЕЛЬ ЯЗЫКОВ */}
       <div className="absolute top-6 right-6 z-50">
         <button
           onClick={() => { triggerVibration(10); setShowLangMenu(!showLangMenu); }}
@@ -280,32 +279,25 @@ export default function BookingPage() {
           </svg>
         </button>
 
-        <AnimatePresence>
-          {showLangMenu && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -5 }}
-              className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] overflow-hidden"
-            >
-              {(['fr', 'en', 'ru'] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => {
-                    triggerVibration(10);
-                    setLanguage(lang);
-                    setShowLangMenu(false);
-                  }}
-                  className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
-                    language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  {lang}
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {showLangMenu && (
+          <div className="absolute top-9 right-0 bg-[#0a0a0a]/95 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl flex flex-col min-w-[70px] overflow-hidden animate-fade-in">
+            {(['fr', 'en', 'ru'] as const).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => {
+                  triggerVibration(10);
+                  setLanguage(lang);
+                  setShowLangMenu(false);
+                }}
+                className={`px-3 py-2 text-center text-[10px] tracking-widest uppercase rounded-xl transition-all ${
+                  language === lang ? 'bg-lux-gold text-black font-bold' : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 w-full flex flex-col items-center justify-center">
