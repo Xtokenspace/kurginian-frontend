@@ -141,14 +141,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
       if (showPaymentModal && !(e.state && e.state.overlay === 'payment')) {
         setShowPaymentModal(false);
       }
-      // 💎 ИСПРАВЛЕНИЕ: Закрываем премиум-уведомление системной кнопкой "Назад"
-      if (showSuccessPayment && !(e.state && e.state.overlay === 'success')) {
-        setShowSuccessPayment(false);
-      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [showMenu, showPaymentModal, showSuccessPayment]);
+  }, [showMenu, showPaymentModal]);
 
   const closeModalSafe = (closeFn: () => void) => {
     closeFn();
@@ -168,16 +164,10 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('success')) {
+        setShowSuccessPayment(true); // <-- ВЫЗЫВАЕМ ПРЕМИУМ-МОДАЛКУ ВМЕСТО ALERT
         window.history.replaceState({}, '', window.location.pathname);
-        // 💎 ИСПРАВЛЕНИЕ: Интеграция в History API для перехвата "Назад"
-        window.history.pushState({ overlay: 'success' }, "");
-        setShowSuccessPayment(true);
-        
-        // Авто-закрытие через 6 секунд с умным откатом истории
-        setTimeout(() => {
-          setShowSuccessPayment(false);
-          if (window.history.state?.overlay === 'success') window.history.back();
-        }, 6000);
+        // Автоматически закроем ее через 5 секунд для красоты
+        setTimeout(() => setShowSuccessPayment(false), 5000);
       }
     }
 
@@ -699,7 +689,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-            onClick={() => closeModalSafe(() => setShowSuccessPayment(false))}
+            onClick={() => setShowSuccessPayment(false)}
           >
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
@@ -723,7 +713,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
               </p>
               
               <button
-                onClick={() => closeModalSafe(() => setShowSuccessPayment(false))}
+                onClick={() => setShowSuccessPayment(false)}
                 className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.2em] font-bold text-xs rounded-sm hover:bg-white transition-colors shadow-lg active:scale-95"
               >
                 ОК

@@ -86,27 +86,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     
     scanSessions();
     
-    // 💎 PREMIUM SYNC: Синхронизация всех состояний (Сессии, Корзина, Язык) между вкладками
-    const handleStorageChange = (e: StorageEvent) => {
-      // 1. Синхронизация корзины
-      if (e.key === 'kurginian_print_cart_v2') {
-        try {
-          const newCart = e.newValue ? JSON.parse(e.newValue) : {};
-          setCart(newCart);
-        } catch (err) { console.error("Sync Cart Error", err); }
-      }
-      // 2. Синхронизация языка
-      if (e.key === 'kurginian_global_lang' && e.newValue) {
-        setLanguageState(e.newValue as Language);
-      }
-      // 3. Синхронизация сессий (если изменились ключи доступов)
-      if (!e.key || e.key.startsWith('vip_code_') || e.key.startsWith('photos_') || e.key.startsWith('expires_')) {
-        scanSessions();
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Слушаем изменения в localStorage из других вкладок
+    window.addEventListener('storage', scanSessions);
+    return () => window.removeEventListener('storage', scanSessions);
   }, []);
 
   const scanSessions = async () => {
@@ -141,13 +123,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let finalCover = localStorage.getItem(`cover_${slug}`) || '';
         let finalFocus = localStorage.getItem(`focus_${slug}`) || '50% 50%';
 
-        // 💎 NETWORK OPTIMIZATION: Запрашиваем мету только если её нет в памяти И в локальном кэше текущей сессии
-        // Это предотвращает "шторм" запросов при ререндерах или синхронизации вкладок
+        // Если данных нет — запрашиваем один раз
         if (!finalTitle || !finalCover) {
           try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-            // Используем кэш браузера для GET запроса меты
-            const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`, { cache: 'force-cache' });
+            const res = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
             if (res.ok) {
               const json = await res.json();
               
@@ -265,14 +245,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           projectCart[index].price = PRINT_PRICES[newSize];
           projectCart[index].id = `${projectCart[index].filename}_${newSize}`;
           
-          // 💎 CLEAN MERGE: Если после смены размера такой товар уже есть — объединяем и чистим
           const duplicateIndex = projectCart.findIndex((item, i) => item.id === projectCart[index].id && i !== index);
           if (duplicateIndex >= 0) {
-            projectCart[duplicateIndex] = {
-              ...projectCart[duplicateIndex],
-              quantity: projectCart[duplicateIndex].quantity + projectCart[index].quantity
-            };
-            projectCart = projectCart.filter((_, i) => i !== index);
+            projectCart[duplicateIndex].quantity += projectCart[index].quantity;
+            projectCart.splice(index, 1);
           }
         }
       }
