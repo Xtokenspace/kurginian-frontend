@@ -307,7 +307,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
         }
       }}
       // 💎 МАГИЯ: Адаптивное центрирование для ПК (Pro Studio Layout) без конфликтов с Framer Motion
-      className="fixed bottom-12 left-4 right-4 md:inset-0 md:m-auto md:w-full md:max-w-[760px] md:h-fit z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_0_80px_rgba(0,0,0,0.9)] touch-none"
+      // Увеличиваем max-w до 1040px для роскошного журнального вида на десктопе
+      className="fixed bottom-12 left-4 right-4 md:inset-0 md:m-auto md:w-full md:max-w-[1040px] md:h-fit z-[120] bg-[#0a0a0a]/95 backdrop-blur-xl border border-lux-gold/40 rounded-3xl p-6 pt-2 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.8)] md:shadow-[0_0_80px_rgba(0,0,0,0.9)] touch-none"
     >
       {/* --- ЗОНА СВАЙПА (DRAG HANDLE) --- */}
       <div 
@@ -331,7 +332,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
       </button>
 
       {/* === ДВОЙНОЙ ИНТЕРФЕЙС (Mobile Flex / Desktop Grid) === */}
-      <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-4 md:gap-12 relative z-10 w-full items-center">
+      {/* Отдаем превью больше пространства: 1.3fr (Превью) против 1fr (Контролы) */}
+      <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4 md:gap-16 relative z-10 w-full items-center">
         
         {/* Мобильная шапка (Скрывается на ПК) */}
         <div className="md:hidden flex flex-col items-center text-center w-full mb-1">
@@ -345,18 +347,18 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
 
         {/* Левая колонка: ПРЕВЬЮ ЗОНА (Холст) */}
         {/* Обертка с min-h защищает верстку от схлопывания во время анимации */}
-        <div className="flex justify-center items-center w-full min-h-[350px] md:min-h-[450px] shrink-0 px-2 md:px-0">
+        <div className="flex justify-center items-center w-full min-h-[350px] md:min-h-[600px] shrink-0 px-2 md:px-0">
           <div 
-            className="relative shrink-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_40px_rgba(212,175,55,0.15)] touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            className="relative shrink-0 rounded-xl overflow-hidden border border-lux-gold/30 shadow-[0_0_60px_rgba(212,175,55,0.2)] touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]"
             style={{ 
               backgroundColor: previews[selectedStyle]?.bg_color 
                 ? `rgba(${previews[selectedStyle].bg_color[0]}, ${previews[selectedStyle].bg_color[1]}, ${previews[selectedStyle].bg_color[2]}, ${previews[selectedStyle].bg_color[3] / 255})` 
                 : '#111',
-              // 💎 СТАБИЛИЗАЦИЯ ХОЛСТА:
+              // 💎 СТАБИЛИЗАЦИЯ ХОЛСТА (PREMIUM SIZE):
               width: '100%',
-              // Задаем minWidth, чтобы Flexbox не схлопывал aspectRatio в ноль на мобильных
+              // Даем холсту дышать на десктопе, увеличивая лимиты
               minWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '220px',
-              maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '480px' : '340px',
+              maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '640px' : '480px',
               aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5',
               // Минимальная высота как страховка для лоадера
               minHeight: '200px'
@@ -401,11 +403,11 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
                       } to-transparent pointer-events-none z-10`} 
                     />
                     
-                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-5 z-20">
-                      <h4 className={`font-cinzel text-xl tracking-widest leading-none ${selectedStyle === 2 ? 'text-[#141414]' : 'text-[#FAFAFA]'}`}>
+                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-5 md:pb-8 z-20">
+                      <h4 className={`font-cinzel text-xl md:text-3xl tracking-widest leading-none ${selectedStyle === 2 ? 'text-[#141414]' : 'text-[#FAFAFA]'}`}>
                         KURGINIAN
                       </h4>
-                      <p className={`text-[7px] uppercase tracking-[0.2em] mt-1 ${selectedStyle === 2 ? 'text-gray-500' : 'text-lux-gold'}`}>
+                      <p className={`text-[7px] md:text-[9px] uppercase tracking-[0.2em] mt-1.5 ${selectedStyle === 2 ? 'text-gray-500' : 'text-lux-gold'}`}>
                         Édition Limitée
                       </p>
                     </div>
