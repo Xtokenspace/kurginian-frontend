@@ -31,10 +31,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const data = metaResponse?.data;
   
   const title = data?.title ? `${data.title} | KURGINIAN` : 'KURGINIAN Premium Gallery';
-  const subtitle = data?.subtitle || 'Votre galerie de mariage privée';
+  const subtitle = data?.subtitle || 'Votre galerie de mariage privée';
   
   // Умный выбор обложки для SEO: сначала ищем в новом массиве, затем в старом
-  const coverImage = data?.covers_data?.[0]?.url || data?.covers?.[0] || '/apple-touch-icon.png';
+  const coverImage = data?.covers_data?.[0]?.url || data?.covers?.[0] || '/apple-touch-icon.png';
+
+  // Если есть клип, делаем превью для видео (OpenGraph Video)
+  const ogVideo = data?.cinema_clip_url ? {
+    url: data.cinema_clip_url,
+    type: 'video/mp4',
+    width: 1920,
+    height: 1080,
+  } : undefined;
 
   return {
     title: title,
@@ -43,7 +51,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title: title,
       description: subtitle,
       images: [coverImage],
-    }
+      ...(ogVideo && { videos: [ogVideo] }),
+    },
   };
 }
 
