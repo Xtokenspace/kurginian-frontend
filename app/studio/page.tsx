@@ -38,6 +38,13 @@ export default function StudioAdminPage() {
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true); // <-- ЗАЩИТА ОТ МОРГАНИЯ
 
+  // === СТЕЙТЫ PREMIUM CINEMA ===
+  const [cinemaClipUrl, setCinemaClipUrl] = useState('');
+  const [cinemaPosterUrl, setCinemaPosterUrl] = useState('');
+  const [cinemaSecretWord, setCinemaSecretWord] = useState('');
+  const [cinemaYandexUrl, setCinemaYandexUrl] = useState('');
+  const [cinemaFiles, setCinemaFiles] = useState('');
+
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
     const handlePopState = () => {
@@ -149,6 +156,12 @@ export default function StudioAdminPage() {
             if (metaJson.status === 'success') {
               setEventTitle(metaJson.data.title || '');
               setEventSubtitle(metaJson.data.subtitle || '');
+              
+              setCinemaClipUrl(metaJson.data.cinema_clip_url || '');
+              setCinemaPosterUrl(metaJson.data.cinema_poster_url || '');
+              setCinemaSecretWord(metaJson.data.cinema_secret_word || '');
+              setCinemaYandexUrl(metaJson.data.cinema_yandex_url || '');
+              setCinemaFiles(metaJson.data.cinema_files || '');
               
               // Находим оригинальные имена файлов для 3-х обложек (с декодированием URL)
               const cUrls = metaJson.data.covers || [];
@@ -293,7 +306,12 @@ export default function StudioAdminPage() {
           password: pwd,
           title: eventTitle,
           subtitle: eventSubtitle,
-          covers: selectedCovers
+          covers: selectedCovers,
+          cinema_clip_url: cinemaClipUrl,
+          cinema_poster_url: cinemaPosterUrl,
+          cinema_secret_word: cinemaSecretWord,
+          cinema_yandex_url: cinemaYandexUrl,
+          cinema_files: cinemaFiles
         }),
       });
       if (res.ok) {
@@ -507,6 +525,58 @@ export default function StudioAdminPage() {
                       placeholder="6 Décembre 2026 • Paris, France" 
                       className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-cormorant italic text-lg tracking-wide" 
                     />
+                  </div>
+                </div>
+
+                {/* === НАСТРОЙКИ PREMIUM CINEMA === */}
+                <div className="mt-8 pt-8 border-t border-white/10">
+                  <h4 className="font-cinzel text-lg text-lux-gold tracking-widest uppercase mb-4 flex items-center gap-3">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75 0V5.625m0 12.75v-1.5c0-.621.504-1.125 1.125-1.125m18.375 2.625V5.625m0 12.75c0 .621-.504 1.125-1.125 1.125m1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125m0 3.75h-1.5A1.125 1.125 0 0118 18.375M20.625 4.5H3.375m17.25 0c.621 0 1.125.504 1.125 1.125M20.625 4.5h-1.5C18.504 4.5 18 5.004 18 5.625m3.75 0v1.5c0 .621-.504 1.125-1.125 1.125M3.375 4.5c-.621 0-1.125.504-1.125 1.125M3.375 4.5h1.5C5.496 4.5 6 5.004 6 5.625m-3.75 0v1.5c0 .621.504 1.125 1.125 1.125m0 0h1.5m-1.5 0c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125m1.5-3.75C5.496 8.25 6 7.746 6 7.125v-1.5M4.875 8.25C5.496 8.25 6 8.754 6 9.375v1.5m0-5.25v5.25m0-5.25C6 5.004 6.504 4.5 7.125 4.5h9.75c.621 0 1.125.504 1.125 1.125m1.125 2.625h1.5m-1.5 0A1.125 1.125 0 0118 7.125v-1.5m1.5 2.625c-.621 0-1.125.504-1.125 1.125v1.5m2.625-4.5c.621 0 1.125.504 1.125 1.125v1.5c0 .621-.504 1.125-1.125 1.125M18 5.625v5.25m0-5.25C18 5.004 18.504 4.5 19.125 4.5H20.625" />
+                    </svg>
+                    Premium Cinema (Landing kurginian.pro)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Ссылка на видео (Clip .mp4)</label>
+                      <input 
+                        type="text" value={cinemaClipUrl} onChange={(e) => setCinemaClipUrl(e.target.value)} 
+                        placeholder="./clip.mp4 или https://..." 
+                        className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Ссылка на постер (Poster .jpg)</label>
+                      <input 
+                        type="text" value={cinemaPosterUrl} onChange={(e) => setCinemaPosterUrl(e.target.value)} 
+                        placeholder="./poster.jpg или https://..." 
+                        className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Ссылка на Яндекс.Диск (Фильм)</label>
+                      <input 
+                        type="text" value={cinemaYandexUrl} onChange={(e) => setCinemaYandexUrl(e.target.value)} 
+                        placeholder="https://disk.yandex.ru/d/..." 
+                        className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Секретное слово доступа</label>
+                      <input 
+                        type="text" value={cinemaSecretWord} onChange={(e) => setCinemaSecretWord(e.target.value)} 
+                        placeholder="Например: premium" 
+                        className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-lux-gold outline-none font-mono text-xs tracking-widest transition-colors uppercase" 
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Файлы фильма на Яндексе (через запятую)</label>
+                      <input 
+                        type="text" value={cinemaFiles} onChange={(e) => setCinemaFiles(e.target.value)} 
+                        placeholder="1_L&A_(Clip).mp4, 2_L&A_(Film).mp4" 
+                        className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
