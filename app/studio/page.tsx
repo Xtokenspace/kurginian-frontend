@@ -38,11 +38,6 @@ export default function StudioAdminPage() {
   const [isSavingMeta, setIsSavingMeta] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true); // <-- ЗАЩИТА ОТ МОРГАНИЯ
 
-  // === СТЕЙТЫ КИНОЗАЛА ===
-  const [cinemaClipUrl, setCinemaClipUrl] = useState('');
-  const [cinemaYandexUrl, setCinemaYandexUrl] = useState('');
-  const [cinemaFiles, setCinemaFiles] = useState('');
-
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
     const handlePopState = () => {
@@ -146,7 +141,7 @@ export default function StudioAdminPage() {
         // Подхватываем пароль
         setVipPassword(data.vip_password || "Скрыт (Старый формат)");
 
-        // ЗАГРУЖАЕМ ТЕКУЩИЕ ДАННЫЕ ВЕЕРА И КИНОЗАЛА
+        // ЗАГРУЖАЕМ ТЕКУЩИЕ ДАННЫЕ ВЕЕРА
         try {
           const metaRes = await fetch(`${apiUrl}/api/weddings/${slug}/meta`);
           if (metaRes.ok) {
@@ -154,11 +149,6 @@ export default function StudioAdminPage() {
             if (metaJson.status === 'success') {
               setEventTitle(metaJson.data.title || '');
               setEventSubtitle(metaJson.data.subtitle || '');
-              
-              // Загружаем данные Кинозала
-              setCinemaClipUrl(metaJson.data.cinema_clip_url || '');
-              setCinemaYandexUrl(metaJson.data.cinema_yandex_public_url || '');
-              setCinemaFiles(metaJson.data.cinema_files ? metaJson.data.cinema_files.join(', ') : '');
               
               // Находим оригинальные имена файлов для 3-х обложек (с декодированием URL)
               const cUrls = metaJson.data.covers || [];
@@ -303,10 +293,7 @@ export default function StudioAdminPage() {
           password: pwd,
           title: eventTitle,
           subtitle: eventSubtitle,
-          covers: selectedCovers,
-          cinema_clip_url: cinemaClipUrl,
-          cinema_yandex_public_url: cinemaYandexUrl,
-          cinema_files: cinemaFiles.split(',').map(f => f.trim()).filter(f => f) // Чистим пробелы и пустые строки
+          covers: selectedCovers
         }),
       });
       if (res.ok) {
@@ -520,46 +507,6 @@ export default function StudioAdminPage() {
                       placeholder="6 Décembre 2026 • Paris, France" 
                       className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-cormorant italic text-lg tracking-wide" 
                     />
-                  </div>
-
-                  {/* === НАСТРОЙКИ КИНОЗАЛА === */}
-                  <div className="md:col-span-2 border-t border-white/5 pt-6 mt-2">
-                    <h4 className="font-cinzel text-sm text-lux-gold tracking-widest uppercase mb-4">Настройки Кинозала</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Ссылка на Клип (R2 MP4)</label>
-                        <input 
-                          type="text" 
-                          value={cinemaClipUrl} 
-                          onChange={(e) => setCinemaClipUrl(e.target.value)} 
-                          placeholder="https://cdn.kurginian.pro/..." 
-                          className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-mono text-xs" 
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Публичная ссылка на папку Яндекс.Диск</label>
-                        <input 
-                          type="text" 
-                          value={cinemaYandexUrl} 
-                          onChange={(e) => setCinemaYandexUrl(e.target.value)} 
-                          placeholder="https://disk.yandex.ru/d/..." 
-                          className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-mono text-xs" 
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-2">Точные названия файлов исходников (через запятую)</label>
-                        <input 
-                          type="text" 
-                          value={cinemaFiles} 
-                          onChange={(e) => setCinemaFiles(e.target.value)} 
-                          placeholder="Свадебный_Фильм_Часть1.mp4, Свадебный_Фильм_Часть2.mp4" 
-                          className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-3 text-white outline-none transition-colors font-mono text-xs" 
-                        />
-                        <p className="text-[9px] text-gray-600 mt-2 uppercase tracking-widest">
-                          Важно: Эти имена должны точь-в-точь совпадать с именами файлов внутри папки Яндекса
-                        </p>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

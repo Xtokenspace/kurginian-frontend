@@ -29,12 +29,9 @@ export interface WeddingMeta {
   title: string;
   subtitle: string;
   covers: string[];
-  covers_data?: { url: string; focus_x: number; focus_y: number }[];
+  covers_data?: { url: string; focus_x: number; focus_y: number }[]; // <-- ДОБАВЛЕНО (ИИ Фокус)
   is_expired?: boolean;
   days_left?: number;
-  cinema_clip_url?: string;
-  cinema_yandex_public_url?: string;
-  cinema_files?: string[];
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -92,14 +89,7 @@ const translations = {
     backToPlans: "Retour aux tarifs",
     bankDetails: "Coordonnées bancaires :",
     paymentInstruction: "Veuillez effectuer le virement. Ensuite, cliquez sur le bouton ci-dessous pour envoyer le reçu sur WhatsApp afin d'activer.",
-    sendReceipt: "Envoyer le reçu sur WhatsApp",
-    // === НОВЫЕ КЛЮЧИ ДЛЯ ВИДЕО ===
-    cinemaTitle: "Salle de Cinéma Premium",
-    watchClip: "Voir le clip de mariage",
-    downloadMaster: "Télécharger le film en 4K",
-    shareCinema: "Partager la salle de cinéma",
-    loadingVideo: "Préparation de la vidéo...",
-    findPhotosBtn: "Passer aux photos"
+    sendReceipt: "Envoyer le reçu sur WhatsApp"
   },
 
   en: {
@@ -155,14 +145,7 @@ const translations = {
     backToPlans: "Back to plans",
     bankDetails: "Bank details:",
     paymentInstruction: "Please make the transfer. Then click the button below to send the receipt via WhatsApp for activation.",
-    sendReceipt: "Send receipt via WhatsApp",
-    // === НОВЫЕ КЛЮЧИ ДЛЯ ВИДЕО ===
-    cinemaTitle: "Premium Cinema",
-    watchClip: "Watch wedding clip",
-    downloadMaster: "Download 4K film",
-    shareCinema: "Share cinema",
-    loadingVideo: "Preparing video...",
-    findPhotosBtn: "Go to photos"
+    sendReceipt: "Send receipt via WhatsApp"
   },
 
   ru: {
@@ -218,14 +201,7 @@ const translations = {
     backToPlans: "Назад к тарифам",
     bankDetails: "Банковские реквизиты:",
     paymentInstruction: "Пожалуйста, совершите перевод. Затем нажмите кнопку ниже, чтобы отправить квитанцию в WhatsApp для активации.",
-    sendReceipt: "Отправить чек в WhatsApp",
-    // === НОВЫЕ КЛЮЧИ ДЛЯ ВИДЕО ===
-    cinemaTitle: "Премиальный Кинозал",
-    watchClip: "Смотреть свадебный клип",
-    downloadMaster: "Скачать фильм в 4K",
-    shareCinema: "Поделиться кинозалом",
-    loadingVideo: "Подготовка видео...",
-    findPhotosBtn: "Перейти к фотографиям"
+    sendReceipt: "Отправить чек в WhatsApp"
   }
 } as const;
 
@@ -313,36 +289,7 @@ function PhotoFan({ coversData }: { coversData: { url: string; focus_x: number; 
 export default function ClientPage({ slug, initialMeta }: { slug: string, initialMeta: WeddingMeta | null }) {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [isGalleryOverlayActive, setIsGalleryOverlayActive] = useState(false); // Для скрытия кнопок поверх Lightbox и шторок
-  const [isDownloadingVideo, setIsDownloadingVideo] = useState<string | null>(null); // <-- НОВОЕ: Стейт загрузки фильма
   const router = useRouter();
-
-  // === ФУНКЦИЯ: ZERO-YANDEX DOWNLOAD ===
-  const handleYandexDownload = async (filename: string) => {
-    if (!metaInfo?.cinema_yandex_public_url) return;
-    setIsDownloadingVideo(filename);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${apiUrl}/api/cinema/yandex-download`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_key: metaInfo.cinema_yandex_public_url,
-          filename: filename
-        })
-      });
-      const data = await res.json();
-      if (data.status === 'success' && data.download_url) {
-        window.location.href = data.download_url; // Начинаем прямую загрузку
-      } else {
-        alert(language === 'ru' ? "Ошибка получения ссылки" : "Error getting download link");
-      }
-    } catch (e) {
-      console.error("Ошибка скачивания:", e);
-      alert(language === 'ru' ? "Сетевая ошибка" : "Network error");
-    } finally {
-      setIsDownloadingVideo(null);
-    }
-  };
 
   // ЕСЛИ СЕРВЕР СКАЗАЛ, ЧТО ПРОЕКТ МЕРТВ - МГНОВЕННО БЛОКИРУЕМ (Никаких камер и экранов приветствия)
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'network_error' | 'verify' | 'expired'>(
@@ -1040,41 +987,22 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                 Kurginian
               </span>
               <span className="font-cinzel text-[9px] md:text-[10px] text-lux-gold/50 tracking-[0.4em] uppercase pl-[0.4em]">
-                {metaInfo?.cinema_clip_url ? (t as any).cinemaTitle || "Premium Cinema" : "Premium Collection"}
+                Premium Collection
               </span>
             </div>
 
-            {/* ПРЕМИАЛЬНЫЙ КИНОТЕАТР (Если есть клип) ИЛИ ВЕЕР ФОТОГРАФИЙ */}
-            {metaInfo?.cinema_clip_url ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="w-full max-w-2xl aspect-video bg-black/40 rounded-sm overflow-hidden border border-lux-gold/20 shadow-[0_15px_35px_rgba(0,0,0,0.6)] mb-8 group relative z-10"
-              >
-                <video 
-                  src={metaInfo.cinema_clip_url}
-                  controls
-                  playsInline
-                  controlsList="nodownload"
-                  poster={metaInfo.covers_data?.[0]?.url || metaInfo.covers?.[0]}
-                  className="w-full h-full object-cover"
-                  preload="metadata"
-                />
-              </motion.div>
-            ) : (
-              <PhotoFan coversData={
-                metaInfo?.covers_data?.length ? metaInfo.covers_data : 
-                (metaInfo?.covers?.length ? metaInfo.covers.map(url => ({ url, focus_x: 0.5, focus_y: 0.5 })) : [
-                  { url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
-                  { url: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
-                  { url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 }
-                ])
-              } />
-            )}
+            {/* ВЕЕР ФОТОГРАФИЙ (ИИ Фокус: Берем из API, если нет - фоллбэк на дефолт) */}
+            <PhotoFan coversData={
+              metaInfo?.covers_data?.length ? metaInfo.covers_data : 
+              (metaInfo?.covers?.length ? metaInfo.covers.map(url => ({ url, focus_x: 0.5, focus_y: 0.5 })) : [
+                { url: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
+                { url: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 },
+                { url: "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop", focus_x: 0.5, focus_y: 0.5 }
+              ])
+            } />
 
             {/* ИДЕНТИФИКАЦИЯ МЕРОПРИЯТИЯ (Динамические данные из базы) */}
-            <div className={`relative ${metaInfo?.cinema_clip_url ? 'mt-4 mb-6' : 'mt-8 mb-6'}`}>
+            <div className="mt-8 mb-6 relative">
               <h1 className="font-cinzel text-4xl md:text-5xl text-lux-gold tracking-widest drop-shadow-lg">
                 {metaInfo?.title || "Kurginian Premium"}
               </h1>
@@ -1088,54 +1016,22 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               {t.subtitle}
             </p>
 
-            {/* КНОПКА ПЕРЕХОДА К ФОТОГРАФИЯМ */}
+            {/* КНОПКА (Исправлено залипание и конфликт Z-index) */}
             <button
               onClick={(e) => {
                 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                // Снимаем фокус с кнопки, чтобы сбросить состояние :active
                 e.currentTarget.blur();
+                // Даем 50мс на отыгрыш анимации "отжатия" перед открытием шторки
                 setTimeout(() => {
-                  window.history.pushState({ overlay: 'camera_flow' }, ""); 
+                  window.history.pushState({ overlay: 'camera_flow' }, ""); // <-- ПУШ
                   setShowChoiceModal(true);
                 }, 50);
               }}
               className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-10"
             >
-              {metaInfo?.cinema_clip_url ? (t as any).findPhotosBtn || t.findPhotos : t.findPhotos}
+              {t.findPhotos}
             </button>
-
-            {/* === VIP-ЗОНА: СКАЧИВАНИЕ ИСХОДНИКОВ (Zero-Yandex Proxy) === */}
-            {typeof window !== 'undefined' && localStorage.getItem(`vip_code_${slug}`) && metaInfo?.cinema_files && metaInfo.cinema_files.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="mt-8 w-full max-w-sm space-y-3 relative z-10"
-              >
-                <div className="flex items-center gap-4 mb-4 opacity-50 justify-center">
-                  <div className="h-px bg-lux-gold/50 flex-1" />
-                  <span className="font-cinzel text-[9px] uppercase tracking-widest text-lux-gold">Master Files (4K)</span>
-                  <div className="h-px bg-lux-gold/50 flex-1" />
-                </div>
-                
-                {metaInfo.cinema_files.map((file, idx) => (
-                  <button
-                    key={idx}
-                    disabled={isDownloadingVideo === file}
-                    onClick={() => handleYandexDownload(file)}
-                    className="w-full py-4 bg-[#111]/80 backdrop-blur-sm border border-lux-gold/30 rounded-sm text-[10px] md:text-xs text-lux-gold uppercase tracking-widest hover:bg-lux-gold hover:text-black transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                  >
-                    {isDownloadingVideo === file ? (
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                      </svg>
-                    )}
-                    {(t as any).downloadMaster || "Download"} (Part {idx + 1})
-                  </button>
-                ))}
-              </motion.div>
-            )}
           </motion.div>
         )}
 
