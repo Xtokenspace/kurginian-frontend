@@ -546,10 +546,10 @@ export default function StudioAdminPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Ссылка на постер (Poster .jpg)</label>
+                      <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Ссылка на постер (По умолчанию: ./cover.jpg)</label>
                       <input 
                         type="text" value={cinemaPosterUrl} onChange={(e) => setCinemaPosterUrl(e.target.value)} 
-                        placeholder="./poster.jpg или https://..." 
+                        placeholder="./cover.jpg (подхватится автоматически)" 
                         className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
                       />
                     </div>
