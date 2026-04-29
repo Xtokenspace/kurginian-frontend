@@ -32,6 +32,7 @@ export interface WeddingMeta {
   covers_data?: { url: string; focus_x: number; focus_y: number }[]; // <-- ДОБАВЛЕНО (ИИ Фокус)
   is_expired?: boolean;
   days_left?: number;
+  cinema_clip_url?: string; // <-- ДОБАВЛЕНО ДЛЯ КИНОЗАЛА
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -1379,6 +1380,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               expiresAt={expiresAt} 
               currentLanguage={language} 
               setIsLightboxOpen={setIsGalleryOverlayActive} 
+              cinemaClipUrl={metaInfo?.cinema_clip_url}
             />
 
             {/* ПРЕМИУМ БЛОК КОНВЕРСИИ */}

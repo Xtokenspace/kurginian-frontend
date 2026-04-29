@@ -35,6 +35,7 @@ interface GalleryProps {
   isVip?: boolean;
   currentLanguage?: 'fr' | 'en' | 'ru';
   guestClusters?: Record<string, GuestCluster>;
+  cinemaClipUrl?: string; // <-- ПРОПС КИНОЗАЛА
 
   // === УМНОЕ УПРАВЛЕНИЕ LIGHTBOX И ФИЛЬТРОМ ИЗ АДМИНКИ ===
   isLightboxOpen?: boolean;
@@ -75,7 +76,13 @@ const translations = {
     checkout: "Passer à la caisse",
     emptyCart: "Votre panier est vide",
     total: "Total :",
-    size: "Format"
+    size: "Format",
+    // --- НОВЫЕ ТЕКСТЫ ДЛЯ ZIP АРХИВА ---
+    zipSuccessTitle: "Archive Téléchargée",
+    zipSuccessDesc: "Toutes les photos sont regroupées dans un seul fichier. Retrouvez-le dans l'application « Fichiers » (Téléchargements) de votre téléphone. Touchez-le pour l'extraire.",
+    zipSuccessBtn: "Compris",
+    // --- Кинозал ---
+    cinemaBtn: "Cinéma Premium"
   },
   en: {
     download: "Download", share: "Share", saveAll: "Save my photos", copied: "Link copied!", shareText: "Look at this beautiful photo on KURGINIAN Premium Gallery ✨",
@@ -107,7 +114,12 @@ const translations = {
     checkout: "Checkout securely",
     emptyCart: "Your cart is empty",
     total: "Total:",
-    size: "Size"
+    size: "Size",
+    zipSuccessTitle: "Archive Downloaded",
+    zipSuccessDesc: "All photos are packed into a single file. Find it in your 'Files' app (Downloads) on your phone. Tap it to unzip.",
+    zipSuccessBtn: "Got it",
+    // --- Кинозал ---
+    cinemaBtn: "Premium Cinema"
   },
   ru: {
     download: "Скачать", share: "Поделиться", saveAll: "Сохранить мои фото", copied: "Ссылка скопирована!", shareText: "Посмотрите на это великолепное фото в KURGINIAN Premium Gallery ✨",
@@ -139,7 +151,12 @@ const translations = {
     checkout: "Оплатить заказ",
     emptyCart: "Ваша корзина пуста",
     total: "Итого:",
-    size: "Формат"
+    size: "Формат",
+    zipSuccessTitle: "Архив Загружен",
+    zipSuccessDesc: "Все фотографии упакованы в один файл для экономии памяти. Вы найдете его в приложении «Файлы» (Загрузки) на вашем телефоне. Нажмите на него, чтобы распаковать.",
+    zipSuccessBtn: "Понятно",
+    // --- Кинозал ---
+    cinemaBtn: "Премиум Кинозал"
   }
 } as const;
 
@@ -374,6 +391,7 @@ export default function Gallery({
   isVip = false, 
   currentLanguage, 
   guestClusters,
+  cinemaClipUrl, // <-- ДОБАВЛЕНО
   // Новые пропсы из админки (контролируемые)
   isLightboxOpen = false,
   setIsLightboxOpen,
@@ -556,6 +574,7 @@ export default function Gallery({
   const [preferredSize, setPreferredSize] = useState<PrintSize | null>(null);
   const [customCartMsg, setCustomCartMsg] = useState<string | null>(null);
   const [showPrintSuccess, setShowPrintSuccess] = useState<string | null>(null); // <-- ПРЕМИУМ УВЕДОМЛЕНИЕ О ПЕЧАТИ
+  const [showZipSuccess, setShowZipSuccess] = useState(false); // <-- ПРЕМИУМ УВЕДОМЛЕНИЕ ОБ АРХИВЕ
 
   useEffect(() => {
     // При загрузке галереи проверяем, выбирал ли гость размер ранее
@@ -795,6 +814,9 @@ export default function Gallery({
         setIsSaving(false);
         setSaveProgress(0);
         if (wakeLockRef.current) { wakeLockRef.current.release(); wakeLockRef.current = null; }
+        
+        // === APPLE UX: ПРЕМИУМ-ПОДСКАЗКА ОБ АРХИВЕ (Вызываем через секунду после старта скачивания) ===
+        setTimeout(() => setShowZipSuccess(true), 800);
       }, 500);
 
     } catch (err) {
@@ -955,70 +977,72 @@ export default function Gallery({
       {/* СЕТКА ФОТОГРАФИЙ */}
       <Suspense fallback={<div className="min-h-screen bg-lux-bg" />}>
         
-        {/* === ПРЕМИУМ ACTION HUB (Ultra-Wide Console) === */}
-        <div className="flex flex-col items-center mb-12 px-4">
+        {/* === PREMIUM ACTION HUB (Apple Pro Level) === */}
+        <div className="flex flex-col items-center mb-12 px-4 w-full">
           {!selectedGuestId && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }} 
               animate={{ opacity: 1, y: 0 }}
-              className="w-full max-w-xl flex flex-col gap-4"
+              className="w-full max-w-lg flex flex-col gap-3"
             >
-              {/* Ряд 1: Главный Hero-Action (Широкая кнопка скачивания) */}
-              <button
-                onClick={() => handleSaveAll(photos)}
-                disabled={isSaving}
-                className={`w-full py-5 md:py-6 font-black uppercase tracking-[0.25em] text-[10px] md:text-xs rounded-[1.5rem] flex items-center justify-center transition-all duration-700 relative overflow-hidden group ${
-                  isSaving 
-                    ? 'bg-[#0a0a0a] text-lux-gold border border-lux-gold/20' 
-                    : 'bg-lux-gold text-black shadow-[0_20px_60px_rgba(212,175,55,0.15)] hover:shadow-[0_25px_80px_rgba(212,175,55,0.35)] hover:scale-[1.01] active:scale-[0.98]'
-                }`}
-              >
-                {isSaving && (
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${saveProgress}%` }}
-                    className="absolute left-0 top-0 bottom-0 bg-white/30 z-0"
-                  />
-                )}
-                <div className="relative z-10 flex items-center gap-4">
-                  {isSaving ? (
-                    <div className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-6 h-6 group-hover:translate-y-1 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                  )}
-                  <span className="md:text-sm">
-                    {isSaving 
-                      ? `${language === 'ru' ? 'СОЗДАНИЕ АРХИВА' : language === 'fr' ? 'CRÉATION ZIP' : 'PREPARING ZIP'} ${saveProgress}%` 
-                      : t.saveAll}
-                  </span>
-                </div>
-              </button>
-
-              {/* Ряд 2: Вспомогательные интеллектуальные сервисы */}
-              <div className="flex gap-4 w-full">
-                {/* Кнопка AI FACE SCAN (Интеллектуальные гости) */}
-                {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
-                  <button
-                    onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
-                    className={`flex-1 flex items-center justify-center gap-3 py-5 rounded-[1.25rem] font-bold uppercase tracking-widest text-[9px] md:text-[11px] transition-all duration-500 border backdrop-blur-xl group ${
-                      showGuests 
-                        ? 'bg-lux-gold text-black border-transparent shadow-gold-glow' 
-                        : 'bg-white/5 text-lux-gold border-lux-gold/20 hover:bg-lux-gold hover:text-black hover:border-transparent'
-                    }`}
-                  >
-                    <div className="relative">
-                      <svg className="w-5 h-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+              {/* === 1. КИНОЗАЛ (Стиль Apple Cinematic) === */}
+              {cinemaClipUrl && (
+                <button
+                  onClick={() => {
+                    triggerVibration(20);
+                    // Умный Zero-Trust роутинг (Отрезаем gallery. если он есть)
+                    const baseUrl = window.location.origin.replace('gallery.', '');
+                    window.location.href = `${baseUrl}/weddings/${slug}`;
+                  }}
+                  className="w-full flex items-center justify-between p-1.5 pl-6 bg-gradient-to-r from-[#0a0a0a] to-[#111] border border-lux-gold/30 rounded-[1.25rem] group hover:border-lux-gold/80 hover:shadow-[0_0_30px_rgba(212,175,55,0.15)] transition-all duration-500 active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative flex items-center justify-center">
+                      <div className="absolute inset-0 bg-lux-gold rounded-full blur-md opacity-20 group-hover:opacity-60 animate-pulse transition-opacity duration-700" />
+                      <svg className="w-5 h-5 text-lux-gold relative z-10" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
-                    {t.guests}
-                  </button>
-                )}
+                    <span className="font-cinzel text-lux-gold font-bold uppercase tracking-[0.25em] text-[11px] md:text-xs">
+                      {t.cinemaBtn}
+                    </span>
+                  </div>
+                  <div className="bg-lux-gold/10 text-lux-gold rounded-xl p-3.5 group-hover:bg-lux-gold group-hover:text-black transition-colors duration-500">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </div>
+                </button>
+              )}
 
-                {/* Кнопка ПРЯМАЯ ПЕЧАТЬ (Apple Commerce) */}
+              {/* === 2. СКАЧАТЬ И ПЕЧАТЬ (Apple iOS Glassmorphism - 50/50 Split) === */}
+              <div className="grid grid-cols-2 gap-3 w-full">
+                <button
+                  onClick={() => handleSaveAll(photos)}
+                  disabled={isSaving}
+                  className={`flex flex-col items-center justify-center gap-2.5 py-5 md:py-6 rounded-[1.25rem] border backdrop-blur-md transition-all duration-300 active:scale-[0.97] relative overflow-hidden group ${
+                    isSaving 
+                      ? 'bg-[#0a0a0a] border-lux-gold/30 text-lux-gold shadow-[0_0_20px_rgba(212,175,55,0.1)]' 
+                      : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.06] hover:border-white/20 text-gray-300 hover:text-white'
+                  }`}
+                >
+                  {isSaving && (
+                    <div className="absolute left-0 top-0 bottom-0 bg-lux-gold/10 transition-all duration-300" style={{ width: `${saveProgress}%` }} />
+                  )}
+                  <div className="relative z-10 flex flex-col items-center gap-2.5">
+                    {isSaving ? (
+                      <div className="w-5 h-5 border-2 border-lux-gold/30 border-t-lux-gold rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5 opacity-60 group-hover:opacity-100 group-hover:-translate-y-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                    )}
+                    <span className="font-montserrat font-bold uppercase tracking-widest text-[9px] md:text-[10px]">
+                      {isSaving ? `${saveProgress}%` : t.saveAll}
+                    </span>
+                  </div>
+                </button>
+
                 <button
                   onClick={() => {
                     triggerVibration(10);
@@ -1030,19 +1054,37 @@ export default function Gallery({
                       window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                   }}
-                  className="flex-1 flex items-center justify-center gap-3 py-5 bg-white/5 backdrop-blur-xl border border-lux-gold/20 text-lux-gold rounded-[1.25rem] font-bold uppercase tracking-widest text-[9px] md:text-[11px] hover:bg-lux-gold hover:text-black transition-all duration-500 active:scale-95 relative group"
+                  className="flex flex-col items-center justify-center gap-2.5 py-5 md:py-6 bg-white/[0.03] border border-white/10 hover:bg-white/[0.06] hover:border-white/20 text-gray-300 hover:text-white backdrop-blur-md rounded-[1.25rem] transition-all duration-300 active:scale-[0.97] relative group"
                 >
-                  <svg className="w-5 h-5 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  {cart.length > 0 && (
+                    <span className="absolute top-4 right-4 w-2 h-2 bg-lux-gold rounded-full shadow-[0_0_8px_rgba(212,175,55,1)] animate-pulse" />
+                  )}
+                  <svg className="w-5 h-5 opacity-60 group-hover:opacity-100 group-hover:-translate-y-0.5 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                   </svg>
-                  {t.orderPrints}
-                  {cart.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-lux-gold text-black text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(212,175,55,0.6)] animate-pulse">
-                      {cart.length}
-                    </span>
-                  )}
+                  <span className="font-montserrat font-bold uppercase tracking-widest text-[9px] md:text-[10px]">
+                    {t.orderPrints}
+                  </span>
                 </button>
               </div>
+
+              {/* === 3. AI FACE SCAN (Элегантная утилитарная кнопка для VIP) === */}
+              {isVip && guestClusters && Object.keys(guestClusters).length > 0 && (
+                <button
+                  onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
+                  className={`w-full flex items-center justify-center gap-3 py-4 mt-1 rounded-xl font-bold uppercase tracking-widest text-[9px] md:text-[10px] transition-all duration-300 border group ${
+                    showGuests 
+                      ? 'bg-white/10 text-white border-white/30' 
+                      : 'bg-transparent text-gray-500 border-white/5 hover:bg-white/[0.03] hover:text-gray-300 hover:border-white/10'
+                  }`}
+                >
+                  <svg className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                  </svg>
+                  {t.guests}
+                </button>
+              )}
             </motion.div>
           )}
 
@@ -2415,6 +2457,49 @@ export default function Gallery({
             </svg>
             <span className="text-[10px] md:text-xs font-bold uppercase tracking-widest">{language === 'ru' ? 'Наверх' : language === 'fr' ? 'Haut' : 'Top'}</span>
           </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕМИУМ-ПОДСКАЗКА ДЛЯ ZIP-АРХИВОВ (Mobile UX) === */}
+      <AnimatePresence>
+        {showZipSuccess && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 touch-none"
+            onClick={() => setShowZipSuccess(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="max-w-sm w-full bg-[#0a0a0a] border border-lux-gold/50 p-8 rounded-2xl shadow-gold-glow text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Иконка коробки/архива */}
+              <div className="w-16 h-16 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                </svg>
+              </div>
+              
+              <h3 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest mb-3">
+                {t.zipSuccessTitle}
+              </h3>
+              
+              <p className="text-gray-400 text-sm font-montserrat leading-relaxed mb-8">
+                {t.zipSuccessDesc}
+              </p>
+              
+              <button
+                onClick={() => setShowZipSuccess(false)}
+                className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.2em] font-bold text-xs rounded-sm hover:bg-white transition-colors shadow-lg active:scale-95"
+              >
+                {t.zipSuccessBtn}
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
