@@ -627,14 +627,19 @@ export default function Gallery({
     triggerVibration(50);
     trackAction('download', filename); 
     try {
-      const fetchUrl = `${url}?download=${Date.now()}`;
-      const response = await fetch(fetchUrl, { mode: 'cors', cache: 'no-cache' });
-      const blob = await response.blob();
+      // Zero-Bloat подход: Нативное скачивание через Cloudflare Transform Rule
+      const downloadUrl = new URL(url);
+      downloadUrl.searchParams.append('download', 'true');
+
       const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
+      link.href = downloadUrl.toString();
+      link.target = '_top';
+      link.rel = 'noopener noreferrer';
       link.download = filename;
+
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(link.href);
+      document.body.removeChild(link);
 
       // --- УМНЫЙ ПОКАЗ ОКНА ОТЗЫВОВ (1 раз в сутки) ---
       setTimeout(() => {

@@ -302,6 +302,23 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
   const cart = getCartForSlug(slug);
   const t = translations[language];
 
+  // === СИНХРОНИЗАЦИЯ ЯЗЫКА С LANDING PAGE (CROSS-DOMAIN BRIDGE) ===
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const langParam = params.get('lang');
+      
+      if (langParam && ['fr', 'en', 'ru'].includes(langParam)) {
+        setLanguage(langParam as 'fr' | 'en' | 'ru');
+        
+        // Незаметно стираем параметр из URL, чтобы адрес оставался премиально чистым
+        const url = new URL(window.location.href);
+        url.searchParams.delete('lang');
+        window.history.replaceState({}, '', url.pathname + url.search);
+      }
+    }
+  }, [setLanguage]);
+
   // === ПРЕДЗАГРУЗКА ИИ (Pre-warming) ===
   // Тихо качаем весы нейросети, пока гость читает приветствие
   useEffect(() => {
