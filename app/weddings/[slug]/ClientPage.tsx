@@ -33,6 +33,7 @@ export interface WeddingMeta {
   is_expired?: boolean;
   days_left?: number;
   cinema_clip_url?: string; // <-- ДОБАВЛЕНО ДЛЯ КИНОЗАЛА
+  expires_at?: string; // <-- ПРЕМИУМ ФИКС: Для пробития кэша
 }
 
 // === ПЕРЕВОДЫ (С комплиментарным отказом, Оффлайном и Premium Copywriting) ===
@@ -624,7 +625,14 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
 
       // 3. Обычный флоу: ищем собственные фото гостя в памяти устройства
       const saved = localStorage.getItem(`photos_${slug}`);
-      const savedExpiry = localStorage.getItem(`expires_${slug}`);
+      
+      // === ПРЕМИУМ ФИКС: УМНАЯ СИНХРОНИЗАЦИЯ ДАТЫ (Zero-State Loss) ===
+      // Если сервер прислал новую дату в initialMeta, тихо перезаписываем кэш телефона
+      let savedExpiry = localStorage.getItem(`expires_${slug}`);
+      if (initialMeta?.expires_at && initialMeta.expires_at !== savedExpiry) {
+        savedExpiry = initialMeta.expires_at;
+        localStorage.setItem(`expires_${slug}`, savedExpiry);
+      }
       if (savedExpiry) setExpiresAt(savedExpiry);
 
       if (saved) {
