@@ -116,6 +116,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [guestClusters, setGuestClusters] = useState<any>(null);
+  const [cinemaClipUrl, setCinemaClipUrl] = useState<string | undefined>(undefined); // <-- ДОБАВЛЕНО ДЛЯ КИНОЗАЛА
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [processingPlan, setProcessingPlan] = useState<number | null>(null); // Хранит месяцы тарифа, который сейчас грузится
   const [showSuccessPayment, setShowSuccessPayment] = useState(false); // <-- ДЛЯ ПРЕМИУМ УВЕДОМЛЕНИЯ
@@ -207,6 +208,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           setPhotos(sortedPhotos);
           setExpiresAt(data.expires_at);
           setGuestClusters(data.guest_clusters);
+          if (data.cinema_clip_url) setCinemaClipUrl(data.cinema_clip_url); // <-- ДОБАВЛЕНО ДЛЯ КИНОЗАЛА
 
           // === 🛡 ФИКС GHOST LOCK: СИНХРОНИЗАЦИЯ LOCALSTORAGE ===
           // Обновляем дату в памяти после Stripe Webhook, чтобы сборщик мусора не удалил проект!
@@ -450,7 +452,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
         */}
 
         {/* Галерея */}
-        <Gallery 
+        <Gallery 
           key={`gallery-${selectedGuestId || 'all'}`}
           photos={photos} 
           slug={slug} 
@@ -458,6 +460,7 @@ const [stats, setStats] = useState({ scans: 0, downloads: 0, shares: 0, save_all
           isVip={true} 
           currentLanguage={language} 
           guestClusters={guestClusters}
+          cinemaClipUrl={cinemaClipUrl}
           
           // === Передаём управление Lightbox и фильтром по гостю ===
           isLightboxOpen={isLightboxOpen}
