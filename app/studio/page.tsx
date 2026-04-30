@@ -44,6 +44,7 @@ export default function StudioAdminPage() {
   const [cinemaSecretWord, setCinemaSecretWord] = useState('');
   const [cinemaYandexUrl, setCinemaYandexUrl] = useState('');
   const [cinemaFiles, setCinemaFiles] = useState('');
+  const [cinemaPremiereAt, setCinemaPremiereAt] = useState('');
 
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
@@ -162,6 +163,7 @@ export default function StudioAdminPage() {
               setCinemaSecretWord(metaJson.data.cinema_secret_word || '');
               setCinemaYandexUrl(metaJson.data.cinema_yandex_url || '');
               setCinemaFiles(metaJson.data.cinema_files || '');
+              setCinemaPremiereAt(metaJson.data.cinema_premiere_at || '');
               
               // Находим оригинальные имена файлов для 3-х обложек (с декодированием URL)
               const cUrls = metaJson.data.covers || [];
@@ -311,7 +313,8 @@ export default function StudioAdminPage() {
           cinema_poster_url: cinemaPosterUrl,
           cinema_secret_word: cinemaSecretWord,
           cinema_yandex_url: cinemaYandexUrl,
-          cinema_files: cinemaFiles
+          cinema_files: cinemaFiles,
+          cinema_premiere_at: cinemaPremiereAt // Отправляем на бэкенд
         }),
       });
       if (res.ok) {
@@ -569,12 +572,19 @@ export default function StudioAdminPage() {
                         className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-lux-gold outline-none font-mono text-xs tracking-widest transition-colors uppercase" 
                       />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-1">
                       <label className="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">Файлы фильма на Яндексе (через запятую)</label>
                       <input 
                         type="text" value={cinemaFiles} onChange={(e) => setCinemaFiles(e.target.value)} 
                         placeholder="1_L&A_(Clip).mp4, 2_L&A_(Film).mp4" 
                         className="w-full bg-[#0a0a0a] border border-white/10 focus:border-lux-gold p-2.5 text-white outline-none font-mono text-xs transition-colors" 
+                      />
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-[10px] text-lux-gold uppercase tracking-widest mb-1 font-bold">Дата и время ПРЕМЬЕРЫ (Оставить пустым для доступа)</label>
+                      <input 
+                        type="datetime-local" value={cinemaPremiereAt} onChange={(e) => setCinemaPremiereAt(e.target.value)} 
+                        className="w-full bg-[#0a0a0a] border border-lux-gold/30 focus:border-lux-gold p-2 text-lux-gold outline-none font-mono text-xs transition-colors" 
                       />
                     </div>
                   </div>
