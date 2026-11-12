@@ -21,6 +21,8 @@ interface PreviewData {
   blueprint: BlueprintItem[];
   bg_color: number[];
   canvas_aspect?: "portrait" | "landscape"; // <-- Ловим форму холста
+  event_title?: string;
+  event_subtitle?: string;
 }
 
 // --- ИНТЕРАКТИВНЫЙ ФРЕЙМ (Скраббер) ---
@@ -403,12 +405,12 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
                       } to-transparent pointer-events-none z-10`} 
                     />
                     
-                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-5 md:pb-8 z-20">
-                      <h4 className={`font-cinzel text-xl md:text-3xl tracking-widest leading-none ${selectedStyle === 2 ? 'text-[#141414]' : 'text-[#FAFAFA]'}`}>
-                        KURGINIAN
+                    <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-5 md:pb-8 px-4 text-center z-20">
+                      <h4 className={`font-cinzel text-lg md:text-2xl tracking-widest leading-none truncate max-w-full ${selectedStyle === 2 ? 'text-[#141414]' : 'text-[#FAFAFA]'}`}>
+                        {previews[selectedStyle]?.event_title || "KURGINIAN"}
                       </h4>
-                      <p className={`text-[7px] md:text-[9px] uppercase tracking-[0.2em] mt-1.5 ${selectedStyle === 2 ? 'text-gray-500' : 'text-lux-gold'}`}>
-                        Édition Limitée
+                      <p className={`text-[7px] md:text-[9px] uppercase tracking-[0.2em] mt-1.5 truncate max-w-full ${selectedStyle === 2 ? 'text-gray-500' : 'text-lux-gold'}`}>
+                        {previews[selectedStyle]?.event_subtitle || "ÉDITION LIMITÉE"}
                       </p>
                     </div>
 

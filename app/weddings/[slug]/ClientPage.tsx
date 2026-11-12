@@ -358,15 +358,17 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
     // Стейты для модуля продления (Upsell) — ОДИН КЛИК (STRIPE)
   const [showPayment, setShowPayment] = useState(false);
   const [processingPlan, setProcessingPlan] = useState<number | null>(null);
+  const [showSuccessPayment, setShowSuccessPayment] = useState(false);
 
   const handleStripeCheckout = async (plan: { months: number; price: number; label: string }) => {
     setProcessingPlan(plan.months);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}` : undefined;
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/create-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ months: plan.months, price: plan.price, language }), 
+        body: JSON.stringify({ months: plan.months, price: plan.price, language, return_url: returnUrl }), 
       });
       
       if (!response.ok) throw new Error('Network error');
@@ -617,8 +619,17 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         }
       }
 
-      // 2. ПРИОРИТЕТНАЯ ПРОВЕРКА: Если сервер говорит, что проект expired — сразу показываем экран блокировки
-      if (initialMeta?.is_expired) {
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const isJustPaid = params?.get('success') === 'true';
+
+      if (isJustPaid && typeof window !== 'undefined') {
+        setShowSuccessPayment(true);
+        window.history.replaceState({}, '', window.location.pathname);
+        setTimeout(() => setShowSuccessPayment(false), 5000);
+      }
+
+      // 2. ПРИОРИТЕТНАЯ ПРОВЕРКА: Если сервер говорит, что проект expired (и он не был только что оплачен) — показываем экран блокировки
+      if (initialMeta?.is_expired && !isJustPaid) {
         setStatus('expired');
         return;
       }
@@ -641,10 +652,46 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
           if (parsed.length > 0) {
             setPhotos(parsed);
             setStatus('success');
+            if (params?.get('autoScan') === 'true' && typeof window !== 'undefined') {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+            return;
           }
         } catch (e) {
           localStorage.removeItem(`photos_${slug}`);
         }
+      }
+
+      // 4. Переход со страницы одного фото: ?openCart=true (если гость еще не сканировал лицо)
+      if (params?.get('openCart') === 'true' && typeof window !== 'undefined') {
+        try {
+          const rawCart = localStorage.getItem('kurginian_print_cart_v2');
+          const parsedCart = rawCart ? JSON.parse(rawCart)[slug] : [];
+          if (parsedCart && parsedCart.length > 0) {
+            const cartFiles = Array.from(new Set(parsedCart.map((i: any) => i.filename))).join(',');
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+            const res = await fetch(`${apiUrl}/api/weddings/${slug}/shared-selection?p=${cartFiles}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.status === 'success') {
+                setPhotos(data.data);
+                if (data.expires_at) setExpiresAt(data.expires_at);
+                setStatus('success');
+                return;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      // 5. Переход со страницы одного фото: ?autoScan=true (открываем шторку селфи сразу)
+      if (params?.get('autoScan') === 'true' && typeof window !== 'undefined') {
+        localStorage.setItem(`vip_prompt_shown_${slug}`, 'true');
+        window.history.replaceState({}, '', window.location.pathname);
+        setTimeout(() => {
+          window.history.pushState({ overlay: 'camera_flow' }, "");
+          setShowChoiceModal(true);
+        }, 300);
       }
     };
 
@@ -865,6 +912,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         const sortedPhotos = data.data.sort((a: MatchedPhoto, b: MatchedPhoto) => 
           a.filename.localeCompare(b.filename)
         );
+        setExpiresAt(data.expires_at || null);
 
         // Если это 3-я попытка (порог 0.3), мы не пускаем сразу, а просим подтвердить
         if (attemptCount >= 3) {
@@ -1164,6 +1212,7 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   setPhotos(pendingPhotos);
                   setStatus('success');
                   localStorage.setItem(`photos_${slug}`, JSON.stringify(pendingPhotos));
+                  if (expiresAt) localStorage.setItem(`expires_${slug}`, expiresAt);
                   if (metaInfo?.title) localStorage.setItem(`title_${slug}`, metaInfo.title);
                   refreshSessions(); // <-- ОБНОВЛЯЕМ ДАШБОРД
                 }}
@@ -1916,6 +1965,48 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
                   {t.submit}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* === ПРЕМИУМ-УВЕДОМЛЕНИЕ ОБ УСПЕШНОЙ ОПЛАТЕ === */}
+      <AnimatePresence>
+        {showSuccessPayment && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+            onClick={() => setShowSuccessPayment(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="max-w-sm w-full bg-[#0a0a0a] border border-lux-gold/50 p-8 rounded-2xl shadow-gold-glow text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 rounded-full bg-lux-gold/10 border border-lux-gold/30 flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8 text-lux-gold" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+              
+              <h3 className="font-cinzel text-xl md:text-2xl text-lux-gold uppercase tracking-widest mb-3">
+                {language === 'ru' ? 'Оплата успешна' : language === 'fr' ? 'Paiement réussi' : 'Payment Successful'}
+              </h3>
+              
+              <p className="text-gray-400 text-sm font-montserrat leading-relaxed mb-8">
+                {language === 'ru' ? 'Доступ к вашей галерее был успешно продлен.' : language === 'fr' ? "L'accès à votre galerie a été prolongé avec succès." : 'Access to your gallery has been successfully extended.'}
+              </p>
+              
+              <button
+                onClick={() => setShowSuccessPayment(false)}
+                className="w-full py-4 bg-lux-gold text-black uppercase tracking-[0.2em] font-bold text-xs rounded-sm hover:bg-white transition-colors shadow-lg active:scale-95"
+              >
+                ОК
+              </button>
             </motion.div>
           </motion.div>
         )}

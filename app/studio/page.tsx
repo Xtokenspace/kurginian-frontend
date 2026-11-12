@@ -46,6 +46,12 @@ export default function StudioAdminPage() {
   const [cinemaFiles, setCinemaFiles] = useState('');
   const [cinemaPremiereAt, setCinemaPremiereAt] = useState('');
 
+  // === СТЕЙТЫ УПРАВЛЕНИЯ ЗАКАЗАМИ (PRINT & USB BOX) ===
+  const [activeTab, setActiveTab] = useState<'projects' | 'orders'>('projects');
+  const [ordersData, setOrdersData] = useState<{ print_orders: any[]; usb_orders: any[] }>({ print_orders: [], usb_orders: [] });
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [generatingZipId, setGeneratingZipId] = useState<string | null>(null);
+
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
     const handlePopState = () => {
@@ -92,6 +98,7 @@ export default function StudioAdminPage() {
         setStats(data.data);
         setIsAuthenticated(true);
         sessionStorage.setItem('super_admin_pwd', pwd);
+        fetchOrdersData(pwd);
       } else {
         setError('Неверный мастер-пароль');
         sessionStorage.removeItem('super_admin_pwd');
@@ -101,6 +108,90 @@ export default function StudioAdminPage() {
     } finally {
       setIsLoading(false);
       setIsCheckingSession(false); // Выключаем спиннер первоначальной загрузки
+    }
+  };
+
+  const fetchOrdersData = async (pwd: string) => {
+    setIsLoadingOrders(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === 'success') {
+          setOrdersData(json.data);
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки заказов:", e);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const handleDownloadPrintZip = async (weddingSlug: string, orderId: string) => {
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    if (!pwd || generatingZipId) return;
+    setGeneratingZipId(orderId);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/orders/print-zip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd, wedding_slug: weddingSlug, order_id: orderId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          const link = document.createElement('a');
+          link.href = data.url;
+          link.download = `PRINT_${orderId}.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        alert("Ошибка при сборке архива для печати.");
+      }
+    } catch (e) {
+      alert("Ошибка сети при сборке архива.");
+    } finally {
+      setGeneratingZipId(null);
+    }
+  };
+
+  const handleToggleOrderStatus = async (orderType: 'print' | 'usb_box', orderId: string, weddingSlug: string = '') => {
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    if (!pwd) return;
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/orders/toggle-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd, order_type: orderType, order_id: orderId, wedding_slug: weddingSlug }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrdersData(prev => {
+          if (orderType === 'print') {
+            return {
+              ...prev,
+              print_orders: prev.print_orders.map(o => o.order_id === orderId ? { ...o, shipped: data.shipped } : o)
+            };
+          } else {
+            return {
+              ...prev,
+              usb_orders: prev.usb_orders.map(o => o.session_id === orderId ? { ...o, shipped: data.shipped } : o)
+            };
+          }
+        });
+      }
+    } catch (e) {
+      alert("Ошибка при обновлении статуса заказа.");
     }
   };
 
@@ -410,25 +501,257 @@ export default function StudioAdminPage() {
                 </div>
               )}
 
-              <h2 className="font-cinzel text-2xl text-white mb-6 tracking-wider">Active Projects</h2>
-              <div className="bg-[#0f0f0f] border border-white/5 rounded-sm overflow-hidden">
-                {stats?.active_weddings_list?.length > 0 ? (
-                  <div className="divide-y divide-white/5">
-                    {stats.active_weddings_list.map((slug: string) => (
-                      <div key={slug} className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => openProject(slug)}>
-                        <div className="font-mono text-sm text-gray-300 group-hover:text-lux-gold transition-colors">{slug}</div>
-                        <div className="flex items-center gap-3">
-                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">Guest</button>
-                          <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}/admin`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">VIP</button>
-                          <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">Manage</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-10 text-center text-gray-600 font-mono text-sm">No active projects found.</div>
+              {/* ПЕРЕКЛЮЧАТЕЛЬ ВКЛАДОК: ПРОЕКТЫ / ЗАКАЗЫ */}
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveTab('projects')}
+                    className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-sm ${
+                      activeTab === 'projects'
+                        ? 'bg-lux-gold text-black shadow-gold-glow'
+                        : 'bg-[#0f0f0f] text-gray-400 border border-white/10 hover:text-white'
+                    }`}
+                  >
+                    Active Projects ({stats?.active_weddings_count || 0})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-sm flex items-center gap-2.5 ${
+                      activeTab === 'orders'
+                        ? 'bg-lux-gold text-black shadow-gold-glow'
+                        : 'bg-[#0f0f0f] text-gray-400 border border-white/10 hover:text-white'
+                    }`}
+                  >
+                    <span>Orders: Print & USB</span>
+                    {(() => {
+                      const pendingCount =
+                        ordersData.print_orders.filter(o => !o.shipped).length +
+                        ordersData.usb_orders.filter(o => !o.shipped).length;
+                      return pendingCount > 0 ? (
+                        <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
+                          activeTab === 'orders' ? 'bg-black text-lux-gold' : 'bg-lux-gold text-black'
+                        }`}>
+                          {pendingCount} new
+                        </span>
+                      ) : null;
+                    })()}
+                  </button>
+                </div>
+
+                {activeTab === 'orders' && (
+                  <button
+                    onClick={() => {
+                      const pwd = sessionStorage.getItem('super_admin_pwd');
+                      if (pwd) fetchOrdersData(pwd);
+                    }}
+                    className="text-xs text-lux-gold hover:text-white uppercase tracking-widest font-mono"
+                  >
+                    {isLoadingOrders ? 'Refreshing...' : '↻ Refresh Orders'}
+                  </button>
                 )}
               </div>
+
+              {activeTab === 'projects' ? (
+                <div className="bg-[#0f0f0f] border border-white/5 rounded-sm overflow-hidden">
+                  {stats?.active_weddings_list?.length > 0 ? (
+                    <div className="divide-y divide-white/5">
+                      {stats.active_weddings_list.map((slug: string) => (
+                        <div key={slug} className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => openProject(slug)}>
+                          <div className="font-mono text-sm text-gray-300 group-hover:text-lux-gold transition-colors">{slug}</div>
+                          <div className="flex items-center gap-3">
+                            <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">Guest</button>
+                            <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}/admin`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">VIP</button>
+                            <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">Manage</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-10 text-center text-gray-600 font-mono text-sm">No active projects found.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {/* === БЛОК 1: ЗАКАЗЫ НА ПЕЧАТЬ ФОТОГРАФИЙ === */}
+                  <div>
+                    <h3 className="font-cinzel text-lg text-lux-gold uppercase tracking-widest mb-4">
+                      Print Orders ({ordersData.print_orders.length})
+                    </h3>
+                    {ordersData.print_orders.length === 0 ? (
+                      <div className="bg-[#0f0f0f] border border-white/5 p-8 text-center text-gray-600 font-mono text-xs">
+                        Нет оплаченных заказов на печать.
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {ordersData.print_orders.map((order) => {
+                          const addr = order.customer?.address || {};
+                          const formattedAddress = [addr.line1, addr.line2, `${addr.postal_code || ''} ${addr.city || ''}`.trim(), addr.country]
+                            .filter(Boolean)
+                            .join(', ');
+                          const totalPhotos = (order.items || []).reduce((acc: number, item: any) => acc + (item.quantity || 1), 0);
+
+                          return (
+                            <div
+                              key={order.order_id}
+                              className={`bg-[#0f0f0f] border p-6 rounded-sm transition-all ${
+                                order.shipped ? 'border-white/5 opacity-60' : 'border-lux-gold/40 shadow-gold-glow'
+                              }`}
+                            >
+                              <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-white/10 pb-4 mb-4">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className="font-mono text-sm font-bold text-lux-gold">{order.order_id}</span>
+                                  <span className="text-xs font-mono bg-white/10 px-2.5 py-1 rounded text-gray-300">{order.wedding_slug}</span>
+                                  <span className="text-xs text-gray-500 font-mono">
+                                    {order.created_at ? new Date(order.created_at).toLocaleString('ru-RU') : ''}
+                                  </span>
+                                  {order.shipped ? (
+                                    <span className="bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                      ✓ Отправлено
+                                    </span>
+                                  ) : (
+                                    <span className="bg-lux-gold/20 text-lux-gold border border-lux-gold/40 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                      ● Ожидает отправки
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="font-cinzel text-xl text-white font-bold">
+                                  {order.payment_info?.amount_paid ?? order.total_amount} €
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Клиент и доставка</div>
+                                  <div className="text-sm font-bold text-white">{order.customer?.name || 'Имя не указано'}</div>
+                                  <div className="text-xs text-gray-400 font-mono mb-2">{order.customer?.email || ''}</div>
+                                  <div className="text-xs text-gray-300 bg-black/50 p-3 border border-white/5 font-mono leading-relaxed flex items-start justify-between gap-2">
+                                    <span>{formattedAddress || 'Адрес не указан'}</span>
+                                    {formattedAddress && (
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(`${order.customer?.name || ''}\n${formattedAddress}`);
+                                          alert('Адрес скопирован!');
+                                        }}
+                                        className="text-[10px] text-lux-gold hover:text-white uppercase shrink-0 border border-lux-gold/30 px-2 py-1"
+                                      >
+                                        Copy
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">
+                                    Состав заказа ({totalPhotos} фото)
+                                  </div>
+                                  <div className="bg-black/50 border border-white/5 p-3 max-h-32 overflow-y-auto space-y-1.5 font-mono text-xs">
+                                    {(order.items || []).map((item: any, idx: number) => (
+                                      <div key={idx} className="flex justify-between text-gray-300">
+                                        <span>{item.filename}</span>
+                                        <span className="text-lux-gold font-bold">{item.size} × {item.quantity}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center justify-end gap-3">
+                                <button
+                                  onClick={() => handleToggleOrderStatus('print', order.order_id, order.wedding_slug)}
+                                  className="px-4 py-2.5 border border-white/20 text-xs uppercase tracking-widest hover:border-white transition-colors"
+                                >
+                                  {order.shipped ? 'Вернуть в работу' : '✓ Отметить отправленным'}
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadPrintZip(order.wedding_slug, order.order_id)}
+                                  disabled={generatingZipId === order.order_id}
+                                  className="px-5 py-2.5 bg-lux-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50"
+                                >
+                                  {generatingZipId === order.order_id ? 'Сборка архива...' : 'Скачать ZIP для типографии'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* === БЛОК 2: ЗАКАЗЫ SIGNATURE USB BOX === */}
+                  <div>
+                    <h3 className="font-cinzel text-lg text-lux-gold uppercase tracking-widest mb-4">
+                      Signature USB Box Orders ({ordersData.usb_orders.length})
+                    </h3>
+                    {ordersData.usb_orders.length === 0 ? (
+                      <div className="bg-[#0f0f0f] border border-white/5 p-8 text-center text-gray-600 font-mono text-xs">
+                        Нет оплаченных заказов на USB-футляры.
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {ordersData.usb_orders.map((usb) => (
+                          <div
+                            key={usb.session_id}
+                            className={`bg-[#0f0f0f] border p-6 rounded-sm transition-all ${
+                              usb.shipped ? 'border-white/5 opacity-60' : 'border-lux-gold/40 shadow-gold-glow'
+                            }`}
+                          >
+                            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-white/10 pb-4 mb-4">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="font-mono text-sm font-bold text-lux-gold">
+                                  USB BOX × {usb.quantity} шт.
+                                </span>
+                                <span className="text-xs text-gray-500 font-mono">
+                                  {usb.created_at ? new Date(usb.created_at).toLocaleString('ru-RU') : ''}
+                                </span>
+                                {usb.shipped ? (
+                                  <span className="bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                    ✓ Отправлено
+                                  </span>
+                                ) : (
+                                  <span className="bg-lux-gold/20 text-lux-gold border border-lux-gold/40 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                    ● Ожидает отправки
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-cinzel text-xl text-white font-bold">
+                                {usb.amount_paid} €
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col md:flex-row justify-between md:items-end gap-4">
+                              <div className="flex-1">
+                                <div className="text-sm font-bold text-white">{usb.customer?.name || 'Имя не указано'}</div>
+                                <div className="text-xs text-gray-400 font-mono mb-2">{usb.customer?.email || ''}</div>
+                                <div className="text-xs text-gray-300 bg-black/50 p-3 border border-white/5 font-mono flex items-start justify-between gap-2">
+                                  <span>{usb.customer?.address_formatted || 'Адрес не указан'}</span>
+                                  {usb.customer?.address_formatted && (
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(`${usb.customer?.name || ''}\n${usb.customer?.address_formatted}`);
+                                        alert('Адрес скопирован!');
+                                      }}
+                                      className="text-[10px] text-lux-gold hover:text-white uppercase shrink-0 border border-lux-gold/30 px-2 py-1"
+                                    >
+                                      Copy
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button
+                                onClick={() => handleToggleOrderStatus('usb_box', usb.session_id)}
+                                className="px-4 py-2.5 border border-white/20 text-xs uppercase tracking-widest hover:border-white transition-colors shrink-0"
+                              >
+                                {usb.shipped ? 'Вернуть в работу' : '✓ Отметить отправленным'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div key="project-view" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>

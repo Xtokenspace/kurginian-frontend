@@ -91,6 +91,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [showCollageCreator, setShowCollageCreator] = useState(false);
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null);
+  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape">("portrait");
 
   // --- НОВОЕ: СТЕЙТЫ ПЕЧАТИ И ОТЗЫВА ---
   const [showPrintModal, setShowPrintModal] = useState(false);
@@ -509,7 +510,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
 
       {/* МАГИЧЕСКАЯ ПАЛОЧКА (L'Édition) - Появляется ТОЛЬКО при выборе 2+ фото */}
       <AnimatePresence>
-        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 4 && !showCollageCreator && !generatedCollageUrl && (
+        {isSelectionMode && selectedPhotos.size >= 2 && selectedPhotos.size <= 6 && !showCollageCreator && !generatedCollageUrl && (
           <motion.button
             initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 50 }}
             onClick={() => { 
@@ -537,7 +538,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               setShowCollageCreator(false);
               if (window.history.state?.collage) window.history.back();
             }}
-            onSuccess={(url) => {
+            onSuccess={(url, aspect) => {
               setShowCollageCreator(false);
               if (window.history.state?.collage) window.history.back();
               
@@ -547,6 +548,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
               setTimeout(() => {
                 window.history.pushState({ collagePreview: true }, "");
                 setGeneratedCollageUrl(url);
+                setGeneratedCollageAspect(aspect || "portrait");
               }, 100);
             }}
           />
@@ -584,7 +586,11 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              className="relative w-full max-w-[360px] min-h-[450px] shrink-0 aspect-[4/5] rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none"
+              className={`relative w-full shrink-0 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                generatedCollageAspect === "landscape"
+                  ? "max-w-[420px] md:max-w-[500px] min-h-[336px] md:min-h-[400px] aspect-[5/4]"
+                  : "max-w-[360px] min-h-[450px] aspect-[4/5]"
+              }`}
             >
               <Image src={generatedCollageUrl} alt="L'Édition Preview" fill unoptimized draggable={false} className="object-cover pointer-events-none select-none" />
             </motion.div>

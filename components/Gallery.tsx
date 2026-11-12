@@ -62,6 +62,7 @@ const translations = {
     closeScanner: "✕ Fermer",
     shareGuest: "Partager la sélection",
     shareGuestText: "Regardez ma sélection de photos personnelle de l'événement ! ✨",
+    togetherWith: "Ensemble sur la photo",
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
     select: "Sélectionner",
     selected: "sélectionné(s)",
@@ -100,6 +101,7 @@ const translations = {
     closeScanner: "✕ Close",
     shareGuest: "Share collection",
     shareGuestText: "Check out my personal photo collection from the event! ✨",
+    togetherWith: "Together in photo",
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
     select: "Select",
     selected: "selected",
@@ -137,6 +139,7 @@ const translations = {
     closeScanner: "✕ Скрыть",
     shareGuest: "Поделиться подборкой",
     shareGuestText: "Посмотрите мою персональную подборку фотографий с мероприятия! ✨",
+    togetherWith: "Вместе в кадре",
     // --- НОВЫЕ ТЕКСТЫ ДЛЯ МУЛЬТИВЫБОРА ---
     select: "Выбрать",
     selected: "выбрано",
@@ -182,8 +185,8 @@ const brickVariants: Variants = {
 };
 
 // --- КОМПОНЕНТ АВАТАРА ГОСТЯ (CSS МАГИЯ КРОПА ЛИЦА) ---
-function FaceBubble({ cluster, photos, isSelected, onClick }: { cluster: GuestCluster, photos: MatchedPhoto[], isSelected: boolean, onClick: () => void }) {
-  const photo = photos.find(p => p.filename === cluster.avatar_filename);
+function FaceBubble({ clusterId, cluster, photos, isSelected, onClick }: { clusterId?: string, cluster: GuestCluster, photos: MatchedPhoto[], isSelected: boolean, onClick: () => void }) {
+  const photo = photos.find(p => p.filename === cluster.avatar_filename) || (clusterId ? photos.find(p => p.cluster_ids?.includes(clusterId)) : undefined);
   if (!photo) return null;
 
   const [x1, y1, x2, y2] = cluster.bbox;
@@ -417,6 +420,8 @@ export default function Gallery({
   }, [externalSelectedGuestId]);
 
   const selectedGuestId = internalSelectedGuestId;
+  const selectedGuestIds = selectedGuestId ? selectedGuestId.split(',').filter(Boolean) : [];
+
   const setSelectedGuestId = (id: string | null) => {
     // Если включаем фильтр впервые — пушим состояние в историю, чтобы кнопка "Назад" не выкидывала из проекта
     if (id !== null && internalSelectedGuestId === null) {
@@ -428,6 +433,18 @@ export default function Gallery({
     }
     setInternalSelectedGuestId(id);
     if (externalSetSelectedGuestId) externalSetSelectedGuestId(id);
+  };
+
+  // Тоггл гостя для режима «Мы вместе» (добавление/удаление второго и третьего человека)
+  const toggleGuestInFilter = (id: string) => {
+    triggerVibration(25);
+    if (selectedGuestIds.includes(id)) {
+      const next = selectedGuestIds.filter(g => g !== id);
+      setSelectedGuestId(next.length > 0 ? next.join(',') : null);
+    } else {
+      const next = [...selectedGuestIds, id];
+      setSelectedGuestId(next.join(','));
+    }
   };
 
   // --- СТЕЙТЫ МУЛЬТИВЫБОРА И 3D TOUCH ---
@@ -459,9 +476,9 @@ export default function Gallery({
     setSelectedPhotos(new Set());
   };
 
-  // --- ФИЛЬТРАЦИЯ ФОТОГРАФИЙ ПО ВЫБРАННОМУ ГОСТЮ ---
-  const filteredPhotos = selectedGuestId 
-    ? photos.filter(p => p.cluster_ids?.includes(selectedGuestId))
+  // --- ФИЛЬТРАЦИЯ ФОТОГРАФИЙ ПО ВЫБРАННЫМ ГОСТЯМ (Режим «Мы вместе») ---
+  const filteredPhotos = selectedGuestIds.length > 0
+    ? photos.filter(p => selectedGuestIds.every(gid => p.cluster_ids?.includes(gid)))
     : photos;
 
   // ФУНКЦИЯ ШАРИНГА ПОДБОРКИ
@@ -600,10 +617,13 @@ export default function Gallery({
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       
-      // 1. Умный поиск гостей
+      // 1. Умный поиск гостей (Одиночный или Совместный ?guest=guest_1,guest_2)
       const guestParam = params.get('guest');
-      if (guestParam && guestClusters && guestClusters[guestParam]) {
-        setSelectedGuestId(guestParam);
+      if (guestParam && guestClusters) {
+        const validIds = guestParam.split(',').filter(id => guestClusters[id]);
+        if (validIds.length > 0) {
+          setSelectedGuestId(validIds.join(','));
+        }
       }
 
       // 2. Успешная оплата заказа печати
@@ -617,6 +637,15 @@ export default function Gallery({
         
         // Очищаем URL, чтобы окно не вылезало повторно при обновлении страницы
         window.history.replaceState({}, '', window.location.pathname);
+      }
+
+      // 3. Автоматическое открытие корзины при переходе со страницы одного фото
+      if (params.get('openCart') === 'true') {
+        window.history.replaceState({}, '', window.location.pathname);
+        setTimeout(() => {
+          window.history.pushState({ cart: true }, "");
+          setIsCartOpen(true);
+        }, 150);
       }
     }
   }, [guestClusters, clearCart, language, slug]);
@@ -1088,14 +1117,14 @@ export default function Gallery({
             </motion.div>
           )}
 
-          {/* === КАРУСЕЛЬ ГОСТЕЙ (Выезжает по клику) === */}
+          {/* === КАРУСЕЛЬ ГОСТЕЙ (Выезжает по клику или при добавлении второго человека «Мы вместе») === */}
           <AnimatePresence>
-            {showGuests && !selectedGuestId && guestClusters && (
+            {showGuests && guestClusters && (
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="w-full max-w-2xl overflow-hidden relative group"
+                className="w-full max-w-2xl overflow-hidden relative group mb-3"
               >
                 {/* Левая стрелка (Появляется при наведении на ПК) */}
                 <button 
@@ -1144,16 +1173,33 @@ export default function Gallery({
                   style={{ WebkitOverflowScrolling: 'touch' }}
                   className="flex gap-4 overflow-x-auto py-4 px-2 items-center justify-start touch-pan-x overscroll-contain will-change-scroll cursor-grab active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] relative px-10 md:px-4"
                 >
-                  {Object.entries(guestClusters).map(([id, cluster]) => (
-                    <div key={id} className="shrink-0 pointer-events-auto">
-                      <FaceBubble 
-                        cluster={cluster} 
-                        photos={photos} 
-                        isSelected={selectedGuestId === id} 
-                        onClick={() => { triggerVibration(30); setSelectedGuestId(id); setShowGuests(false); }} 
-                      />
-                    </div>
-                  ))}
+                  {Object.entries(guestClusters)
+                    .filter(([id]) => {
+                      // Если уже выбран гость, показываем только тех, с кем есть хотя бы 1 совместный кадр!
+                      if (selectedGuestIds.length === 0) return true;
+                      if (selectedGuestIds.includes(id)) return true;
+                      return filteredPhotos.some(p => p.cluster_ids?.includes(id));
+                    })
+                    .map(([id, cluster]) => (
+                      <div key={id} className="shrink-0 pointer-events-auto">
+                        <FaceBubble 
+                          clusterId={id}
+                          cluster={cluster} 
+                          photos={photos} 
+                          isSelected={selectedGuestIds.includes(id)} 
+                          onClick={() => { 
+                            if (selectedGuestIds.length === 0) {
+                              triggerVibration(30);
+                              setSelectedGuestId(id);
+                              setShowGuests(false);
+                            } else {
+                              toggleGuestInFilter(id);
+                              setShowGuests(false);
+                            }
+                          }} 
+                        />
+                      </div>
+                    ))}
                 </div>
 
                 {/* Правая стрелка (Появляется при наведении на ПК) */}
@@ -1169,9 +1215,9 @@ export default function Gallery({
             )}
           </AnimatePresence>
 
-          {/* === ПАНЕЛЬ АКТИВНОГО ФИЛЬТРА (Показывается когда выбран гость) === */}
+          {/* === ПАНЕЛЬ АКТИВНОГО ФИЛЬТРА (Показывается когда выбран 1 или несколько гостей) === */}
           <AnimatePresence>
-            {selectedGuestId && (
+            {selectedGuestIds.length > 0 && guestClusters && (
               <motion.div
                 initial={{ opacity: 0, y: -20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1183,6 +1229,7 @@ export default function Gallery({
                 onDragEnd={(e, info) => {
                   if (info.offset.y < -60) { // Свайп вверх — сброс фильтра
                     triggerVibration(10);
+                    setShowGuests(false);
                     if (window.history.state && window.history.state.guestFilter) {
                       window.history.back();
                     } else {
@@ -1194,12 +1241,50 @@ export default function Gallery({
               >
                 {/* Подсказка свайпа вверх */}
                 <div className="absolute top-1.5 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/5 rounded-full" />
-                {/* Шапка с аватаркой и счетчиком */}
-                <div className="flex items-center gap-5 w-full">
-                  <FaceBubble cluster={guestClusters![selectedGuestId]} photos={photos} isSelected={true} onClick={() => {}} />
-                  <div className="flex flex-col">
+                
+                {/* Шапка с аватарками («Мы вместе») и счетчиком */}
+                <div className="flex items-center justify-between gap-4 w-full">
+                  <div className="flex items-center -space-x-3">
+                    {selectedGuestIds.map((gid) => (
+                      guestClusters[gid] ? (
+                        <div key={gid} className="relative z-10 transition-transform hover:z-20">
+                          <FaceBubble 
+                            clusterId={gid} 
+                            cluster={guestClusters[gid]} 
+                            photos={photos} 
+                            isSelected={true} 
+                            onClick={() => {
+                              // Если выбрано несколько человек — тап по аватарке убирает этого человека из пары
+                              if (selectedGuestIds.length > 1) toggleGuestInFilter(gid);
+                            }} 
+                          />
+                        </div>
+                      ) : null
+                    ))}
+
+                    {/* Кнопка «+» (Добавить человека в фильтр «Мы вместе»), если в текущих фото есть другие гости */}
+                    {isVip && Object.keys(guestClusters).some(id => !selectedGuestIds.includes(id) && filteredPhotos.some(p => p.cluster_ids?.includes(id))) && (
+                      <button
+                        onClick={() => { triggerVibration(15); setShowGuests(!showGuests); }}
+                        title={t.togetherWith}
+                        className={`relative z-20 w-10 h-10 md:w-12 md:h-12 rounded-full border flex items-center justify-center transition-all ml-1 shadow-lg active:scale-90 ${
+                          showGuests 
+                            ? 'bg-lux-gold text-black border-lux-gold shadow-gold-glow' 
+                            : 'bg-[#1a1a1a] text-lux-gold border-lux-gold/40 hover:border-lux-gold hover:bg-lux-gold/10'
+                        }`}
+                      >
+                        <svg className={`w-5 h-5 transition-transform duration-300 ${showGuests ? 'rotate-45' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col text-right">
                     <span className="text-lux-gold font-cinzel text-2xl font-bold leading-none">{filteredPhotos.length}</span>
-                    <span className="text-white/60 text-[10px] md:text-xs uppercase tracking-widest mt-1">{t.foundForGuest}</span>
+                    <span className="text-white/60 text-[10px] md:text-xs uppercase tracking-widest mt-1">
+                      {selectedGuestIds.length > 1 ? t.togetherWith : t.foundForGuest}
+                    </span>
                   </div>
                 </div>
 
@@ -1921,6 +2006,7 @@ export default function Gallery({
                             return (
                               <div key={id} className="shrink-0 pointer-events-auto">
                                 <FaceBubble
+                                  clusterId={id}
                                   cluster={cluster}
                                   photos={photos} 
                                   isSelected={false}
