@@ -46,9 +46,9 @@ export default function StudioAdminPage() {
   const [cinemaFiles, setCinemaFiles] = useState('');
   const [cinemaPremiereAt, setCinemaPremiereAt] = useState('');
 
-  // === СТЕЙТЫ УПРАВЛЕНИЯ ЗАКАЗАМИ (PRINT & USB BOX) ===
+  // === СТЕЙТЫ УПРАВЛЕНИЯ ЗАКАЗАМИ (PRINT, USB BOX & 3D) ===
   const [activeTab, setActiveTab] = useState<'projects' | 'orders'>('projects');
-  const [ordersData, setOrdersData] = useState<{ print_orders: any[]; usb_orders: any[] }>({ print_orders: [], usb_orders: [] });
+  const [ordersData, setOrdersData] = useState<{ print_orders: any[]; usb_orders: any[]; sculpture_orders?: any[] }>({ print_orders: [], usb_orders: [], sculpture_orders: [] });
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [generatingZipId, setGeneratingZipId] = useState<string | null>(null);
 
@@ -170,7 +170,7 @@ export default function StudioAdminPage() {
     }
   };
 
-  const handleToggleOrderStatus = async (orderType: 'print' | 'usb_box', orderId: string, weddingSlug: string = '') => {
+  const handleToggleOrderStatus = async (orderType: 'print' | 'usb_box' | '3d_sculpture', orderId: string, weddingSlug: string = '') => {
     const pwd = sessionStorage.getItem('super_admin_pwd');
     if (!pwd) return;
     try {
@@ -187,6 +187,11 @@ export default function StudioAdminPage() {
             return {
               ...prev,
               print_orders: prev.print_orders.map(o => o.order_id === orderId ? { ...o, shipped: data.shipped } : o)
+            };
+          } else if (orderType === '3d_sculpture') {
+            return {
+              ...prev,
+              sculpture_orders: (prev.sculpture_orders || []).map(o => o.order_id === orderId ? { ...o, shipped: data.shipped } : o)
             };
           } else {
             return {
@@ -578,11 +583,12 @@ export default function StudioAdminPage() {
                         : 'bg-[#0f0f0f] text-gray-400 border border-white/10 hover:text-white'
                     }`}
                   >
-                    <span>Orders: Print & USB</span>
+                    <span>Orders: Print, USB & 3D</span>
                     {(() => {
                       const pendingCount =
                         ordersData.print_orders.filter(o => !o.shipped).length +
-                        ordersData.usb_orders.filter(o => !o.shipped).length;
+                        ordersData.usb_orders.filter(o => !o.shipped).length +
+                        (ordersData.sculpture_orders || []).filter(o => !o.shipped).length;
                       return pendingCount > 0 ? (
                         <span className={`px-2 py-0.5 text-[10px] rounded-full font-mono font-bold ${
                           activeTab === 'orders' ? 'bg-black text-lux-gold' : 'bg-lux-gold text-black'
@@ -811,6 +817,129 @@ export default function StudioAdminPage() {
                                 className="px-4 py-2.5 border border-white/20 text-xs uppercase tracking-widest hover:border-white transition-colors shrink-0"
                               >
                                 {usb.shipped ? 'Вернуть в работу' : '✓ Отметить отправленным'}
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* === БЛОК 3: ЗАКАЗЫ НА 3D-СКУЛЬПТУРЫ === */}
+                  <div>
+                    <h3 className="font-cinzel text-lg text-lux-gold uppercase tracking-widest mb-4">
+                      3D Sculpture Orders ({(ordersData.sculpture_orders || []).length})
+                    </h3>
+                    {(!ordersData.sculpture_orders || ordersData.sculpture_orders.length === 0) ? (
+                      <div className="bg-[#0f0f0f] border border-white/5 p-8 text-center text-gray-600 font-mono text-xs">
+                        Нет заказов на 3D-скульптуры.
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {ordersData.sculpture_orders.map((sc) => (
+                          <div
+                            key={sc.order_id}
+                            className={`bg-[#0f0f0f] border p-6 rounded-sm transition-all ${
+                              sc.shipped ? 'border-white/5 opacity-60' : 'border-lux-gold/40 shadow-gold-glow'
+                            }`}
+                          >
+                            <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-white/10 pb-4 mb-4">
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="font-mono text-sm font-bold text-lux-gold">{sc.order_id}</span>
+                                <span className="text-xs font-mono bg-white/10 px-2.5 py-1 rounded text-white">
+                                  {sc.size} • {sc.finish}
+                                </span>
+                                <span className="text-xs text-gray-500 font-mono">
+                                  {sc.created_at ? new Date(sc.created_at).toLocaleString('ru-RU') : ''}
+                                </span>
+                                {sc.shipped ? (
+                                  <span className="bg-green-500/20 text-green-400 border border-green-500/30 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                    ✓ Завершено / Отправлено
+                                  </span>
+                                ) : sc.status === 'custom_inquiry' ? (
+                                  <span className="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                    ★ Спецзапрос (Sur-Mesure)
+                                  </span>
+                                ) : (
+                                  <span className="bg-lux-gold/20 text-lux-gold border border-lux-gold/40 text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm">
+                                    ● Ожидает 3D-моделирования
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-cinzel text-xl text-white font-bold">
+                                {sc.amount_paid > 0 ? `${sc.amount_paid} €` : 'Sur devis'}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                              <div>
+                                <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Клиент и Контакты</div>
+                                <div className="text-sm font-bold text-white">{sc.customer?.name || 'Имя не указано'}</div>
+                                <div className="text-xs text-lux-gold font-mono mt-0.5 mb-1">{sc.customer?.phone || ''}</div>
+                                <div className="text-xs text-gray-400 font-mono mb-2">{sc.customer?.email || ''}</div>
+                                <div className="text-xs text-gray-300 bg-black/50 p-3 border border-white/5 font-mono flex items-start justify-between gap-2">
+                                  <span>{sc.customer?.address_formatted || 'Адрес не указан'}</span>
+                                  {sc.customer?.address_formatted && (
+                                    <button
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(`${sc.customer?.name || ''}\n${sc.customer?.address_formatted}`);
+                                        alert('Адрес скопирован!');
+                                      }}
+                                      className="text-[10px] text-lux-gold hover:text-white uppercase shrink-0 border border-lux-gold/30 px-2 py-1"
+                                    >
+                                      Copy
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1">Детали скульптуры</div>
+                                  <div className="bg-black/50 border border-white/5 p-3 text-xs font-mono space-y-1">
+                                    <div><span className="text-gray-500">Гравировка:</span> <span className="text-lux-gold">{sc.engraving || 'Без гравировки'}</span></div>
+                                    <div><span className="text-gray-500">Пожелания:</span> <span className="text-gray-300">{sc.notes || 'Нет'}</span></div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="text-[10px] uppercase tracking-widest text-gray-500 mb-1.5">
+                                    Исходные фото клиента ({(sc.photo_urls || []).length})
+                                  </div>
+                                  <div className="flex items-center gap-2.5">
+                                    {(sc.photo_urls || []).map((url: string, idx: number) => (
+                                      <a
+                                        key={idx}
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="relative w-16 h-16 bg-black border border-lux-gold/40 hover:border-lux-gold overflow-hidden rounded-sm group"
+                                        title="Открыть оригинал в новой вкладке"
+                                      >
+                                        <img src={url} alt={`Ref ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-end gap-3">
+                              {sc.customer?.phone && (
+                                <a
+                                  href={`https://wa.me/${sc.customer.phone.replace(/[^0-9]/g, '')}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-4 py-2.5 bg-green-600/20 border border-green-500/40 text-green-400 hover:bg-green-600 hover:text-white text-xs font-bold uppercase tracking-widest transition-all"
+                                >
+                                  Написать клиенту в WhatsApp
+                                </a>
+                              )}
+                              <button
+                                onClick={() => handleToggleOrderStatus('3d_sculpture', sc.order_id)}
+                                className="px-4 py-2.5 border border-white/20 text-xs uppercase tracking-widest hover:border-white transition-colors"
+                              >
+                                {sc.shipped ? 'Вернуть в работу' : '✓ Отметить отправленным'}
                               </button>
                             </div>
                           </div>
