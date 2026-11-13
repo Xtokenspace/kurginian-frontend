@@ -52,6 +52,12 @@ export default function StudioAdminPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [generatingZipId, setGeneratingZipId] = useState<string | null>(null);
 
+  // === СТЕЙТЫ ГЕНЕРАТОРА QR-КАРТОЧЕК (3D FAN INVITATION) ===
+  const [cardType, setCardType] = useState<'vip' | 'guest'>('vip');
+  const [cardLang, setCardLang] = useState<'fr' | 'en' | 'ru'>('fr');
+  const [isGeneratingCard, setIsGeneratingCard] = useState(false);
+  const [generatedCardUrl, setGeneratedCardUrl] = useState<string | null>(null);
+
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
     const handlePopState = () => {
@@ -419,6 +425,37 @@ export default function StudioAdminPage() {
       alert("Ошибка сети при сохранении.");
     } finally {
       setIsSavingMeta(false);
+    }
+  };
+
+  const generateInvitationCard = async () => {
+    if (!selectedProject || isGeneratingCard) return;
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    if (!pwd) return;
+    setIsGeneratingCard(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/weddings/${selectedProject}/collages/invitation-card`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password: pwd,
+          card_type: cardType,
+          language: cardLang,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) {
+          setGeneratedCardUrl(`${data.url}?t=${Date.now()}`);
+        }
+      } else {
+        alert("Ошибка при создании QR-карточки.");
+      }
+    } catch (e) {
+      alert("Ошибка сети при генерации карточки.");
+    } finally {
+      setIsGeneratingCard(false);
     }
   };
 
@@ -912,7 +949,109 @@ export default function StudioAdminPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* === ГЕНЕРАТОР 3D-ВЕЕР ПРИГЛАШЕНИЯ И QR-КАРТОЧКИ === */}
+                <div className="mt-8 pt-8 border-t border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                  <div>
+                    <h4 className="font-cinzel text-lg text-lux-gold tracking-widest uppercase mb-1">
+                      Генератор 3D-приглашения с QR-кодом
+                    </h4>
+                    <p className="text-xs text-gray-400 font-mono">
+                      Создает карточку с веером из 3 обложек, именами пары и QR-кодом (для отправки в WhatsApp или печати на банкет)
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    {/* Выбор типа: VIP или Гости */}
+                    <div className="flex bg-[#0a0a0a] p-1 border border-white/10 rounded-sm">
+                      <button
+                        onClick={() => setCardType('vip')}
+                        className={`px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          cardType === 'vip' ? 'bg-lux-gold text-black' : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        VIP (с паролем)
+                      </button>
+                      <button
+                        onClick={() => setCardType('guest')}
+                        className={`px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          cardType === 'guest' ? 'bg-lux-gold text-black' : 'text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        Гости (Банкет)
+                      </button>
+                    </div>
+
+                    {/* Выбор языка карточки */}
+                    <div className="flex bg-[#0a0a0a] p-1 border border-white/10 rounded-sm">
+                      {(['fr', 'en', 'ru'] as const).map((lng) => (
+                        <button
+                          key={lng}
+                          onClick={() => setCardLang(lng)}
+                          className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            cardLang === lng ? 'bg-white/15 text-lux-gold' : 'text-gray-500 hover:text-white'
+                          }`}
+                        >
+                          {lng}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Кнопка генерации */}
+                    <button
+                      onClick={generateInvitationCard}
+                      disabled={isGeneratingCard}
+                      className="px-5 py-3 bg-lux-gold text-black text-xs font-bold uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow disabled:opacity-50"
+                    >
+                      {isGeneratingCard ? "Сборка HD..." : "Создать QR-карту"}
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* МОДАЛЬНОЕ ОКНО ПРЕВЬЮ QR-КАРТОЧКИ */}
+              <AnimatePresence>
+                {generatedCardUrl && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setGeneratedCardUrl(null)}
+                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-6"
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex flex-col items-center max-w-md w-full"
+                    >
+                      <div className="relative w-full max-w-[340px] aspect-[2/3] rounded-lg overflow-hidden border border-lux-gold/40 shadow-[0_0_50px_rgba(212,175,55,0.2)] mb-6 bg-[#050505]">
+                        <img
+                          src={generatedCardUrl}
+                          alt="QR Invitation Card"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+
+                      <div className="flex w-full max-w-[340px] gap-3">
+                        <a
+                          href={`${generatedCardUrl.split('?')[0]}?download=true`}
+                          download={`KURGINIAN_${selectedProject}_${cardType.toUpperCase()}.jpg`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 py-4 bg-lux-gold text-black text-center font-bold text-xs uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow"
+                        >
+                          Скачать HD
+                        </a>
+                        <button
+                          onClick={() => setGeneratedCardUrl(null)}
+                          className="px-6 py-4 bg-[#111] border border-white/20 text-gray-300 hover:text-white text-xs uppercase tracking-widest"
+                        >
+                          Закрыть
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* === СЕТКА ФОТОГРАФИЙ === */}
               {projectPhotos.length === 0 ? (
