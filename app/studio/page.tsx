@@ -52,11 +52,11 @@ export default function StudioAdminPage() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [generatingZipId, setGeneratingZipId] = useState<string | null>(null);
 
-  // === СТЕЙТЫ ГЕНЕРАТОРА QR-КАРТОЧЕК (3D FAN INVITATION) ===
-  const [cardType, setCardType] = useState<'vip' | 'guest'>('vip');
+  // === СТЕЙТЫ ГЕНЕРАТОРА QR-КАРТОЧЕК (DUAL VIP + GUEST MODAL) ===
+  const [qrModalSlug, setQrModalSlug] = useState<string | null>(null);
   const [cardLang, setCardLang] = useState<'fr' | 'en' | 'ru'>('fr');
   const [isGeneratingCard, setIsGeneratingCard] = useState(false);
-  const [generatedCardUrl, setGeneratedCardUrl] = useState<string | null>(null);
+  const [generatedCards, setGeneratedCards] = useState<{ vip: string | null; guest: string | null }>({ vip: null, guest: null });
 
   // === УМНЫЙ ПЕРЕХВАТ СВАЙПА НАЗАД (HISTORY API ДЛЯ АДМИНКИ) ===
   useEffect(() => {
@@ -428,35 +428,54 @@ export default function StudioAdminPage() {
     }
   };
 
-  const generateInvitationCard = async () => {
-    if (!selectedProject || isGeneratingCard) return;
+  const openDualQrModal = async (targetSlug: string, lang: 'fr' | 'en' | 'ru' = cardLang) => {
     const pwd = sessionStorage.getItem('super_admin_pwd');
     if (!pwd) return;
+    setQrModalSlug(targetSlug);
+    setCardLang(lang);
     setIsGeneratingCard(true);
+    setGeneratedCards({ vip: null, guest: null });
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const res = await fetch(`${apiUrl}/api/weddings/${selectedProject}/collages/invitation-card`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password: pwd,
-          card_type: cardType,
-          language: cardLang,
+      const [vipRes, guestRes] = await Promise.all([
+        fetch(`${apiUrl}/api/weddings/${targetSlug}/collages/invitation-card`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd, card_type: 'vip', language: lang }),
         }),
+        fetch(`${apiUrl}/api/weddings/${targetSlug}/collages/invitation-card`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd, card_type: 'guest', language: lang }),
+        }),
+      ]);
+
+      const vipJson = vipRes.ok ? await vipRes.json() : null;
+      const guestJson = guestRes.ok ? await guestRes.json() : null;
+
+      setGeneratedCards({
+        vip: vipJson?.url ? `${vipJson.url}?t=${Date.now()}` : null,
+        guest: guestJson?.url ? `${guestJson.url}?t=${Date.now()}` : null,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          setGeneratedCardUrl(`${data.url}?t=${Date.now()}`);
-        }
-      } else {
-        alert("Ошибка при создании QR-карточки.");
-      }
     } catch (e) {
-      alert("Ошибка сети при генерации карточки.");
+      alert("Ошибка сети при генерации QR-карточек.");
     } finally {
       setIsGeneratingCard(false);
     }
+  };
+
+  const triggerCardDownload = (url: string | null, filename: string) => {
+    if (!url) return;
+    const cleanUrl = `${url.split('?')[0]}?download=true`;
+    const link = document.createElement('a');
+    link.href = cleanUrl;
+    link.download = filename;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const toggleCover = (filename: string) => {
@@ -596,9 +615,21 @@ export default function StudioAdminPage() {
                         <div key={slug} className="p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-white/5 transition-colors cursor-pointer" onClick={() => openProject(slug)}>
                           <div className="font-mono text-sm text-gray-300 group-hover:text-lux-gold transition-colors">{slug}</div>
                           <div className="flex items-center gap-3">
-                            <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">Guest</button>
-                            <button onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}/admin`, '_blank'); }} className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest">VIP</button>
-                            <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">Manage</div>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); window.open(`/weddings/${slug}`, '_blank'); }}
+                              className="px-4 py-2 bg-transparent border border-white/20 text-xs text-white hover:border-lux-gold hover:text-lux-gold transition-all uppercase tracking-widest"
+                            >
+                              Open
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openDualQrModal(slug, cardLang); }}
+                              className="px-4 py-2 bg-lux-gold/10 border border-lux-gold/50 text-xs text-lux-gold hover:bg-lux-gold hover:text-black transition-all uppercase tracking-widest font-bold"
+                            >
+                              QR Code
+                            </button>
+                            <div className="px-4 py-2 bg-lux-gold border border-lux-gold text-xs text-black hover:bg-white hover:border-white transition-all uppercase tracking-widest font-bold">
+                              Manage
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -950,108 +981,25 @@ export default function StudioAdminPage() {
                   </div>
                 </div>
 
-                {/* === ГЕНЕРАТОР 3D-ВЕЕР ПРИГЛАШЕНИЯ И QR-КАРТОЧКИ === */}
+                {/* === БЫСТРЫЙ ВЫЗОВ ГЕНЕРАТОРА QR-КАРТОЧЕК ИЗ ПРОЕКТА === */}
                 <div className="mt-8 pt-8 border-t border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                   <div>
                     <h4 className="font-cinzel text-lg text-lux-gold tracking-widest uppercase mb-1">
-                      Генератор 3D-приглашения с QR-кодом
+                      QR-карточки приглашения (VIP + Гости)
                     </h4>
                     <p className="text-xs text-gray-400 font-mono">
-                      Создает карточку с веером из 3 обложек, именами пары и QR-кодом (для отправки в WhatsApp или печати на банкет)
+                      Одновременно создает карточку для молодоженов (с VIP-паролем) и карточку для гостей (без пароля)
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    {/* Выбор типа: VIP или Гости */}
-                    <div className="flex bg-[#0a0a0a] p-1 border border-white/10 rounded-sm">
-                      <button
-                        onClick={() => setCardType('vip')}
-                        className={`px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          cardType === 'vip' ? 'bg-lux-gold text-black' : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        VIP (с паролем)
-                      </button>
-                      <button
-                        onClick={() => setCardType('guest')}
-                        className={`px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                          cardType === 'guest' ? 'bg-lux-gold text-black' : 'text-gray-400 hover:text-white'
-                        }`}
-                      >
-                        Гости (Банкет)
-                      </button>
-                    </div>
-
-                    {/* Выбор языка карточки */}
-                    <div className="flex bg-[#0a0a0a] p-1 border border-white/10 rounded-sm">
-                      {(['fr', 'en', 'ru'] as const).map((lng) => (
-                        <button
-                          key={lng}
-                          onClick={() => setCardLang(lng)}
-                          className={`px-2.5 py-2 text-[10px] font-bold uppercase tracking-widest transition-all ${
-                            cardLang === lng ? 'bg-white/15 text-lux-gold' : 'text-gray-500 hover:text-white'
-                          }`}
-                        >
-                          {lng}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Кнопка генерации */}
-                    <button
-                      onClick={generateInvitationCard}
-                      disabled={isGeneratingCard}
-                      className="px-5 py-3 bg-lux-gold text-black text-xs font-bold uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow disabled:opacity-50"
-                    >
-                      {isGeneratingCard ? "Сборка HD..." : "Создать QR-карту"}
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => openDualQrModal(selectedProject, cardLang)}
+                    className="px-6 py-3 bg-lux-gold text-black text-xs font-bold uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow"
+                  >
+                    Открыть QR-карточки (2 шт.)
+                  </button>
                 </div>
               </div>
-
-              {/* МОДАЛЬНОЕ ОКНО ПРЕВЬЮ QR-КАРТОЧКИ */}
-              <AnimatePresence>
-                {generatedCardUrl && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setGeneratedCardUrl(null)}
-                    className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-6"
-                  >
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex flex-col items-center max-w-md w-full"
-                    >
-                      <div className="relative w-full max-w-[340px] aspect-[2/3] rounded-lg overflow-hidden border border-lux-gold/40 shadow-[0_0_50px_rgba(212,175,55,0.2)] mb-6 bg-[#050505]">
-                        <img
-                          src={generatedCardUrl}
-                          alt="QR Invitation Card"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-
-                      <div className="flex w-full max-w-[340px] gap-3">
-                        <a
-                          href={`${generatedCardUrl.split('?')[0]}?download=true`}
-                          download={`KURGINIAN_${selectedProject}_${cardType.toUpperCase()}.jpg`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 py-4 bg-lux-gold text-black text-center font-bold text-xs uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow"
-                        >
-                          Скачать HD
-                        </a>
-                        <button
-                          onClick={() => setGeneratedCardUrl(null)}
-                          className="px-6 py-4 bg-[#111] border border-white/20 text-gray-300 hover:text-white text-xs uppercase tracking-widest"
-                        >
-                          Закрыть
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
               {/* === СЕТКА ФОТОГРАФИЙ === */}
               {projectPhotos.length === 0 ? (
@@ -1104,6 +1052,138 @@ export default function StudioAdminPage() {
                   })}
                 </div>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* === ГЛОБАЛЬНОЕ ОКНО С ДВУМЯ QR-КАРТОЧКАМИ (VIP + GUEST) === */}
+        <AnimatePresence>
+          {qrModalSlug && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setQrModalSlug(null)}
+              className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-4 md:p-6 overflow-y-auto"
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[#0a0a0a] border border-lux-gold/30 p-6 md:p-8 rounded-sm max-w-3xl w-full shadow-2xl my-auto"
+              >
+                {/* Шапка окна с выбором языка */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-5 mb-6">
+                  <div>
+                    <h3 className="font-cinzel text-xl text-lux-gold uppercase tracking-widest">
+                      QR Cards • {qrModalSlug}
+                    </h3>
+                    <p className="text-xs text-gray-400 font-mono mt-1">
+                      Оба варианта готовы: для молодоженов (с VIP-кодом) и для гостей банкета
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="flex bg-[#111] p-1 border border-white/10 rounded-sm">
+                      {(['fr', 'en', 'ru'] as const).map((lng) => (
+                        <button
+                          key={lng}
+                          disabled={isGeneratingCard}
+                          onClick={() => openDualQrModal(qrModalSlug, lng)}
+                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all ${
+                            cardLang === lng ? 'bg-lux-gold text-black' : 'text-gray-400 hover:text-white'
+                          }`}
+                        >
+                          {lng}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => setQrModalSlug(null)}
+                      className="p-2 text-gray-500 hover:text-white transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Контент: Спиннер или 2 карточки рядом */}
+                {isGeneratingCard ? (
+                  <div className="py-24 flex flex-col items-center justify-center gap-4">
+                    <div className="w-10 h-10 border-2 border-lux-gold/20 border-t-lux-gold rounded-full animate-spin" />
+                    <span className="text-xs font-mono uppercase tracking-widest text-lux-gold animate-pulse">
+                      Генерация VIP и Guest карточек...
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                      {/* Карточка 1: VIP (с паролем) */}
+                      <div className="flex flex-col items-center bg-[#111] border border-white/10 p-4 rounded-sm">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-lux-gold mb-3">
+                          1. VIP (С паролем для молодоженов)
+                        </span>
+                        <div className="relative w-full max-w-[260px] aspect-[2/3] bg-[#050505] border border-lux-gold/30 mb-4 overflow-hidden">
+                          {generatedCards.vip ? (
+                            <img src={generatedCards.vip} alt="VIP QR Card" className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xs text-gray-600">Ошибка</div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => triggerCardDownload(generatedCards.vip, `KURGINIAN_${qrModalSlug}_VIP_QR.jpg`)}
+                          disabled={!generatedCards.vip}
+                          className="w-full py-3 bg-white/10 hover:bg-lux-gold hover:text-black text-white text-xs font-bold uppercase tracking-widest transition-all"
+                        >
+                          Скачать только VIP
+                        </button>
+                      </div>
+
+                      {/* Карточка 2: Guest (без пароля) */}
+                      <div className="flex flex-col items-center bg-[#111] border border-white/10 p-4 rounded-sm">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300 mb-3">
+                          2. Guest (Без пароля — для гостей)
+                        </span>
+                        <div className="relative w-full max-w-[260px] aspect-[2/3] bg-[#050505] border border-white/20 mb-4 overflow-hidden">
+                          {generatedCards.guest ? (
+                            <img src={generatedCards.guest} alt="Guest QR Card" className="w-full h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xs text-gray-600">Ошибка</div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => triggerCardDownload(generatedCards.guest, `KURGINIAN_${qrModalSlug}_GUEST_QR.jpg`)}
+                          disabled={!generatedCards.guest}
+                          className="w-full py-3 bg-white/10 hover:bg-lux-gold hover:text-black text-white text-xs font-bold uppercase tracking-widest transition-all"
+                        >
+                          Скачать только Guest
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Нижняя панель: Скачать обе сразу */}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => {
+                          triggerCardDownload(generatedCards.vip, `KURGINIAN_${qrModalSlug}_VIP_QR.jpg`);
+                          setTimeout(() => {
+                            triggerCardDownload(generatedCards.guest, `KURGINIAN_${qrModalSlug}_GUEST_QR.jpg`);
+                          }, 400);
+                        }}
+                        disabled={!generatedCards.vip || !generatedCards.guest}
+                        className="flex-1 py-4 bg-lux-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow"
+                      >
+                        Скачать обе карточки (VIP + Guest)
+                      </button>
+                      <button
+                        onClick={() => setQrModalSlug(null)}
+                        className="px-8 py-4 bg-[#151515] border border-white/10 text-gray-400 hover:text-white text-xs uppercase tracking-widest"
+                      >
+                        Закрыть
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
