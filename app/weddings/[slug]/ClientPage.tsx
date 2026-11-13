@@ -634,6 +634,13 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
         return;
       }
 
+      // 2.5. АВТО-ВХОД ДЛЯ МОЛОДОЖЕНОВ (VIP): Если код уже сохранен в браузере — сразу открываем полную галерею
+      const savedVip = localStorage.getItem(`vip_code_${slug}`);
+      if (savedVip && !params?.get('openCart') && !params?.get('autoScan')) {
+        router.replace(`/weddings/${slug}/admin`);
+        return;
+      }
+
       // 3. Обычный флоу: ищем собственные фото гостя в памяти устройства
       const saved = localStorage.getItem(`photos_${slug}`);
       
@@ -1105,6 +1112,24 @@ export default function ClientPage({ slug, initialMeta }: { slug: string, initia
               className="w-full max-w-sm py-5 bg-lux-gold text-black font-bold uppercase tracking-[0.2em] text-xs md:text-sm shadow-gold-glow hover:bg-white transition-all flex items-center justify-center gap-3 group relative z-10"
             >
               {t.findPhotos}
+            </button>
+
+            {/* Кнопка входа по VIP-коду (на случай если закрыли стартовое окно) */}
+            <button
+              onClick={(e) => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                e.currentTarget.blur();
+                setTimeout(() => {
+                  window.history.pushState({ overlay: 'vip' }, "");
+                  setShowPasswordModal(true);
+                }, 50);
+              }}
+              className="mt-5 py-2 px-4 text-[10px] md:text-xs text-lux-gold/60 hover:text-lux-gold uppercase tracking-[0.25em] transition-colors flex items-center justify-center gap-2 relative z-10"
+            >
+              <svg className="w-3.5 h-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+              </svg>
+              <span>{t.enterVipCode}</span>
             </button>
           </motion.div>
         )}
