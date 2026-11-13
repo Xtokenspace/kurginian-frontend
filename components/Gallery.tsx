@@ -455,7 +455,7 @@ export default function Gallery({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showCollageCreator, setShowCollageCreator] = useState(false); // <-- СТЕЙТ КОЛЛАЖА
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null); // <-- СТЕЙТ ПРЕВЬЮ КОЛЛАЖА
-  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape">("portrait"); // <-- СТЕЙТ ФОРМЫ ХОЛСТА
+  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape" | "story">("portrait"); // <-- СТЕЙТ ФОРМЫ ХОЛСТА
 
   const handleLongPress = (index: number) => {
     triggerVibration([15, 30]); // Мягкий "тук-тук" при срабатывании 3D Touch
@@ -2473,9 +2473,11 @@ export default function Gallery({
                   if (window.history.state?.collagePreview) window.history.back();
                 }
               }}
-              className={`relative w-full shrink-0 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-8 cursor-grab active:cursor-grabbing touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`relative w-full shrink-0 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.15)] border border-lux-gold/20 mb-6 cursor-grab active:cursor-grabbing touch-none transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 generatedCollageAspect === "landscape"
                   ? "max-w-[420px] md:max-w-[500px] min-h-[336px] md:min-h-[400px] aspect-[5/4]"
+                  : generatedCollageAspect === "story"
+                  ? "max-w-[280px] md:max-w-[310px] min-h-[490px] aspect-[9/16]"
                   : "max-w-[360px] min-h-[450px] aspect-[4/5]"
               }`}
             >
@@ -2489,39 +2491,71 @@ export default function Gallery({
               />
             </motion.div>
 
-            {/* Панель действий под фото */}
+            {/* Панель действий под фото + Кнопка печати Арта */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-              className="flex w-full max-w-[360px] gap-3"
+              className="flex flex-col w-full max-w-[360px] gap-2.5"
             >
-              <button 
+              <div className="flex w-full gap-3">
+                <button 
+                  onClick={() => {
+                    triggerVibration(20);
+                    handleDownload(`Edition_${slug}_${Date.now()}.jpg`, generatedCollageUrl);
+                  }}
+                  className="flex-[2] py-4 bg-lux-gold text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white transition-all shadow-gold-glow flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  {t.download}
+                </button>
+                
+                <button 
+                  onClick={async () => {
+                    triggerVibration(20);
+                    if (navigator.share) {
+                      try { await navigator.share({ title: "L'Édition", url: generatedCollageUrl }); } catch (e) {}
+                    } else {
+                      navigator.clipboard.writeText(generatedCollageUrl);
+                      setShowToast(true); setTimeout(() => setShowToast(false), 2000);
+                    }
+                  }}
+                  className="flex-[1] py-4 bg-[#111] border border-lux-gold/30 text-lux-gold font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* НОВАЯ КНОПКА: ЗАКАЗАТЬ ПЕЧАТЬ ЭТОГО КОЛЛАЖА (A4 / A3) */}
+              <button
                 onClick={() => {
-                  triggerVibration(20);
-                  handleDownload(`Edition_${slug}_${Date.now()}.jpg`, generatedCollageUrl);
+                  triggerVibration([20, 40]);
+                  const collageFilename = generatedCollageUrl.split('/').pop() || `Edition_${Date.now()}.jpg`;
+                  addToCart(slug, [{
+                    id: `${collageFilename}_A4`,
+                    filename: `COLLAGE_${collageFilename}`,
+                    thumb_url: generatedCollageUrl,
+                    size: 'A4',
+                    quantity: 1,
+                    price: PRINT_PRICES['A4']
+                  }]);
+                  setGeneratedCollageUrl(null);
+                  if (window.history.state?.collagePreview) window.history.back();
+                  setTimeout(() => {
+                    window.history.pushState({ cart: true }, "");
+                    setIsCartOpen(true);
+                  }, 150);
                 }}
-                className="flex-[2] py-4 bg-lux-gold text-black font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white transition-all shadow-gold-glow flex items-center justify-center gap-2 active:scale-95"
+                className="w-full py-3.5 bg-[#111] hover:bg-lux-gold/15 border border-lux-gold/40 text-lux-gold font-bold uppercase tracking-widest text-[10px] md:text-xs rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
                 </svg>
-                {t.download}
-              </button>
-              
-              <button 
-                onClick={async () => {
-                  triggerVibration(20);
-                  if (navigator.share) {
-                    try { await navigator.share({ title: "L'Édition", url: generatedCollageUrl }); } catch (e) {}
-                  } else {
-                    navigator.clipboard.writeText(generatedCollageUrl);
-                    setShowToast(true); setTimeout(() => setShowToast(false), 2000);
-                  }
-                }}
-                className="flex-[1] py-4 bg-[#111] border border-lux-gold/30 text-lux-gold font-bold uppercase tracking-widest text-xs rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2 active:scale-95"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
+                <span>
+                  {language === 'ru' ? "Напечатать этот арт (A4 / A3)" : language === 'fr' ? "Commander ce tirage d'art (A4 / A3)" : "Order Art Print (A4 / A3)"}
+                </span>
               </button>
             </motion.div>
           </motion.div>

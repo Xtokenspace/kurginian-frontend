@@ -20,7 +20,7 @@ interface BlueprintItem {
 interface PreviewData {
   blueprint: BlueprintItem[];
   bg_color: number[];
-  canvas_aspect?: "portrait" | "landscape"; // <-- Ловим форму холста
+  canvas_aspect?: "portrait" | "landscape" | "story"; // <-- Ловим форму холста (включая 9:16)
   event_title?: string;
   event_subtitle?: string;
 }
@@ -122,7 +122,7 @@ interface CollageCreatorProps {
   selectedPhotos: string[];
   trueAspectRatios?: Record<string, number>; // <-- 💎 ЗАЩИТА АРХИТЕКТУРЫ
   onClose: () => void;
-  onSuccess: (url: string, aspect?: "portrait" | "landscape") => void;
+  onSuccess: (url: string, aspect?: "portrait" | "landscape" | "story") => void;
 }
 
 const STYLES = [
@@ -137,6 +137,7 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
   const abortRef = useRef(false); // <-- Защита от всплывающего превью, если гость отменил генерацию
 
   const [selectedStyle, setSelectedStyle] = useState<number>(1);
+  const [canvasMode, setCanvasMode] = useState<'auto' | 'story'>('auto');
   const [previews, setPreviews] = useState<Record<number, PreviewData>>({});
   // 💎 ПРЕМИУМ-ИЗОЛЯЦИЯ: Храним кроп отдельно для каждой сетки стиля (id),
   // чтобы свайп в Noire не сломал пропорции в Fine Art.
@@ -184,12 +185,12 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
         
-        // Отправляем 3 параллельных запроса на быстрые WebP-макеты
+        // Отправляем 3 параллельных запроса на быстрые макеты
         const promises = STYLES.map(async (style) => {
           const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filenames: selectedPhotos, style_id: style.id, is_preview: true, aspect_ratios: trueAspectRatios }),
+            body: JSON.stringify({ filenames: selectedPhotos, style_id: style.id, is_preview: true, aspect_ratios: trueAspectRatios, canvas_mode: canvasMode }),
           });
           if (response.ok) {
             const data = await response.json();
@@ -223,7 +224,7 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
     return () => {
       isMounted = false; // Очистка при размонтировании
     };
-  }, [slug, photosKey, language]); // <-- Зависим строго от текстового ключа, а не от ссылки на массив!
+  }, [slug, photosKey, language, canvasMode]);
 
   // 2. Генерация финального HD-шедевра
   const handleGenerateFinal = async () => {
@@ -239,8 +240,8 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
       const response = await fetch(`${apiUrl}/api/weddings/${slug}/collages/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Отправляем кастомные смещения строго для выбранного стиля и ИСТИННЫЕ пропорции!
-        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets: styleOffsets[selectedStyle] || {}, aspect_ratios: trueAspectRatios }),
+        // Отправляем кастомные смещения строго для выбранного стиля, режим холста и ИСТИННЫЕ пропорции!
+        body: JSON.stringify({ filenames: selectedPhotos, style_id: selectedStyle, is_preview: false, offsets: styleOffsets[selectedStyle] || {}, aspect_ratios: trueAspectRatios, canvas_mode: canvasMode }),
       });
 
       if (!response.ok) {
@@ -358,11 +359,19 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
                 : '#111',
               // 💎 СТАБИЛИЗАЦИЯ ХОЛСТА (PREMIUM SIZE):
               width: '100%',
-              // Даем холсту дышать на десктопе, увеличивая лимиты
-              minWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '220px',
-              maxWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '640px' : '480px',
-              aspectRatio: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '5 / 4' : '4 / 5',
-              // Минимальная высота как страховка для лоадера
+              minWidth: previews[selectedStyle]?.canvas_aspect === 'landscape' ? '280px' : '210px',
+              maxWidth:
+                previews[selectedStyle]?.canvas_aspect === 'landscape'
+                  ? '640px'
+                  : previews[selectedStyle]?.canvas_aspect === 'story'
+                  ? '310px'
+                  : '460px',
+              aspectRatio:
+                previews[selectedStyle]?.canvas_aspect === 'landscape'
+                  ? '5 / 4'
+                  : previews[selectedStyle]?.canvas_aspect === 'story'
+                  ? '9 / 16'
+                  : '4 / 5',
               minHeight: '200px'
             }}
           >
@@ -446,6 +455,34 @@ export default function CollageCreator({ slug, selectedPhotos, trueAspectRatios,
             <p className="text-xs text-gray-400 uppercase tracking-widest font-mono">
               {t.subtitle} • {selectedPhotos.length} {language === 'ru' ? 'фото' : 'photos'}
             </p>
+          </div>
+
+          {/* ПЕРЕКЛЮЧАТЕЛЬ ФОРМАТА: EDITORIAL (4:5) / STORIES (9:16) */}
+          <div className="flex w-full max-w-sm bg-[#111] p-1 rounded-xl border border-white/10 mb-3">
+            <button
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setCanvasMode('auto');
+              }}
+              disabled={isLoadingPreviews || isGeneratingFinal}
+              className={`flex-1 py-2 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all ${
+                canvasMode === 'auto' ? 'bg-white/15 text-lux-gold shadow-sm' : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              Editorial (4:5)
+            </button>
+            <button
+              onClick={() => {
+                if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+                setCanvasMode('story');
+              }}
+              disabled={isLoadingPreviews || isGeneratingFinal}
+              className={`flex-1 py-2 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all ${
+                canvasMode === 'story' ? 'bg-white/15 text-lux-gold shadow-sm' : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              Stories (9:16)
+            </button>
           </div>
 
           {/* ПЕРЕКЛЮЧАТЕЛИ СТИЛЕЙ */}

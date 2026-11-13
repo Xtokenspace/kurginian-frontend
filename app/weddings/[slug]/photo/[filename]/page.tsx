@@ -91,7 +91,7 @@ export default function SinglePhotoPage({ params }: { params: Promise<{ slug: st
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [showCollageCreator, setShowCollageCreator] = useState(false);
   const [generatedCollageUrl, setGeneratedCollageUrl] = useState<string | null>(null);
-  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape">("portrait");
+  const [generatedCollageAspect, setGeneratedCollageAspect] = useState<"portrait" | "landscape" | "story">("portrait");
 
   // --- НОВОЕ: СТЕЙТЫ ПЕЧАТИ И ОТЗЫВА ---
   const [showPrintModal, setShowPrintModal] = useState(false);
