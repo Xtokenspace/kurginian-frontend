@@ -47,10 +47,20 @@ export default function StudioAdminPage() {
   const [cinemaPremiereAt, setCinemaPremiereAt] = useState('');
 
   // === СТЕЙТЫ УПРАВЛЕНИЯ ЗАКАЗАМИ (PRINT, USB BOX & 3D) ===
-  const [activeTab, setActiveTab] = useState<'projects' | 'orders'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'orders' | 'catalog3d'>('projects');
   const [ordersData, setOrdersData] = useState<{ print_orders: any[]; usb_orders: any[]; sculpture_orders?: any[] }>({ print_orders: [], usb_orders: [], sculpture_orders: [] });
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [generatingZipId, setGeneratingZipId] = useState<string | null>(null);
+
+  // === СТЕЙТЫ УПРАВЛЕНИЯ 3D-МАГАЗИНОМ (КАТЕГОРИИ, АКЦИИ, ТОВАРЫ) ===
+  const [catalog3D, setCatalog3D] = useState<any>({
+    promo: { enabled: false, badge: 'PROMO', text_fr: '', text_en: '', text_ru: '' },
+    categories: [],
+    products: []
+  });
+  const [isSavingCatalog3D, setIsSavingCatalog3D] = useState(false);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   // === СТЕЙТЫ ГЕНЕРАТОРА QR-КАРТОЧЕК (DUAL VIP + GUEST MODAL) ===
   const [qrModalSlug, setQrModalSlug] = useState<string | null>(null);
@@ -105,6 +115,7 @@ export default function StudioAdminPage() {
         setIsAuthenticated(true);
         sessionStorage.setItem('super_admin_pwd', pwd);
         fetchOrdersData(pwd);
+        fetch3DCatalog();
       } else {
         setError('Неверный мастер-пароль');
         sessionStorage.removeItem('super_admin_pwd');
@@ -136,6 +147,71 @@ export default function StudioAdminPage() {
       console.error("Ошибка загрузки заказов:", e);
     } finally {
       setIsLoadingOrders(false);
+    }
+  };
+
+  const fetch3DCatalog = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/3d/catalog`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === 'success' && json.data) {
+          setCatalog3D(json.data);
+        }
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки 3D каталога:", e);
+    }
+  };
+
+  const save3DCatalogToServer = async (updatedCatalog: any) => {
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    if (!pwd) return;
+    setIsSavingCatalog3D(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/api/admin/3d/catalog`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd, catalog: updatedCatalog }),
+      });
+      if (res.ok) {
+        setCatalog3D(updatedCatalog);
+        setEditingProduct(null);
+      } else {
+        alert("Ошибка при сохранении 3D-каталога");
+      }
+    } catch (e) {
+      alert("Ошибка сети при сохранении 3D-каталога");
+    } finally {
+      setIsSavingCatalog3D(false);
+    }
+  };
+
+  const handleUpload3DAsset = async (file: File, field: 'glb_url' | 'poster_url') => {
+    const pwd = sessionStorage.getItem('super_admin_pwd');
+    if (!pwd || !editingProduct) return;
+    setIsUploadingAsset(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const formData = new FormData();
+      formData.append('password', pwd);
+      formData.append('file', file);
+      const res = await fetch(`${apiUrl}/api/admin/3d/upload-asset`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEditingProduct((prev: any) => ({ ...prev, [field]: data.url }));
+      } else {
+        alert("Ошибка выгрузки файла в R2");
+      }
+    } catch (e) {
+      alert("Ошибка сети при выгрузке файла");
+    } finally {
+      setIsUploadingAsset(false);
     }
   };
 
@@ -598,6 +674,16 @@ export default function StudioAdminPage() {
                       ) : null;
                     })()}
                   </button>
+                  <button
+                    onClick={() => setActiveTab('catalog3d')}
+                    className={`px-5 py-2.5 text-xs font-bold uppercase tracking-widest transition-all rounded-sm ${
+                      activeTab === 'catalog3d'
+                        ? 'bg-lux-gold text-black shadow-gold-glow'
+                        : 'bg-[#0f0f0f] text-gray-400 border border-white/10 hover:text-white'
+                    }`}
+                  >
+                    3D Shop Catalog ({(catalog3D.products || []).length})
+                  </button>
                 </div>
 
                 {activeTab === 'orders' && (
@@ -613,7 +699,529 @@ export default function StudioAdminPage() {
                 )}
               </div>
 
-              {activeTab === 'projects' ? (
+              {activeTab === 'catalog3d' ? (
+                <div className="space-y-10">
+                  {/* === 1. АКЦИОННЫЙ БАННЕР НА ВИТРИНЕ 3D === */}
+                  <div className="bg-[#0f0f0f] border border-lux-gold/30 p-6 rounded-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-white/10 pb-4">
+                      <div>
+                        <h3 className="font-cinzel text-lg text-lux-gold uppercase tracking-widest">Акционный баннер (Promo Banner)</h3>
+                        <p className="text-xs text-gray-500 font-mono">Отображается в шапке страницы kurginian.pro/3d</p>
+                      </div>
+                      <label className="flex items-center gap-2 cursor-pointer text-xs uppercase tracking-widest">
+                        <input
+                          type="checkbox"
+                          checked={catalog3D.promo?.enabled || false}
+                          onChange={(e) => setCatalog3D({ ...catalog3D, promo: { ...catalog3D.promo, enabled: e.target.checked } })}
+                          className="accent-[#D4AF37] w-4 h-4"
+                        />
+                        <span className="text-lux-gold font-bold">Активен</span>
+                      </label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase mb-1">Золотой бейдж</label>
+                        <input
+                          type="text"
+                          value={catalog3D.promo?.badge || ''}
+                          onChange={(e) => setCatalog3D({ ...catalog3D, promo: { ...catalog3D.promo, badge: e.target.value } })}
+                          placeholder="PROMO -20%"
+                          className="w-full bg-black border border-white/10 p-2.5 text-xs text-lux-gold font-bold outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase mb-1">Текст акции (FR)</label>
+                        <input
+                          type="text"
+                          value={catalog3D.promo?.text_fr || ''}
+                          onChange={(e) => setCatalog3D({ ...catalog3D, promo: { ...catalog3D.promo, text_fr: e.target.value } })}
+                          className="w-full bg-black border border-white/10 p-2.5 text-xs text-white outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase mb-1">Текст акции (EN)</label>
+                        <input
+                          type="text"
+                          value={catalog3D.promo?.text_en || ''}
+                          onChange={(e) => setCatalog3D({ ...catalog3D, promo: { ...catalog3D.promo, text_en: e.target.value } })}
+                          className="w-full bg-black border border-white/10 p-2.5 text-xs text-white outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-gray-500 uppercase mb-1">Текст акции (RU)</label>
+                        <input
+                          type="text"
+                          value={catalog3D.promo?.text_ru || ''}
+                          onChange={(e) => setCatalog3D({ ...catalog3D, promo: { ...catalog3D.promo, text_ru: e.target.value } })}
+                          className="w-full bg-black border border-white/10 p-2.5 text-xs text-white outline-none"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => save3DCatalogToServer(catalog3D)}
+                      disabled={isSavingCatalog3D}
+                      className="px-5 py-2.5 bg-lux-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all"
+                    >
+                      {isSavingCatalog3D ? 'Сохранение...' : 'Сохранить баннер и категории'}
+                    </button>
+                  </div>
+
+                  {/* === 2. УПРАВЛЕНИЕ КАТЕГОРИЯМИ (ДОБАВЛЕНИЕ / ПЕРЕИМЕНОВАНИЕ / УДАЛЕНИЕ) === */}
+                  <div className="bg-[#0f0f0f] border border-white/10 p-6 rounded-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-white/10 pb-4">
+                      <div>
+                        <h3 className="font-cinzel text-lg text-white uppercase tracking-widest">Категории 3D-магазина</h3>
+                        <p className="text-xs text-gray-500 font-mono">Меняйте названия на 3 языках, добавляйте новые или удаляйте</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const newId = `cat_${Date.now().toString().slice(-4)}`;
+                          const updated = {
+                            ...catalog3D,
+                            categories: [...(catalog3D.categories || []), { id: newId, name_fr: 'Nouvelle', name_en: 'New Category', name_ru: 'Новая категория' }]
+                          };
+                          setCatalog3D(updated);
+                        }}
+                        className="px-4 py-2 border border-lux-gold text-lux-gold hover:bg-lux-gold hover:text-black text-xs font-bold uppercase tracking-widest transition-all"
+                      >
+                        + Добавить категорию
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                      {(catalog3D.categories || []).map((cat: any, idx: number) => (
+                        <div key={cat.id} className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-black/50 p-3 border border-white/5 items-center">
+                          <div className="text-xs font-mono text-gray-500">ID: <span className="text-lux-gold">{cat.id}</span></div>
+                          <input
+                            type="text"
+                            value={cat.name_fr || ''}
+                            onChange={(e) => {
+                              const next = [...catalog3D.categories];
+                              next[idx] = { ...cat, name_fr: e.target.value };
+                              setCatalog3D({ ...catalog3D, categories: next });
+                            }}
+                            placeholder="Название FR"
+                            className="bg-[#0a0a0a] border border-white/10 p-2 text-xs text-white outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={cat.name_en || ''}
+                            onChange={(e) => {
+                              const next = [...catalog3D.categories];
+                              next[idx] = { ...cat, name_en: e.target.value };
+                              setCatalog3D({ ...catalog3D, categories: next });
+                            }}
+                            placeholder="Название EN"
+                            className="bg-[#0a0a0a] border border-white/10 p-2 text-xs text-white outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={cat.name_ru || ''}
+                            onChange={(e) => {
+                              const next = [...catalog3D.categories];
+                              next[idx] = { ...cat, name_ru: e.target.value };
+                              setCatalog3D({ ...catalog3D, categories: next });
+                            }}
+                            placeholder="Название RU"
+                            className="bg-[#0a0a0a] border border-white/10 p-2 text-xs text-white outline-none"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!confirm(`Удалить категорию "${cat.name_ru}"?`)) return;
+                              const next = catalog3D.categories.filter((_: any, i: number) => i !== idx);
+                              save3DCatalogToServer({ ...catalog3D, categories: next });
+                            }}
+                            className="text-xs text-red-400 hover:text-red-300 uppercase tracking-widest justify-self-end px-3 py-1 border border-red-500/30"
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => save3DCatalogToServer(catalog3D)}
+                      disabled={isSavingCatalog3D}
+                      className="px-5 py-2.5 bg-white/10 hover:bg-lux-gold hover:text-black text-white font-bold text-xs uppercase tracking-widest transition-all"
+                    >
+                      Сохранить изменения категорий
+                    </button>
+                  </div>
+
+                  {/* === 3. СПИСОК ТОВАРОВ И КНОПКА СОЗДАНИЯ === */}
+                  <div className="bg-[#0f0f0f] border border-white/10 p-6 rounded-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-6 border-b border-white/10 pb-4">
+                      <div>
+                        <h3 className="font-cinzel text-lg text-lux-gold uppercase tracking-widest">Товары 3D-Магазина ({(catalog3D.products || []).length})</h3>
+                        <p className="text-xs text-gray-500 font-mono">Статуэтки, кастомные флешки, вазы и декор с 3D-моделями (.glb)</p>
+                      </div>
+                      <button
+                        onClick={() =>
+                          setEditingProduct({
+                            id: `prod_${Date.now().toString().slice(-5)}`,
+                            category: catalog3D.categories?.[0]?.id || 'sculptures',
+                            active: true,
+                            title_fr: '',
+                            title_en: '',
+                            title_ru: '',
+                            desc_fr: '',
+                            desc_en: '',
+                            desc_ru: '',
+                            glb_url: '',
+                            poster_url: '',
+                            price: 50,
+                            old_price: 0,
+                            requires_photo: false,
+                            allows_engraving: true,
+                            allows_finish_switch: true,
+                            allows_custom_size: false,
+                            sizes: [
+                              { label: 'Standard', price_color: 50, price_mono: 45 }
+                            ]
+                          })
+                        }
+                        className="px-5 py-3 bg-lux-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all shadow-gold-glow"
+                      >
+                        + Добавить 3D-товар
+                      </button>
+                    </div>
+
+                    {/* Форма редактирования / создания товара */}
+                    {editingProduct && (
+                      <div className="bg-black border-2 border-lux-gold p-6 mb-8 rounded-sm space-y-5">
+                        <div className="flex justify-between items-center border-b border-white/10 pb-3">
+                          <h4 className="font-cinzel text-base text-lux-gold uppercase tracking-widest">
+                            Редактирование товара: {editingProduct.title_ru || editingProduct.id}
+                          </h4>
+                          <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-white text-sm">✕ Закрыть</button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Категория</label>
+                            <select
+                              value={editingProduct.category}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            >
+                              {(catalog3D.categories || []).map((c: any) => (
+                                <option key={c.id} value={c.id}>{c.name_ru} ({c.name_fr})</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Базовая цена (€)</label>
+                            <input
+                              type="number"
+                              value={editingProduct.price}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-lux-gold font-bold outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Старая цена до скидки (€, 0 = без акции)</label>
+                            <input
+                              type="number"
+                              value={editingProduct.old_price || 0}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, old_price: Number(e.target.value) })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Название (FR)</label>
+                            <input
+                              type="text"
+                              value={editingProduct.title_fr}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, title_fr: e.target.value })}
+                              placeholder="Ex: Coffret USB Cristal 3D"
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Название (EN)</label>
+                            <input
+                              type="text"
+                              value={editingProduct.title_en}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, title_en: e.target.value })}
+                              placeholder="Ex: 3D Crystal USB Drive"
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Название (RU)</label>
+                            <input
+                              type="text"
+                              value={editingProduct.title_ru}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, title_ru: e.target.value })}
+                              placeholder="Например: Кастомная 3D-флешка"
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Описание (FR)</label>
+                            <textarea
+                              rows={2}
+                              value={editingProduct.desc_fr}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, desc_fr: e.target.value })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Описание (EN)</label>
+                            <textarea
+                              rows={2}
+                              value={editingProduct.desc_en}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, desc_en: e.target.value })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 uppercase mb-1">Описание (RU)</label>
+                            <textarea
+                              rows={2}
+                              value={editingProduct.desc_ru}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, desc_ru: e.target.value })}
+                              className="w-full bg-[#111] border border-white/20 p-2.5 text-xs text-white outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Загрузка 3D-модели .glb и обложки .webp/.jpg в R2 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/10">
+                          <div>
+                            <label className="block text-[10px] text-lux-gold uppercase font-bold mb-1">Файл 3D-модели (.glb)</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editingProduct.glb_url}
+                                onChange={(e) => setEditingProduct({ ...editingProduct, glb_url: e.target.value })}
+                                placeholder="https://cdn.kurginian.pro/3d_catalog/..."
+                                className="flex-1 bg-[#111] border border-white/20 p-2 text-xs text-gray-300 font-mono outline-none"
+                              />
+                              <label className="px-3 py-2 bg-lux-gold text-black text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-white shrink-0 flex items-center">
+                                {isUploadingAsset ? '...' : 'Загрузить .GLB'}
+                                <input
+                                  type="file"
+                                  accept=".glb"
+                                  className="hidden"
+                                  onChange={(e) => e.target.files?.[0] && handleUpload3DAsset(e.target.files[0], 'glb_url')}
+                                />
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] text-lux-gold uppercase font-bold mb-1">Превью-обложка (.webp / .jpg)</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editingProduct.poster_url}
+                                onChange={(e) => setEditingProduct({ ...editingProduct, poster_url: e.target.value })}
+                                placeholder="https://cdn.kurginian.pro/3d_catalog/..."
+                                className="flex-1 bg-[#111] border border-white/20 p-2 text-xs text-gray-300 font-mono outline-none"
+                              />
+                              <label className="px-3 py-2 bg-white/15 text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:bg-lux-gold hover:text-black shrink-0 flex items-center">
+                                {isUploadingAsset ? '...' : 'Загрузить Фото'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => e.target.files?.[0] && handleUpload3DAsset(e.target.files[0], 'poster_url')}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Опции конструктора для этого товара */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t border-white/10 text-xs">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingProduct.requires_photo}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, requires_photo: e.target.checked })}
+                              className="accent-[#D4AF37]"
+                            />
+                            <span>Требовать загрузку фото</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingProduct.allows_engraving}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, allows_engraving: e.target.checked })}
+                              className="accent-[#D4AF37]"
+                            />
+                            <span>Поле гравировки</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingProduct.allows_finish_switch}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, allows_finish_switch: e.target.checked })}
+                              className="accent-[#D4AF37]"
+                            />
+                            <span>Выбор Цвет / Монохром</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingProduct.allows_custom_size}
+                              onChange={(e) => setEditingProduct({ ...editingProduct, allows_custom_size: e.target.checked })}
+                              className="accent-[#D4AF37]"
+                            />
+                            <span>Кнопка «Sur-Mesure»</span>
+                          </label>
+                        </div>
+
+                        {/* Размеры и цены */}
+                        <div className="pt-2 border-t border-white/10">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-widest">Варианты размеров / модификаций</span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditingProduct({
+                                  ...editingProduct,
+                                  sizes: [...(editingProduct.sizes || []), { label: 'New', price_color: editingProduct.price, price_mono: editingProduct.price }]
+                                })
+                              }
+                              className="text-[10px] text-lux-gold uppercase border border-lux-gold/40 px-2 py-1"
+                            >
+                              + Добавить размер
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {(editingProduct.sizes || []).map((sz: any, sIdx: number) => (
+                              <div key={sIdx} className="grid grid-cols-4 gap-2 items-center">
+                                <input
+                                  type="text"
+                                  value={sz.label}
+                                  onChange={(e) => {
+                                    const next = [...editingProduct.sizes];
+                                    next[sIdx] = { ...sz, label: e.target.value };
+                                    setEditingProduct({ ...editingProduct, sizes: next });
+                                  }}
+                                  placeholder="Размер (напр. 20cm или 64GB)"
+                                  className="bg-[#111] border border-white/20 p-2 text-xs text-white"
+                                />
+                                <input
+                                  type="number"
+                                  value={sz.price_color}
+                                  onChange={(e) => {
+                                    const next = [...editingProduct.sizes];
+                                    next[sIdx] = { ...sz, price_color: Number(e.target.value) };
+                                    setEditingProduct({ ...editingProduct, sizes: next });
+                                  }}
+                                  placeholder="Цена Покр. 1 (€)"
+                                  className="bg-[#111] border border-white/20 p-2 text-xs text-lux-gold"
+                                />
+                                <input
+                                  type="number"
+                                  value={sz.price_mono}
+                                  onChange={(e) => {
+                                    const next = [...editingProduct.sizes];
+                                    next[sIdx] = { ...sz, price_mono: Number(e.target.value) };
+                                    setEditingProduct({ ...editingProduct, sizes: next });
+                                  }}
+                                  placeholder="Цена Монохром (€)"
+                                  className="bg-[#111] border border-white/20 p-2 text-xs text-gray-300"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const next = editingProduct.sizes.filter((_: any, i: number) => i !== sIdx);
+                                    setEditingProduct({ ...editingProduct, sizes: next });
+                                  }}
+                                  className="text-xs text-red-400 uppercase"
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct(null)}
+                            className="px-5 py-2.5 border border-white/20 text-xs uppercase tracking-widest text-gray-400"
+                          >
+                            Отмена
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const existingIdx = (catalog3D.products || []).findIndex((p: any) => p.id === editingProduct.id);
+                              const nextProducts = [...(catalog3D.products || [])];
+                              if (existingIdx >= 0) {
+                                nextProducts[existingIdx] = editingProduct;
+                              } else {
+                                nextProducts.push(editingProduct);
+                              }
+                              save3DCatalogToServer({ ...catalog3D, products: nextProducts });
+                            }}
+                            className="px-6 py-2.5 bg-lux-gold text-black font-bold text-xs uppercase tracking-widest hover:bg-white transition-all"
+                          >
+                            Сохранить товар в каталог
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Карточки существующих товаров */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(catalog3D.products || []).map((prod: any) => (
+                        <div key={prod.id} className="bg-black/60 border border-white/10 p-4 flex flex-col justify-between gap-4">
+                          <div className="flex gap-4">
+                            <div className="w-20 h-20 bg-[#111] border border-white/10 shrink-0 overflow-hidden flex items-center justify-center">
+                              {prod.poster_url ? (
+                                <img src={prod.poster_url} alt={prod.title_ru} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] text-lux-gold font-mono">3D GLB</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[10px] text-lux-gold uppercase tracking-widest font-mono">{prod.category}</div>
+                              <div className="font-cinzel text-sm text-white truncate">{prod.title_ru || prod.title_fr}</div>
+                              <div className="text-xs font-bold text-white mt-1">
+                                {prod.price} €
+                                {prod.old_price > prod.price && (
+                                  <span className="text-gray-500 line-through ml-2 text-[11px]">{prod.old_price} €</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/5">
+                            <button
+                              onClick={() => setEditingProduct(prod)}
+                              className="flex-1 py-2 bg-white/10 hover:bg-lux-gold hover:text-black text-xs uppercase tracking-widest transition-all font-bold"
+                            >
+                              Редактировать
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (!confirm(`Удалить товар "${prod.title_ru || prod.title_fr}"?`)) return;
+                                const next = catalog3D.products.filter((p: any) => p.id !== prod.id);
+                                save3DCatalogToServer({ ...catalog3D, products: next });
+                              }}
+                              className="px-3 py-2 border border-red-500/30 text-red-400 hover:bg-red-600 hover:text-white text-xs uppercase tracking-widest transition-all"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : activeTab === 'projects' ? (
                 <div className="bg-[#0f0f0f] border border-white/5 rounded-sm overflow-hidden">
                   {stats?.active_weddings_list?.length > 0 ? (
                     <div className="divide-y divide-white/5">
